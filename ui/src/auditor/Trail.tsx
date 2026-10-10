@@ -27,6 +27,31 @@ const dayKey = (ts: string) => {
 };
 const isRead = (tool: string) => /^(get_|list_|explain_|whoami|query_)/.test(tool);
 
+// A tool call in plain words: "get_samples" reads "Read the samples". The tool's
+// own name stays beside it, because the trail records every MCP call by name.
+const verbs: [RegExp, string][] = [
+  [/^get_|^list_|^query_/, "Read the "],
+  [/^explain_/, "Explain a "],
+  [/^verify_/, "Verify the "],
+  [/^select_/, "Select "],
+  [/^upload_/, "Upload the "],
+  [/^export_/, "Export the "],
+  [/^draft_/, "Draft the "],
+  [/^confirm_/, "Decide a "],
+  [/^record_|^create_|^issue_|^generate_|^file_|^import_|^post_|^set_/, ""],
+];
+export function plainTool(tool: string): string {
+  for (const [re, verb] of verbs) {
+    if (re.test(tool)) {
+      const rest = tool.replace(re, "").replace(/_/g, " ");
+      const text = verb ? verb + rest : tool.replace(/_/g, " ");
+      return text.charAt(0).toUpperCase() + text.slice(1);
+    }
+  }
+  const text = tool.replace(/_/g, " ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
 export default function Trail({ pulse }: ViewProps) {
   const [rows, setRows] = useState<Entry[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -53,7 +78,7 @@ export default function Trail({ pulse }: ViewProps) {
           seq: e.trail_seq,
           hash: e.hash,
           prev: e.prev_hash,
-          title: e.tool.replace(/_/g, " "),
+          title: plainTool(e.tool),
           who: `${roleLabel[e.role] ?? e.role}, ${new Date(e.ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`,
           ok: e.status === "ok",
         })),
@@ -341,7 +366,7 @@ export default function Trail({ pulse }: ViewProps) {
           <Pills value={rowView} onChange={setRowView} options={[{ value: "ledger", label: "Ledger" }, { value: "table", label: "Table" }]} />
         </span>
         <span className="text-[14px] text-ink-2">
-          {plural(shown.length, "entry", "entries")} shown; <span className="num">{rows.length.toLocaleString("en-IN")}</span> loaded of <span className="num">{total.toLocaleString("en-IN")}</span> entries in the trail
+          <span className="num font-semibold text-ink">{shown.length.toLocaleString("en-IN")}</span> shown, latest <span className="num">{rows.length.toLocaleString("en-IN")}</span> of <span className="num">{total.toLocaleString("en-IN")}</span>
         </span>
         {person && (
           <button onClick={() => setPerson("")} className="text-[14px] font-medium text-brand hover:underline">
@@ -371,13 +396,14 @@ export default function Trail({ pulse }: ViewProps) {
                   group: new Date(e.ts).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" }),
                   title: (
                     <>
-                      <span className={cx("font-mono text-xs", isRead(e.tool) ? "text-ink-2" : "text-ink")}>{e.tool}</span>
+                      <span className={isRead(e.tool) ? "text-ink-2" : "text-ink"}>{plainTool(e.tool)}</span>
+                      <span className="ml-2 font-mono text-[12px] font-normal text-ink-3">{e.tool}</span>
                       <span className="ml-2 font-normal text-ink-2">
                         {e.user}, {roleLabel[e.role] ?? e.role}
                       </span>
                     </>
                   ),
-                  meta: `Entry ${e.trail_seq}, ${new Date(e.ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`,
+                  meta: `Entry ${e.trail_seq.toLocaleString("en-IN")}, ${new Date(e.ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`,
                   status: <Status tone={e.status === "ok" ? "good" : e.status === "permission_denied" ? "bad" : "warn"}>{resultLabel[e.status] ?? e.status.replace(/_/g, " ")}</Status>,
                   detail: (
                     <>
