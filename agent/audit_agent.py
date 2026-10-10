@@ -28,7 +28,6 @@ import argparse
 import json
 import os
 import re
-import secrets
 import subprocess
 import sys
 import time
@@ -57,7 +56,7 @@ Tools. A star marks a required argument.
 
 TASK = """Run the statutory revenue audit for the period {start} to {end}.
 
-1. Call open_engagement with period_start {start}, period_end {end} and seed "{seed}", and no other argument.
+1. Call open_engagement with period_start {start}, period_end {end}{seed}, and no other argument.
    Pass the engagement_id it returns on every later call.
 2. Call get_audit_plan once. It lists every step in order. Then call the tool of each step in that order. Put
    several calls in one reply whenever you can: the steps need no argument but engagement_id. Call get_audit_plan
@@ -232,10 +231,10 @@ def wait_for_client(mcp: Mcp, engagement_id: str | None, client_cmd: str | None,
                       | {"next_step": "Call verify_evidence. Samples with no documents stay Pending evidence."})
 
 
-def follow_plan(mcp: Mcp, args, seed: str) -> int:
+def follow_plan(mcp: Mcp, args) -> int:
     """Run the plan with no model. This checks the connection and the tools. It is not an agent."""
-    opened = json.loads(mcp.call("open_engagement", {"period_start": args.period_start, "period_end": args.period_end,
-                                                    "seed": seed}))
+    opened = json.loads(mcp.call("open_engagement", {"period_start": args.period_start, "period_end": args.period_end}
+                                 | ({"seed": args.seed} if args.seed else {})))
     eid = opened["engagement_id"]
     print(f"engagement {eid}, snapshot at event {opened.get('snapshot_seq')}")
     for _ in range(args.max_turns):
@@ -265,7 +264,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Run the revenue audit as an agent that holds only an auditor identity.")
     ap.add_argument("--period-start", default="2025-04-01")
     ap.add_argument("--period-end", default="2026-03-31")
-    ap.add_argument("--seed", default=None, help="Sampling seed. A new one is generated when omitted.")
+    ap.add_argument("--seed", default=None, help="Sampling seed chosen by hand. Omit it to use the sealed seed, which nobody chooses.")
     ap.add_argument("--client-cmd", default=None,
                     help="Command that answers the evidence requests as the client, run when the agent waits for evidence.")
     ap.add_argument("--wait", type=int, default=120, help="Seconds to wait for the client's documents.")
@@ -285,9 +284,8 @@ def main() -> int:
     tools = [t for t in mcp.rpc("tools/list")["tools"] if t["name"] not in HUMAN_ONLY]
     names = {t["name"] for t in tools}
     print(f"connected to {hello['serverInfo'].get('title') or hello['serverInfo']['name']}: {len(tools)} tools")
-    seed = args.seed or secrets.token_hex(8)
     if args.no_model:
-        return follow_plan(mcp, args, seed)
+        return follow_plan(mcp, args)
 
     model = args.model or os.environ.get("AGENT_MODEL") or os.environ.get("LLM_MODEL")
     missing = [v for v in ("LLM_URL", "LLM_API_KEY") if not os.environ.get(v)] + ([] if model else ["AGENT_MODEL"])
@@ -299,10 +297,11 @@ def main() -> int:
     system = "\n\n".join([hello.get("instructions", ""), PROTOCOL + catalogue(tools) + (
         f"\n- {WAIT_TOOL}(engagement_id: string): Wait for the client to upload the documents requested for the "
         "samples. Call after the select tools and before verify_evidence.")])
-    task = TASK.format(start=args.period_start, end=args.period_end, seed=seed, wait=WAIT_TOOL)
+    task = TASK.format(start=args.period_start, end=args.period_end, wait=WAIT_TOOL,
+                       seed=f' and seed "{args.seed}"' if args.seed else "")
     log = open(args.transcript, "a", encoding="utf-8") if args.transcript else None
     turns: list[dict] = []
-    print(f"model {chat.model}, seed {seed}")
+    print(f"model {chat.model}, {'seed ' + args.seed if args.seed else 'sealed seed'}")
     for n in range(1, args.max_turns + 1):
         # Stay under the request size limit by shortening tool results, the latest ones last.
         latest, older = KEEP_LATEST, KEEP_OLDER

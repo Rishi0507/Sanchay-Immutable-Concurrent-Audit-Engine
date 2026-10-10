@@ -112,7 +112,13 @@ func appendEvent(ctx context.Context, d *Deps, ev *catalogue.Event, c *core.Call
 			payload[k] = v
 		}
 	}
-	if fileTools[ev.Tool] {
+	if declines(ev, c.Args) {
+		// The client states that the document does not exist. There is no file to store.
+		if core.Str(c.Args, "file_hash") != "" || core.Str(c.Args, "content_base64") != "" {
+			return nil, core.Errf(core.CodeValidationFailed, "Send the file, or set not_available with a note. Not both.", "A file was sent together with not_available.")
+		}
+		delete(payload, "file_name")
+	} else if fileTools[ev.Tool] {
 		if terr := resolveFile(ctx, d, ev, c.Args, payload); terr != nil {
 			return nil, terr
 		}
@@ -190,7 +196,31 @@ func appendEvent(ctx context.Context, d *Deps, ev *catalogue.Event, c *core.Call
 	if next := nextSteps[ev.Tool]; next != "" {
 		out["next_step"] = next
 	}
+	if ev.Tool == "upload_sales_register" {
+		sealSampling(ctx, d, c.Identity, res.Seq, out)
+	}
 	return out, nil
+}
+
+// declines reports whether an evidence request is answered with "no such
+// document" instead of a file.
+func declines(ev *catalogue.Event, args map[string]any) bool {
+	no, _ := args["not_available"].(bool)
+	return ev.Tool == "upload_evidence" && no
+}
+
+// sealSampling has the engine fix the secret behind the sampling seed as the
+// register arrives, and hands its hash to the client in the upload result. The
+// client then holds proof that the seed was settled before the auditor saw the
+// register. If the engine is unreachable the upload still stands, and the seal
+// is made when the engagement opens.
+func sealSampling(ctx context.Context, d *Deps, id core.Identity, seq int64, out map[string]any) {
+	seal, terr := d.Engine.Do(ctx, id, "POST", "/sampling/seal", map[string]any{"upload_seq": seq})
+	if terr != nil {
+		return
+	}
+	out["sampling_commitment"] = seal["commitment"]
+	out["sampling_note"] = "The auditor's sampling seed is sealed. Keep sampling_commitment: after the engagement opens, verify_sampling_seal shows the secret, and its SHA-256 must equal this value."
 }
 
 // resolveSale links the event to a sale according to the catalogue rule.

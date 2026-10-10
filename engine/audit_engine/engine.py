@@ -13,7 +13,7 @@ from typing import Any, Callable
 from . import chain
 from .config import Settings, load_thresholds
 from .findings import make_finding
-from .repo import AuditRepo, engagements
+from .repo import AuditRepo, engagements, sampling_seals
 from .snapshot import Snapshot, d
 from .store import open_business_store, open_file_store
 
@@ -239,7 +239,12 @@ class Engine:
         if unknown:
             raise EngineError("VALIDATION_FAILED", f"No client upload exists for entity {', '.join(map(str, unknown))}.",
                               f"Leave entity_ids out, or use one of: {', '.join(known)}.")
-        seed = str(seed) if seed not in (None, "") else secrets.token_hex(8)
+        if seed in (None, ""):
+            # No one picks the seed: it follows from a secret sealed when the register arrived and from
+            # the frozen ledger. The same register and snapshot always open the same engagement.
+            seed = self.sealed_seed(self.seal_sampling(reg[-1]["seq"], when="opening")["nonce"], head_hash)
+        else:
+            seed = str(seed)
         raw = f"{ps}|{pe}|{','.join(sorted(entity_ids))}|{head_seq}|{seed}"
         eid = "eng_" + hashlib.sha256(raw.encode()).hexdigest()[:16]
         existing = self.repo.first(engagements, engagement_id=eid)
@@ -267,6 +272,79 @@ class Engine:
     def _client_name(self, entity_id: str) -> str:
         prof = (self.company_profile().get("entities") or {}).get(entity_id) or {}
         return prof.get("name") or entity_id
+
+    # Sealed sampling seed (PRD 12.5)
+
+    @staticmethod
+    def sealed_seed(nonce: str, snapshot_hash: str) -> str:
+        return hashlib.sha256(f"{nonce}|{snapshot_hash}".encode()).hexdigest()[:16]
+
+    def seal_sampling(self, upload_seq: int | None = None, when: str = "upload") -> dict:
+        """Fix the secret behind the sampling seed for one register upload. Sealing twice returns the first seal.
+
+        Only the hash of the secret leaves the engine before an engagement
+        opens. The client holds that hash from the moment it uploads, so the
+        secret cannot be exchanged afterwards for one that gives other samples.
+        """
+        if upload_seq is None:
+            ups = list(self.business.events(types=("SalesRegisterUploaded",)))
+            if not ups:
+                raise EngineError("MISSING_UPLOAD", "No sales register has been uploaded.",
+                                  "Ask the client to call upload_sales_register.")
+            upload_seq = ups[-1]["seq"]
+        nonce = secrets.token_hex(32)
+        self.repo.insert(sampling_seals, {
+            "register_upload_seq": int(upload_seq), "commitment": hashlib.sha256(nonce.encode()).hexdigest(),
+            "nonce": nonce, "sealed_when": when,
+            "sealed_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")})
+        return self.repo.first(sampling_seals, register_upload_seq=int(upload_seq))
+
+    def sampling_seal(self, engagement_id: str | None = None) -> dict:
+        """What anyone needs to check how the sampling seed came about. The secret appears once an engagement is open."""
+        if engagement_id:
+            eng = self.resolve(engagement_id)
+            upload_seq = eng.get("register_upload_seq")
+        else:
+            ups = list(self.business.events(types=("SalesRegisterUploaded",)))
+            if not ups:
+                raise EngineError("MISSING_UPLOAD", "No sales register has been uploaded.",
+                                  "Ask the client to call upload_sales_register.")
+            upload_seq = ups[-1]["seq"]
+            opened = [e for e in self.repo.select(engagements, order_by=engagements.c.opened_at)
+                      if e.get("register_upload_seq") == upload_seq]
+            sealed = [e for e in opened if self._seal_source(e) == "sealed"]
+            eng = (sealed or opened or [None])[0]
+        seal = self.repo.first(sampling_seals, register_upload_seq=upload_seq) if upload_seq is not None else None
+        out: dict[str, Any] = {"register_upload_seq": upload_seq, "commitment": seal["commitment"] if seal else None,
+                               "sealed_when": seal["sealed_when"] if seal else None,
+                               "sealed_at": seal["sealed_at"] if seal else None}
+        if not eng:
+            return out | {"status": "sealed" if seal else "not sealed", "engagement_id": None,
+                          "explanation": "The seed is sealed. The secret behind it is shown when an engagement opens."
+                          if seal else "This register upload has no seal yet. One is made when an engagement opens."}
+        source = self._seal_source(eng)
+        out |= {"engagement_id": eng["engagement_id"], "seed": eng["seed"], "snapshot_hash": eng["snapshot_hash"],
+                "source": source}
+        if source != "sealed":
+            return out | {"status": "chosen", "explanation": "The auditor supplied this seed. It was not sealed."}
+        nonce = seal["nonce"]
+        checks = {"commitment_is_hash_of_secret": hashlib.sha256(nonce.encode()).hexdigest() == seal["commitment"],
+                  "seed_follows_from_secret_and_snapshot": self.sealed_seed(nonce, eng["snapshot_hash"]) == eng["seed"],
+                  "sealed_when_the_register_arrived": seal["sealed_when"] == "upload"}
+        if not (checks["commitment_is_hash_of_secret"] and checks["seed_follows_from_secret_and_snapshot"]):
+            status = "failed"
+        else:
+            # A seal made only at opening still stops the seed being re-drawn, but the client did not hold its hash first.
+            status = "verified" if checks["sealed_when_the_register_arrived"] else "sealed at opening"
+        return out | {
+            "status": status, "secret": nonce, "checks": checks,
+            "how_to_check": "SHA-256 of the secret must equal the commitment the client received on upload. "
+                            "The first 16 hex characters of SHA-256 of secret|snapshot_hash must equal the seed."}
+
+    def _seal_source(self, eng: dict) -> str:
+        seal = self.repo.first(sampling_seals, register_upload_seq=eng.get("register_upload_seq")) \
+            if eng.get("register_upload_seq") is not None else None
+        return "sealed" if seal and self.sealed_seed(seal["nonce"], eng["snapshot_hash"]) == eng["seed"] else "chosen"
 
     @staticmethod
     def _engagement_view(e: dict) -> dict:

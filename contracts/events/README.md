@@ -74,7 +74,7 @@ Every amount is in paise. Every percentage is in basis points. Referenced ids ar
 | `DocumentReversed` | target aggregate id | `target_aggregate_id`, `reason` | any aggregate |
 | `SalesRegisterUploaded` | `upload:<file_hash>` | `file_hash`, `file_name`, `row_count`, `period_start`, `period_end` | |
 | `RelatedPartyListUploaded` | `upload:<file_hash>` | `file_hash`, `file_name`, `parties[] {name, pan, gstin, relationship, effective_from}` | |
-| `EvidenceUploaded` | `evidence:<file_hash>:<request_id>` | `sample_id`, `request_id`, `document_type`, `file_hash`, `file_name` | |
+| `EvidenceUploaded` | `evidence:<file_hash>:<request_id>` | `sample_id`, `request_id`, `document_type`, `file_hash`, `file_name`. To state that the document does not exist: `not_available` true and `note`, with no file. | |
 
 Shared sub-objects:
 

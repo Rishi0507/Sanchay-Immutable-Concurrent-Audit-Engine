@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse
 from . import __version__
 from .changes import check_post_testing_changes
 from .engine import STEPS, Engine, EngineError
-from .evidence.service import request_evidence, request_status, verify_evidence
+from .evidence.service import control_summary, request_evidence, request_status, verify_evidence
 from .findings_service import all_findings, confirm_finding, sign_off
 from .graph import build_graph
 from .integrity import integrity_report
@@ -72,7 +72,7 @@ def recon_code(label: str | None) -> str | None:
 
 
 EVIDENCE_STATUS = {"requested": "pending", "uploaded": "received", "verified": "verified",
-                   "replaced after verification": "received"}
+                   "replaced after verification": "received", "declined": "declined"}
 
 
 @lru_cache(maxsize=1)
@@ -134,7 +134,8 @@ def header(e: dict) -> dict:
             "period_end": _iso(e["period_end"]), "seed": e["seed"], "snapshot_seq": e["snapshot_seq"],
             "snapshot_hash": e["snapshot_hash"], "merkle_root": e.get("merkle_root"), "entity_ids": e.get("entity_ids"),
             "opened_by": e.get("opened_by"), "opened_at": e.get("opened_at"),
-            "signed_off": eng.repo.is_closed(e["engagement_id"])}
+            "signed_off": eng.repo.is_closed(e["engagement_id"]),
+            "seed_source": eng._seal_source(e)}
 
 
 def plan_steps(eid: str | None) -> tuple[list[dict], str | None]:
@@ -182,6 +183,21 @@ def open_engagement(request: Request, body: dict = Body(default={})):
     return header(engine().repo.first(engagements, engagement_id=out["engagement_id"]))
 
 
+@app.post("/sampling/seal")
+def post_sampling_seal(request: Request, body: dict = Body(default={})):
+    """Seal the sampling seed for a register upload. The MCP server calls this as the register arrives."""
+    who(request, ("client_employee",) + AUDIT)
+    seal = engine().seal_sampling(body.get("upload_seq"), when="upload")
+    return {"register_upload_seq": seal["register_upload_seq"], "commitment": seal["commitment"],
+            "sealed_when": seal["sealed_when"], "sealed_at": seal["sealed_at"]}
+
+
+@app.get("/sampling/seal")
+def get_sampling_seal(request: Request, engagement_id: str | None = None):
+    who(request, ("client_employee",) + AUDIT)
+    return engine().sampling_seal(engagement_id)
+
+
 @app.get("/engagements")
 def list_engagements(request: Request):
     who(request)
@@ -201,7 +217,7 @@ def engagement_status(request: Request, engagement_id: str | None = None):
     out.update({"steps": steps, "next_tool": next_tool,
                 "counts": {"findings_by_severity": {k: sev.get(k, 0) for k in ("High", "Medium", "Low")},
                            "samples_by_sheet": {k: sheets.get(k, 0) for k in ("sales_tod", "cutoff_tod", "credit_note_tod")},
-                           "evidence_pending": pending}})
+                           "evidence_pending": pending, "control_requests": control_summary(ctx)}})
     return out
 
 
@@ -442,7 +458,7 @@ def get_evidence_status(request: Request, engagement_id: str | None = None):
         entry["documents"].append({"document_type": r["document_type"], "status": r["status"], "file_hash": r["file_hash"]})
         counts[r["status"]] += 1
     return {"engagement_id": ctx.eid, "samples": list(by_sample.values()), "pending": counts["pending"],
-            "received": counts["received"], "verified": counts["verified"]}
+            "received": counts["received"], "verified": counts["verified"], "declined": counts["declined"]}
 
 
 @app.get("/evidence/requests")
@@ -458,7 +474,7 @@ def list_evidence_requests(request: Request, status: str | None = None, limit: i
     for eid in targets:
         rows += requests_view(e.ctx(eid, ident))
     if status:
-        rows = [r for r in rows if r["status"] == status or (status == "received" and r["status"] == "verified")]
+        rows = [r for r in rows if r["status"] == status or (status == "received" and r["status"] in ("verified", "declined"))]
     start = int(base64.urlsafe_b64decode(cursor.encode()).decode()) if cursor else 0
     limit = max(1, min(int(limit or 50), 500))
     page = rows[start:start + limit]
@@ -491,7 +507,7 @@ def post_verify_evidence(request: Request, body: dict | None = Body(default=None
                             "document_type": c.get("document")} for c in r.get("checks") or []]}
                for r in out["results"]]
     return {"engagement_id": ctx.eid, "results": results, "by_status": out["by_status"],
-            "findings_created": out["findings_raised"]}
+            "findings_created": out["findings_raised"], "control_requests": out["control_requests"]}
 
 
 # Changes, integrity, findings

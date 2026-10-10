@@ -2004,12 +2004,10 @@
     },
     "payload_EvidenceUploaded": {
       "type": "object",
+      "description": "A file supplied for a request, or a statement that the document does not exist (not_available true, with no file).",
       "required": [
         "sample_id",
-        "request_id",
-        "document_type",
-        "file_hash",
-        "file_name"
+        "document_type"
       ],
       "properties": {
         "sample_id": {
@@ -2032,6 +2030,12 @@
           "$ref": "#/$defs/sha256"
         },
         "file_name": {
+          "type": "string"
+        },
+        "not_available": {
+          "type": "boolean"
+        },
+        "note": {
           "type": "string"
         }
       },

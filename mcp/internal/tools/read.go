@@ -209,7 +209,7 @@ func clientReadTools(d *Deps) []*Tool {
 		{
 			Name:        "list_evidence_requests",
 			Group:       "Audit support",
-			Description: "List the supporting documents the auditor has requested for its samples, and whether each has been uploaded. Call this after the auditor selects samples. Next: upload_evidence for each pending request.",
+			Description: "List the supporting documents the auditor has requested for its samples, and whether each has been answered. Call this after the auditor selects samples. Next: upload_evidence for each pending request, with the file, or with not_available and a note when no such document exists.",
 			Roles:       clientOnly,
 			Fields: []catalogue.Field{
 				enum("status", "Only requests in this state.", "pending", "received"),

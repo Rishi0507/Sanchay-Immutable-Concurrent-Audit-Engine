@@ -1,4 +1,4 @@
-from audit_engine.repo import evidence_requests, samples
+from audit_engine.repo import control_requests, evidence_requests, samples
 
 from elev_datagen.harness import engine_for
 
@@ -16,7 +16,9 @@ def test_sales_tod_rules(planted_engine):
     reqs = planted_engine.repo.select(evidence_requests, engagement_id=eid)
     sales_ids = {x["sample_id"] for x in rows}
     sal = [q for q in reqs if q["sample_id"] in sales_ids]
-    assert {q["document_type"] for q in sal} == {"invoice", "eway_bill", "lr_copy"}
+    # Control requests ask for other documents on purpose (PRD 14.4).
+    controls = {c["request_id"] for c in planted_engine.repo.select(control_requests, engagement_id=eid)}
+    assert {q["document_type"] for q in sal if q["request_id"] not in controls} == {"invoice", "eway_bill", "lr_copy"}
     assert len({q["sample_id"] for q in sal}) == r["count"]
 
 

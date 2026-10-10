@@ -621,12 +621,14 @@
       "sale": "none",
       "posts": false,
       "business_date": "",
-      "description": "Supply a supporting document for a sample the auditor requested. The auditor is notified.",
+      "description": "Answer the auditor's request for a supporting document of a sample: supply the file, or state that no such document exists by setting not_available with a note. The auditor is notified.",
       "fields": [
         {"name": "sample_id", "type": "string", "required": true},
         {"name": "document_type", "type": "enum", "values": ["invoice", "eway_bill", "lr_copy", "proof_of_delivery", "credit_note", "sales_return", "other"], "required": true},
-        {"name": "file_hash", "type": "string", "required": true, "description": "SHA-256 of the stored file."},
-        {"name": "file_name", "type": "string"}
+        {"name": "file_hash", "type": "string", "required": true, "description": "SHA-256 of the stored file. Not needed when not_available is true."},
+        {"name": "file_name", "type": "string"},
+        {"name": "not_available", "type": "bool", "description": "Set true when the requested document does not exist for this transaction. Send no file."},
+        {"name": "note", "type": "string", "description": "Why the document does not exist, when not_available is true."}
       ]
     }
   ]

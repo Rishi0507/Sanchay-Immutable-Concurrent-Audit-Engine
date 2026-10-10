@@ -60,7 +60,7 @@ func auditorEngineTools(d *Deps) []*Tool {
 			fields: []catalogue.Field{
 				reqDate("period_start", "First day of the audited period, for example 2024-04-01."),
 				reqDate("period_end", "Last day of the audited period, for example 2025-03-31."),
-				str("seed", "Seed for sample selection. The same seed and snapshot always give the same samples. Generated and returned when omitted."),
+				str("seed", "Leave this out. The seed then follows from a secret sealed when the register arrived and from the frozen ledger, so that nobody chooses it and it cannot be drawn again; verify_sampling_seal shows the proof. A seed given here is recorded as chosen by the auditor. The same seed and snapshot always give the same samples."),
 				strList("entity_ids", "Legal entities in scope. Defaults to the main entity."),
 			},
 		},
@@ -435,6 +435,22 @@ func sharedTools(d *Deps) []*Tool {
 			},
 			Handler: func(ctx context.Context, c *core.Call) (map[string]any, *core.ToolError) {
 				return auditTrail(ctx, d, c)
+			},
+		},
+		{
+			Name:  "verify_sampling_seal",
+			Group: "Integrity",
+			Description: "Check that nobody chose the sampling seed. The seed follows from a secret that was fixed when the register arrived, of which the client received only the hash, and from the frozen ledger. " +
+				"Returns the commitment, and once an engagement is open the secret, the seed and the result of recomputing both hashes. A seed supplied by the auditor is reported as chosen. " +
+				"With no engagement_id it reports on the latest register upload.",
+			Roles:  everyone,
+			Fields: []catalogue.Field{str("engagement_id", "Engagement to check. Optional.")},
+			Handler: func(ctx context.Context, c *core.Call) (map[string]any, *core.ToolError) {
+				args := map[string]any{}
+				if id := core.Str(c.Args, "engagement_id"); id != "" {
+					args["engagement_id"] = id
+				}
+				return d.Engine.Do(ctx, c.Identity, "GET", "/sampling/seal", args)
 			},
 		},
 		{

@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { callTool, idempotencyKey, uploadFile, when } from "../api";
+import { callTool, idempotencyKey, shortHash, uploadFile, when } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Card, Field, Header, Status, inputClass, toast, useAction, useTool } from "../ui";
 
@@ -40,7 +40,7 @@ function parseParties(text: string) {
     .filter((p) => p.name);
 }
 
-export default function Upload({ pulse }: ViewProps) {
+export default function Upload({ pulse, can }: ViewProps) {
   const [start, end] = defaultPeriod();
   const [periodStart, setPeriodStart] = useState(start);
   const [periodEnd, setPeriodEnd] = useState(end);
@@ -51,6 +51,8 @@ export default function Upload({ pulse }: ViewProps) {
   const registers = useTool("list_records", { type: "sales_register", limit: 500 }, [pulse]);
   const partyLists = useTool("list_records", { type: "related_party_list", limit: 500 }, [pulse]);
   const lastRegister = registers.data?.records?.at(-1);
+  // The hash of the secret behind the auditor's sampling seed, handed over as the register arrives.
+  const seal = useTool<{ commitment?: string; status?: string }>(can("upload_sales_register") ? "verify_sampling_seal" : null, {}, [pulse, lastRegister?.seq]);
   const lastParties = partyLists.data?.records?.at(-1);
 
   const sendRegister = (file: File) =>
@@ -109,39 +111,49 @@ export default function Upload({ pulse }: ViewProps) {
         </Field>
       </div>
       <div className="grid gap-5 md:grid-cols-2">
-        <Card className="p-6">
-          <div className="mb-1 flex items-center justify-between">
-            <div className="text-base font-semibold">Sales register</div>
-            <Status tone={lastRegister ? "good" : "warn"}>{lastRegister ? "Uploaded" : "Not uploaded yet"}</Status>
-          </div>
-          <div className="mb-5 min-h-5 text-sm text-ink-2">
-            {lastRegister ? `${lastRegister.data.file_name}, ${when(lastRegister.recorded_at)}` : "Excel or CSV, in the layout you already export."}
-          </div>
-          <input ref={registerInput} type="file" accept=".xlsx,.csv" hidden onChange={(e) => e.target.files?.[0] && sendRegister(e.target.files[0])} />
-          <div className="flex gap-2">
-            <Button busy={busy === "register"} onClick={() => registerInput.current?.click()}>
+        {can("upload_sales_register") && (
+          <Card className="p-6">
+            <div className="mb-1 flex items-center justify-between">
+              <div className="text-base font-semibold">Sales register</div>
+              <Status tone={lastRegister ? "good" : "warn"}>{lastRegister ? "Uploaded" : "Not uploaded yet"}</Status>
+            </div>
+            <div className="mb-5 min-h-5 text-sm text-ink-2">
+              {lastRegister ? `${lastRegister.data.file_name}, ${when(lastRegister.recorded_at)}` : "Excel or CSV, in the layout you already export."}
+            </div>
+            <input ref={registerInput} type="file" accept=".xlsx,.csv" hidden onChange={(e) => e.target.files?.[0] && sendRegister(e.target.files[0])} />
+            <div className="flex gap-2">
+              <Button busy={busy === "register"} onClick={() => registerInput.current?.click()}>
+                Upload a file
+              </Button>
+              <Button kind="ghost" busy={busy === "generate"} onClick={generateRegister}>
+                Build from the records
+              </Button>
+            </div>
+            {lastRegister && seal.data?.commitment && (
+              <p className="mt-4 text-xs text-ink-3" title="The auditor's sampling seed was fixed before it saw this register. Once the engagement opens, the secret is shown and must hash to this value.">
+                Sampling sealed: <span className="font-mono">{shortHash(seal.data.commitment, 16)}</span>
+                {seal.data.status === "verified" && ", revealed and verified"}
+              </p>
+            )}
+          </Card>
+        )}
+        {can("upload_related_parties") && (
+          <Card className="p-6">
+            <div className="mb-1 flex items-center justify-between">
+              <div className="text-base font-semibold">Related parties</div>
+              <Status tone={lastParties ? "good" : "warn"}>{lastParties ? "Uploaded" : "Not uploaded yet"}</Status>
+            </div>
+            <div className="mb-5 min-h-5 text-sm text-ink-2">
+              {lastParties
+                ? `${lastParties.data.parties?.length ?? 0} parties, ${when(lastParties.recorded_at)}`
+                : "CSV with the columns name, pan, gstin, relationship, effective_from."}
+            </div>
+            <input ref={partiesInput} type="file" accept=".csv" hidden onChange={(e) => e.target.files?.[0] && sendParties(e.target.files[0])} />
+            <Button busy={busy === "parties"} onClick={() => partiesInput.current?.click()}>
               Upload a file
             </Button>
-            <Button kind="ghost" busy={busy === "generate"} onClick={generateRegister}>
-              Build from the records
-            </Button>
-          </div>
-        </Card>
-        <Card className="p-6">
-          <div className="mb-1 flex items-center justify-between">
-            <div className="text-base font-semibold">Related parties</div>
-            <Status tone={lastParties ? "good" : "warn"}>{lastParties ? "Uploaded" : "Not uploaded yet"}</Status>
-          </div>
-          <div className="mb-5 min-h-5 text-sm text-ink-2">
-            {lastParties
-              ? `${lastParties.data.parties?.length ?? 0} parties, ${when(lastParties.recorded_at)}`
-              : "CSV with the columns name, pan, gstin, relationship, effective_from."}
-          </div>
-          <input ref={partiesInput} type="file" accept=".csv" hidden onChange={(e) => e.target.files?.[0] && sendParties(e.target.files[0])} />
-          <Button busy={busy === "parties"} onClick={() => partiesInput.current?.click()}>
-            Upload a file
-          </Button>
-        </Card>
+          </Card>
+        )}
       </div>
     </>
   );

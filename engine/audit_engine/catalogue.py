@@ -255,7 +255,8 @@ class Translator:
         elif t == "EvidenceUploaded":
             doc = DOC_TYPE_IN.get(p.get("document_type"), p.get("document_type"))
             q = {"sample_id": p.get("sample_id"), "document_type": doc, "file_hash": p.get("file_hash"),
-                 "file_name": p.get("file_name"), "request_id": p.get("request_id")}
+                 "file_name": p.get("file_name"), "request_id": p.get("request_id"),
+                 "not_available": bool(p.get("not_available")), "note": p.get("note")}
         else:
             q = p
         out["payload"] = q

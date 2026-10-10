@@ -2,8 +2,10 @@
 
 It lists pending requests (list_evidence_requests), renders each requested
 document from its own records (the local copy written while seeding), and
-uploads it (upload_evidence). With plant=True some uploads are forged or
-reused, and their answer-key items are written beside the dataset.
+uploads it (upload_evidence). A request for a document the client does not
+hold is answered as not available. With plant=True some uploads are forged or
+reused, one document that does not exist is supplied all the same, and the
+answer-key items are written beside the dataset.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ class _Uploader:
     def __init__(self, client: GatewayClient):
         self.client = client
         self.count = 0
+        self.declined = 0
 
     def upload_evidence(self, sample_id: str, request_id: str, document_type: str, data: bytes, file_name: str):
         import base64
@@ -31,6 +34,13 @@ class _Uploader:
             "sample_id": sample_id, "document_type": document_type, "file_name": file_name,
             "content_base64": base64.b64encode(data).decode(),
             "idempotency_key": f"evidence-{request_id}-{self.count}"})
+
+
+    def decline_evidence(self, sample_id: str, request_id: str, document_type: str, note: str):
+        self.declined += 1
+        return self.client.call("upload_evidence", {
+            "sample_id": sample_id, "document_type": document_type, "not_available": True, "note": note,
+            "idempotency_key": f"evidence-{request_id}-none"})
 
 
 def pending_requests(client: GatewayClient) -> list[dict]:
@@ -71,4 +81,5 @@ def respond(base: str, token: str, dataset_dir: str | Path, plant: bool = False)
                                  "document_type": r["document_type"]} for r in reqs],
                      samples, snap, company_of(ds), plant=plant)
     (ds / "evidence_answer_key.json").write_text(json.dumps(key, indent=2), encoding="utf-8")
-    return {"pending_requests": len(reqs), "uploaded": uploader.count, "planted": len(key)}
+    return {"pending_requests": len(reqs), "uploaded": uploader.count, "not_available": uploader.declined,
+            "planted": len(key)}

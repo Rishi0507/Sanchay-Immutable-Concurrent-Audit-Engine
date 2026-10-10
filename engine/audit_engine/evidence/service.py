@@ -10,7 +10,7 @@ from rapidfuzz.distance import JaroWinkler
 
 from .. import gstin as gst
 from ..money import rupees
-from ..repo import evidence_requests, evidence_results, extraction_cache, sample_tests, samples
+from ..repo import control_requests, evidence_requests, evidence_results, extraction_cache, sample_tests, samples
 from ..sampling import overall
 from ..snapshot import _doc, d, ts
 from .extract import extract, perceptual_hash
@@ -49,9 +49,12 @@ def request_status(ctx, sample_id: str | None = None) -> list[dict]:
     for r in reqs:
         u = ups.get(r["request_id"]) or ups.get((r["sample_id"], r["document_type"]), [])
         latest = u[-1] if u else None
+        handled = bool(latest) and latest["_seq"] in verified[r["request_id"]]
         if not latest:
             status = "requested"
-        elif latest["_seq"] in verified[r["request_id"]]:
+        elif latest.get("not_available"):
+            status = "declined"
+        elif handled:
             status = "verified"
         elif verified[r["request_id"]]:
             status = "replaced after verification"
@@ -60,7 +63,19 @@ def request_status(ctx, sample_id: str | None = None) -> list[dict]:
         out.append({"request_id": r["request_id"], "sample_id": r["sample_id"], "document_type": r["document_type"],
                     "note": r["note"], "status": status, "file_hash": latest.get("file_hash") if latest else None,
                     "file_name": latest.get("file_name") if latest else None,
-                    "upload_seq": latest["_seq"] if latest else None, "uploads": len(u)})
+                    "upload_seq": latest["_seq"] if latest else None, "uploads": len(u), "handled": handled,
+                    "declined": bool(latest and latest.get("not_available")),
+                    "reply": (latest or {}).get("note")})
+    return out
+
+
+def control_summary(ctx) -> dict:
+    """How the client answered the requests for documents that should not exist (PRD 14.4)."""
+    ids = {c["request_id"] for c in ctx.engine.repo.select(control_requests, engagement_id=ctx.eid)}
+    out = {"sent": len(ids), "declined": 0, "supplied": 0, "pending": 0}
+    for r in request_status(ctx):
+        if r["request_id"] in ids:
+            out["declined" if r["declined"] else "supplied" if r["upload_seq"] else "pending"] += 1
     return out
 
 
@@ -169,7 +184,9 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
     text_samples = defaultdict(set)
     phashes = []
     for u in all_ups:
-        hash_samples[u["file_hash"]].add(u["sample_id"])
+        if u.get("file_hash"):
+            hash_samples[u["file_hash"]].add(u["sample_id"])
+    controls = {c["request_id"]: c for c in repo.select(control_requests, engagement_id=ctx.eid)}
     prior_results = defaultdict(list)
     for r in repo.select(evidence_results, order_by=evidence_results.c.id, engagement_id=ctx.eid):
         prior_results[r["request_id"]].append(r)
@@ -178,9 +195,9 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
     th = ctx.th["evidence"]
     findings, results, new_results, new_tests = [], [], [], []
     extracted_all: dict[str, dict] = {}
-    _warm_extractions(ctx, [(r["file_hash"], r["document_type"]) for r in status if r["upload_seq"]])
+    _warm_extractions(ctx, [(r["file_hash"], r["document_type"]) for r in status if r["file_hash"]])
     for r in status:
-        if r["upload_seq"]:
+        if r["file_hash"]:
             ex = _extract_cached(ctx, r["file_hash"], r["document_type"])
             extracted_all[r["request_id"]] = ex
             if ex.get("text_hash"):
@@ -196,13 +213,14 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
         if not uploaded:
             results.append({"sample_id": sid, "status": "Pending evidence", "checks": []})
             continue
-        if all(r["status"] == "verified" for r in uploaded):
+        if all(r["handled"] for r in uploaded):
             last = latest_tests.get(sid)
             results.append({"sample_id": sid, "status": overall(last["tests"]) if last else "Pass",
                             "checks": (last or {}).get("flags") or [], "already_verified": True})
             continue
         sor = _sor_for(ctx, s)
-        docs = {r["document_type"]: (r, extracted_all.get(r["request_id"])) for r in uploaded}
+        docs = {r["document_type"]: (r, extracted_all.get(r["request_id"])) for r in uploaded if not r["declined"]}
+        declined = [r for r in uploaded if r["declined"]]
         checks: list[dict] = []
 
         def fail(code: str, doc: str, text: str, impact: int = 0):
@@ -245,11 +263,28 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
             elif created and requested and created[:19] > requested[:19].replace("Z", ""):
                 fail("E-7", doc, f"{doc.replace('_', ' ')} PDF was created on {created}, after the evidence request "
                                  f"of {requested}.")
-        _content_checks(ctx, s, sor, docs, fail, th)
+        # E-9: a document supplied with no record behind it. For a control request the records hold none
+        # and none is required, so the document was made for the request.
+        for doc, (req, _) in docs.items():
+            if req["request_id"] in controls:
+                fail("E-9", doc, f"{doc.replace('_', ' ')} supplied although none exists: "
+                                 f"{controls[req['request_id']]['basis']} The document was made for the request.")
+            elif doc == "eway_bill" and sor and not _has_ewb(ctx, sor):
+                fail("E-9", doc, f"e-way bill supplied for {sor.get('invoice_no')}, but the system of record holds no "
+                                 f"e-way bill for it.")
+        # A document supplied for a control request is not compared with the others: it should not be there at all.
+        _content_checks(ctx, s, sor, {k: v for k, v in docs.items() if v[0]["request_id"] not in controls}, fail, th)
         tests = dict((latest_tests.get(sid) or {}).get("tests") or {})
         failed = {c["check"] for c in checks}
         missing = [r["document_type"] for r in reqs if not r["upload_seq"]]
-        if failed:
+        # The client states that a document does not exist. For a control request that is the right answer.
+        notes = [{"check": "E-9" if r["request_id"] in controls else "EV-7", "document": r["document_type"],
+                  "result": "pass" if r["request_id"] in controls else "not available",
+                  "detail": (f"control request answered correctly: no {r['document_type'].replace('_', ' ')} exists"
+                             if r["request_id"] in controls else
+                             f"the client states the {r['document_type'].replace('_', ' ')} does not exist")
+                            + (f" ({r['reply']})" if r.get("reply") else "")} for r in declined]
+        if failed or any(n["result"] == "not available" for n in notes):
             tests["Evidence"] = "Exception"
         elif low:
             tests["Evidence"] = "Needs human review"
@@ -263,7 +298,7 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
             tests["Amount"] = "Exception"
         if any(c["check"] == "E-1" and ("customer" in c["detail"] or "GSTIN" in c["detail"]) for c in checks):
             tests["Party"] = "Exception"
-        flags = checks + ([{"check": "EV-4", "result": "review", "detail": "; ".join(low)}] if low else [])
+        flags = checks + notes + ([{"check": "EV-4", "result": "review", "detail": "; ".join(low)}] if low else [])
         new_tests.append({"sample_id": sid, "engagement_id": ctx.eid, "tests": tests, "flags": flags,
                           "cause": "verify_evidence", "at": _now()})
         for doc, (req, ex) in docs.items():
@@ -272,6 +307,11 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
                                 "extracted": {k: v for k, v in (ex or {}).items() if k != "metadata"} | {
                                     "metadata": (ex or {}).get("metadata")},
                                 "checks": [c for c in checks if c["document"] == doc], "at": _now()})
+        for r in declined:
+            new_results.append({"engagement_id": ctx.eid, "request_id": r["request_id"], "sample_id": sid,
+                                "upload_seq": r["upload_seq"], "file_hash": "",
+                                "extracted": {"not_available": True, "reply": r.get("reply")},
+                                "checks": [n for n in notes if n["document"] == r["document_type"]], "at": _now()})
         subject_no = s["subject_id"]
         for c in checks:
             findings.append(ctx.finding(
@@ -294,16 +334,23 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
     for r in results:
         by[r["status"]] += 1
     return {"results": results, "by_status": dict(by), "findings_raised": len(findings),
-            "pending": [r["sample_id"] for r in results if r["status"] == "Pending evidence"]}
+            "pending": [r["sample_id"] for r in results if r["status"] == "Pending evidence"],
+            "control_requests": control_summary(ctx)}
 
 
 _CHECK_NAMES = {"E-1": "DISAGREES_WITH_RECORD", "E-2": "DOCUMENTS_DISAGREE", "E-3": "REUSED_EVIDENCE",
                 "E-4": "OTHER_TRANSACTION", "E-5": "EWAY_BILL_VALIDITY", "E-6": "INFEASIBLE_DELIVERY",
-                "E-7": "MADE_TO_ORDER", "E-8": "REPLACED_AFTER_VERIFICATION"}
+                "E-7": "MADE_TO_ORDER", "E-8": "REPLACED_AFTER_VERIFICATION", "E-9": "SUPPLIED_FOR_CONTROL_REQUEST"}
 
 
 def _now() -> str:
     return dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _has_ewb(ctx, inv: dict) -> bool:
+    dispatch = ctx.snap.dispatch_for_invoice(inv)
+    return bool(ctx.snap.ewbs_by_invoice.get(str(inv["invoice_no"])) or
+                (dispatch and ctx.snap.ewbs_by_dispatch.get(dispatch.get("dispatch_id"))))
 
 
 def _subject_key(s: dict | None) -> str | None:

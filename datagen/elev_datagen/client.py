@@ -45,5 +45,10 @@ class FixtureClient:
                            {"sample_id": sample_id, "request_id": request_id, "document_type": document_type,
                             "file_hash": h, "file_name": file_name})
 
+    def decline_evidence(self, sample_id: str, request_id: str, document_type: str, note: str) -> dict:
+        return self.append("EvidenceUploaded", f"evidence:none:{request_id}:{self.n}",
+                           {"sample_id": sample_id, "request_id": request_id, "document_type": document_type,
+                            "not_available": True, "note": note})
+
     def flush(self) -> None:
         self.ledger.write(self.dir / "fixture")

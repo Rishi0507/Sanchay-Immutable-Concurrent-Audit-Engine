@@ -131,6 +131,29 @@ evidence_requests = Table(
     Column("created_at", String(32)),
 )
 
+# Requests for a document that the records say does not exist (PRD 14.4). They
+# sit beside the ordinary requests and are never shown to the client as different.
+control_requests = Table(
+    "eng_control_requests", metadata,
+    Column("request_id", String(64), primary_key=True),
+    Column("engagement_id", String(64), nullable=False, index=True),
+    Column("sample_id", String(64), nullable=False),
+    Column("document_type", String(32), nullable=False),
+    Column("basis", Text),
+    Column("created_at", String(32)),
+)
+
+# The sealed sampling seed of a register upload (PRD 12.5): a secret fixed when
+# the register arrives, of which only the hash is given out until an engagement opens.
+sampling_seals = Table(
+    "eng_sampling_seals", metadata,
+    Column("register_upload_seq", BigInteger, primary_key=True, autoincrement=False),
+    Column("commitment", String(64), nullable=False),
+    Column("nonce", String(64), nullable=False),
+    Column("sealed_when", String(16), nullable=False),
+    Column("sealed_at", String(32)),
+)
+
 evidence_results = Table(
     "eng_evidence_results", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),

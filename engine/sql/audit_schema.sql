@@ -11,6 +11,18 @@ CREATE TABLE audit.eng_change_matches (
 );
 CREATE TRIGGER eng_change_matches_append_only BEFORE UPDATE OR DELETE ON audit.eng_change_matches FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
+CREATE TABLE audit.eng_control_requests (
+	request_id VARCHAR(64) NOT NULL, 
+	engagement_id VARCHAR(64) NOT NULL, 
+	sample_id VARCHAR(64) NOT NULL, 
+	document_type VARCHAR(32) NOT NULL, 
+	basis TEXT, 
+	created_at VARCHAR(32), 
+	PRIMARY KEY (request_id)
+);
+CREATE INDEX ix_audit_eng_control_requests_engagement_id ON audit.eng_control_requests (engagement_id);
+CREATE TRIGGER eng_control_requests_append_only BEFORE UPDATE OR DELETE ON audit.eng_control_requests FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+
 CREATE TABLE audit.eng_engagement_events (
 	id SERIAL NOT NULL, 
 	engagement_id VARCHAR(64) NOT NULL, 
@@ -206,7 +218,18 @@ CREATE TABLE audit.eng_samples (
 CREATE INDEX ix_audit_eng_samples_engagement_id ON audit.eng_samples (engagement_id);
 CREATE TRIGGER eng_samples_append_only BEFORE UPDATE OR DELETE ON audit.eng_samples FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
+CREATE TABLE audit.eng_sampling_seals (
+	register_upload_seq BIGINT NOT NULL, 
+	commitment VARCHAR(64) NOT NULL, 
+	nonce VARCHAR(64) NOT NULL, 
+	sealed_when VARCHAR(16) NOT NULL, 
+	sealed_at VARCHAR(32), 
+	PRIMARY KEY (register_upload_seq)
+);
+CREATE TRIGGER eng_sampling_seals_append_only BEFORE UPDATE OR DELETE ON audit.eng_sampling_seals FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+
 GRANT USAGE ON SCHEMA audit TO engine_audit, mcp_read;
 GRANT INSERT, SELECT ON ALL TABLES IN SCHEMA audit TO engine_audit;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA audit TO engine_audit;
 GRANT SELECT ON ALL TABLES IN SCHEMA audit TO mcp_read;
+

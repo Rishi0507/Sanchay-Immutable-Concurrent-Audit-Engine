@@ -9,6 +9,7 @@ editing tool or a creation date after the audit request.
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import io
 import math
 
@@ -124,6 +125,28 @@ class EvidenceFactory:
                 f"Approx Distance (km): {e.get('distance_km')}", f"Vehicle No: {e.get('vehicle_no')}",
                 "Transport Mode: Road"]
 
+    def made_up_ewb(self, inv: dict, dispatch: dict | None) -> dict:
+        """An e-way bill for an invoice that has none: what a client produces when it supplies whatever is asked for."""
+        ds = dispatch or {}
+        start = ts(ds.get("dispatched_at")) or ts(inv.get("invoice_date") + "T10:00:00")
+        number = int(hashlib.sha256(str(inv["invoice_no"]).encode()).hexdigest(), 16) % 10**10
+        return {"ewb_no": f"39{number:010d}", "invoice_no": inv["invoice_no"], "value": inv.get("gross") or 0,
+                "supplier_gstin": self._co(inv["_entity_id"]).get("gstin", ""),
+                "recipient_gstin": inv.get("customer_gstin") or "", "vehicle_no": ds.get("vehicle_no") or "MH12KT4410",
+                "distance_km": ds.get("distance_km") or 60,
+                "generated_at": start.strftime("%Y-%m-%dT%H:%M:%S"),
+                "valid_until": (start + dt.timedelta(days=1)).strftime("%Y-%m-%dT23:59:59")}
+
+    def made_up_credit_note(self, inv: dict) -> dict:
+        """A credit note against an invoice that has none, for a tenth of its value."""
+        part = lambda key: (inv.get(key) or 0) // 10  # noqa: E731
+        day = d(inv.get("invoice_date")) + dt.timedelta(days=20)
+        return {"_entity_id": inv["_entity_id"], "customer_id": inv.get("customer_id"),
+                "credit_note_no": "CN/" + str(inv["invoice_no"]).split("/", 1)[-1], "date": day.isoformat(),
+                "original_invoice_no": inv["invoice_no"], "reason": "Rate difference",
+                "taxable_value": part("taxable_value"), "igst": part("igst"), "cgst": part("cgst"),
+                "sgst": part("sgst"), "gross": part("gross")}
+
     def lr_lines(self, lr: dict, inv_no: str, vehicle: str | None = None) -> list[str]:
         ds = self.snap.dispatches.get(lr.get("dispatch_id")) or {}
         return [f"Transporter: {lr.get('transporter')}", f"LR No: {lr.get('lr_no')}", f"LR Date: {_fmt_d(lr.get('date'))}",
@@ -180,12 +203,18 @@ class EvidenceFactory:
             if tamper.get("scan"):
                 return render_png(lines, "TAX INVOICE"), f"invoice_{safe}.png"
             return render_pdf(lines, "TAX INVOICE", producer, created), f"invoice_{safe}.pdf"
+        if doc_type == "credit_note" and tamper.get("fabricate"):
+            cn = self.made_up_credit_note(inv)
+            return (render_pdf(self.cn_lines(cn), "CREDIT NOTE", producer, ts(cn["date"] + "T12:00:00")),
+                    f"credit_note_{safe}.pdf")
         ds = self.snap.dispatch_for_invoice(inv)
         if doc_type == "eway_bill":
             source = tamper.get("ewb_from")
             ewbs = (self.snap.ewbs_by_invoice.get(str(source["invoice_no"]), []) if source else
                     self.snap.ewbs_by_invoice.get(str(inv["invoice_no"]), []) or
                     (self.snap.ewbs_by_dispatch.get(ds.get("dispatch_id"), []) if ds else []))
+            if not ewbs and tamper.get("fabricate"):
+                ewbs = [self.made_up_ewb(inv, ds)]
             if not ewbs:
                 return None
             e = ewbs[0]

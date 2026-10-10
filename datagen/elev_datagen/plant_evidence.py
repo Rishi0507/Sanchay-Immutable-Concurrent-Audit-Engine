@@ -54,6 +54,15 @@ def upload_all(client, requests: list[dict], samples: dict[str, dict], snap, com
         scan = next((s for s in sales if s["sample_id"] not in {p["sample_id"] for p in picks}), None)
         if scan:
             tamper[(scan["sample_id"], "invoice")] = {"scan": True}
+        # Documents the records do not hold, supplied all the same. The client cannot tell which requests
+        # the auditor made as controls: it only knows that a document was asked for and none exists.
+        for r in sorted(requests, key=lambda r: r["request_id"]):
+            s, doc = samples[r["sample_id"]], r["document_type"]
+            if (doc in ("eway_bill", "credit_note") and (r["sample_id"], doc) not in tamper
+                    and s["subject_type"] == "invoice" and fac.make(s, doc) is None
+                    and fac.make(s, "invoice") is not None):
+                tamper[(r["sample_id"], doc)] = {"fabricate": True}
+                note(s, "E-9", f"{doc.replace('_', ' ').capitalize()} supplied for an invoice that has none.")
     made_files = {}
     uploaded = 0
     def order(r):
@@ -64,6 +73,9 @@ def upload_all(client, requests: list[dict], samples: dict[str, dict], snap, com
         s = samples[r["sample_id"]]
         made = fac.make(s, r["document_type"], tamper.get((r["sample_id"], r["document_type"])))
         if not made:
+            # The honest answer to a request for a document that does not exist.
+            client.decline_evidence(r["sample_id"], r["request_id"], r["document_type"],
+                                    "No such document exists for this transaction.")
             continue
         data, name = made
         if reuse and r["sample_id"] == reuse[1] and r["document_type"] == "invoice" and (reuse[0], "invoice") in made_files:

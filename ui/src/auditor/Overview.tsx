@@ -75,7 +75,7 @@ function OpenEngagement({ onOpened, pulse }: { onOpened: (id: string) => void; p
             <input type="date" className={inputClass} value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
           </Field>
           <div className="col-span-2">
-            <Field label="Sampling seed (generated if left empty)">
+            <Field label="Sampling seed (leave empty to use the sealed seed, which nobody chooses)">
               <input className={inputClass} value={seed} onChange={(e) => setSeed(e.target.value)} />
             </Field>
           </div>
@@ -175,6 +175,8 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement }: Vi
   const next = plan.data?.next_tool ?? s.next_tool;
   const samples = Object.values(s.counts?.samples_by_sheet ?? {}).reduce((a: number, b: any) => a + Number(b), 0);
   const pending = Number(s.counts?.evidence_pending ?? 0);
+  // Requests for documents that should not exist, and how the client answered them.
+  const controls = s.counts?.control_requests ?? { sent: 0, declined: 0, supplied: 0 };
   const done = steps.filter((st) => st.status === "done").length;
 
   return (
@@ -215,6 +217,12 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement }: Vi
         <div className="bg-paper px-5 py-4">
           <div className="mb-3 text-[13px] font-medium text-ink-2">Documents awaited from the client</div>
           <div className={cx("figure text-xl font-medium", pending > 0 && "text-wait")}>{pending}</div>
+          {controls.sent > 0 && (
+            <div className="mt-2 text-[13px] text-ink-2">
+              {controls.sent} control requests: {controls.declined} answered correctly
+              {controls.supplied > 0 && <span className="font-medium text-fail">, {controls.supplied} fabricated</span>}
+            </div>
+          )}
         </div>
       </div>
 
@@ -264,6 +272,7 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement }: Vi
                 ["Frozen at", `Event ${s.snapshot_seq}`],
                 ["Hash", <span className="font-mono text-xs" title={s.snapshot_hash}>{shortHash(s.snapshot_hash, 16)}</span>],
                 ["Seed", <span className="font-mono text-xs">{s.seed}</span>],
+                ["Sampling", s.seed_source === "sealed" ? <Status tone="good">Sealed, chosen by nobody</Status> : <Status tone="warn">Seed chosen by the auditor</Status>],
                 ["Opened", s.opened_at ? when(s.opened_at) : undefined],
                 ["Engagement", <span className="font-mono text-xs">{s.engagement_id}</span>],
               ]}

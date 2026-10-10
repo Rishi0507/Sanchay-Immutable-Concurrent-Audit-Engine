@@ -17,7 +17,7 @@ from .detectors.common import inv_date, order_of, period_invoices
 from .detectors.credit_notes import in_scope_credit_notes
 from .detectors.cutoff import assess
 from .money import rupees
-from .repo import evidence_requests, indicators, register_recon, register_rows, sample_meta, sample_tests, samples
+from .repo import control_requests, evidence_requests, indicators, register_recon, register_rows, sample_meta, sample_tests, samples
 from .snapshot import d
 
 SHEETS = {"sales_tod": "Sales TOD", "cutoff_tod": "Sales Cut-off TOD", "credit_note_tod": "Credit Note TOD"}
@@ -102,6 +102,49 @@ def docs_for(ctx, inv: dict | None) -> list[str]:
     return ["invoice", "eway_bill", "lr_copy"] if (need or has) else ["invoice", "lr_copy"]
 
 
+def controls_for(ctx, inv: dict | None) -> list[dict]:
+    """Requests for documents that should not exist for this invoice, the most telling first (PRD 14.4).
+
+    An honest client answers that the document does not exist. A client that
+    supplies one made it for the request, which says how far its other
+    evidence can be relied on (SA 240: an element of unpredictability).
+    """
+    if inv is None:
+        return []
+    out = []
+    if "eway_bill" not in docs_for(ctx, inv):
+        limit = ctx.th["d05"]["eway_bill_threshold"]
+        out.append({"document_type": "eway_bill",
+                    "basis": f"No e-way bill is recorded for {inv['invoice_no']} and none is required: the consignment "
+                             f"value Rs {rupees(inv.get('gross') or 0)} does not exceed Rs {rupees(limit)}."})
+    if not ctx.snap.credit_notes_by_invoice.get(str(inv["invoice_no"])):
+        out.append({"document_type": "credit_note",
+                    "basis": f"No credit note is recorded against {inv['invoice_no']}."})
+    return out
+
+
+def pick_controls(ctx, sheet: str, rows: list[dict], left: int) -> dict[int, dict]:
+    """The control request of each chosen row, by row index.
+
+    A document that is neither required nor recorded is the stronger control,
+    so those rows come first. The rest are drawn with the seeded generator:
+    the client cannot tell which requests they are, and a rerun draws the same.
+    """
+    picks: dict[int, dict] = {}
+    if left <= 0 or sheet == "credit_note_tod":
+        return picks
+    for i, r in enumerate(rows):
+        first = (r.get("controls") or [None])[0]
+        if len(picks) < left and first and first["document_type"] == "eway_bill":
+            picks[i] = first
+    spare = [i for i, r in enumerate(rows) if i not in picks and r.get("controls")]
+    material = f"{ctx.eng['seed']}{ctx.eng['snapshot_seq']}{SHEETS[sheet]} controls"
+    random.Random(int(hashlib.sha256(material.encode()).hexdigest(), 16)).shuffle(spare)
+    for i in spare[:left - len(picks)]:
+        picks[i] = rows[i]["controls"][-1]
+    return picks
+
+
 def overall(tests: dict[str, str]) -> str:
     vals = set(tests.values())
     if "Exception" in vals:
@@ -116,7 +159,10 @@ def overall(tests: dict[str, str]) -> str:
 def _store(ctx, sheet: str, rows: list[dict], meta: dict) -> dict:
     repo = ctx.engine.repo
     eid = ctx.eid
-    stored, reqs, tests_rows = [], [], []
+    stored, reqs, tests_rows, controls = [], [], [], []
+    # A few control requests per engagement, taken in sample order. The request itself looks like any other.
+    left = ctx.th["sampling"]["control_requests_max"] - len(repo.select(control_requests, engagement_id=eid))
+    picked = pick_controls(ctx, sheet, rows, left)
     for pos, r in enumerate(rows, 1):
         sid = "smp_" + hashlib.sha256(f"{eid}|{sheet}|{r['subject_id']}|{pos}".encode()).hexdigest()[:16]
         r["sample_id"] = sid
@@ -125,13 +171,22 @@ def _store(ctx, sheet: str, rows: list[dict], meta: dict) -> dict:
                        "reason_codes": r["codes"], "score": r.get("score", 0), "data": r["data"]})
         tests_rows.append({"sample_id": sid, "engagement_id": eid, "tests": r["tests"], "flags": [],
                            "cause": "selection", "at": ctx.eng["opened_at"]})
-        for doc in r.get("docs") or DOCS[sheet]:
-            reqs.append({"request_id": "req_" + hashlib.sha256(f"{sid}|{doc}".encode()).hexdigest()[:16], "engagement_id": eid, "sample_id": sid, "document_type": doc,
+        docs = list(r.get("docs") or DOCS[sheet])
+        control = picked.get(pos - 1)
+        if control:
+            docs.append(control["document_type"])
+        for doc in docs:
+            rid = "req_" + hashlib.sha256(f"{sid}|{doc}".encode()).hexdigest()[:16]
+            reqs.append({"request_id": rid, "engagement_id": eid, "sample_id": sid, "document_type": doc,
                          "note": f"{doc.replace('_', ' ')} copy for {r['subject_id']}",
                          "created_by": ctx.identity.get("user") or "engine", "created_at": ctx.eng["opened_at"]})
+            if control and doc == control["document_type"]:
+                controls.append({"request_id": rid, "engagement_id": eid, "sample_id": sid, "document_type": doc,
+                                 "basis": control["basis"], "created_at": ctx.eng["opened_at"]})
     repo.insert(samples, stored)
     repo.insert(sample_tests, tests_rows)
     repo.insert(evidence_requests, reqs)
+    repo.insert(control_requests, controls)
     repo.insert(sample_meta, {"engagement_id": eid, "sheet": sheet, "detail": meta})
     return {
         "sheet": SHEETS[sheet], "count": len(stored),
@@ -141,6 +196,7 @@ def _store(ctx, sheet: str, rows: list[dict], meta: dict) -> dict:
         "population": meta["population"], "strata": meta.get("strata", {}),
         "evidence_requests": [{"request_id": q["request_id"], "sample_id": q["sample_id"],
                                "document_type": q["document_type"]} for q in reqs],
+        "control_requests": len(controls),
         "notification": {"audience": "client", "kind": "evidence_requested", "count": len(reqs)},
     }
 
@@ -314,7 +370,7 @@ def select_sales_tod(ctx, target: int | None = None) -> dict:
                 "finding_refs": sorted({f["finding_id"] for f in finding_index(ctx).get(x["no"], [])})}
         rows.append({"subject_type": "invoice" if inv else "register_row", "subject_id": x["no"],
                      "reason": "; ".join(notes) + ".", "codes": codes[x["key"]], "score": x["score"], "data": data,
-                     "tests": tests, "docs": docs_for(ctx, inv)})
+                     "tests": tests, "docs": docs_for(ctx, inv), "controls": controls_for(ctx, inv)})
     strata = {"by_quarter": dict(Counter(quarter_of(x["date"], ctx.start) for x in items)),
               "by_bu": dict(Counter(x["bu"] or "none" for x in items)),
               "related": sum(1 for x in items if x["related"]), "non_related": sum(1 for x in items if not x["related"]),
@@ -353,7 +409,7 @@ def select_cutoff_tod(ctx, after_count: int | None = None, before_count: int | N
             tests["Period"] = "Exception" if a["ok"] is not True else "Pass"
             rows.append({"subject_type": "invoice", "subject_id": str(inv["invoice_no"]),
                          "reason": f"CUTOFF_{side.upper()} ({pos_text}).", "codes": [f"CUTOFF_{side.upper()}"],
-                         "score": 0, "tests": tests, "docs": docs_for(ctx, inv),
+                         "score": 0, "tests": tests, "docs": docs_for(ctx, inv), "controls": controls_for(ctx, inv),
                          "data": {"unit": inv.get("unit") or "", "quarter": quarter_of(inv_date(inv), ctx.start),
                                   "month": inv_date(inv).strftime("%b-%y"), "bill_no": str(inv["invoice_no"]),
                                   "date": inv.get("invoice_date"), "job_no": inv.get("order_id") or "",

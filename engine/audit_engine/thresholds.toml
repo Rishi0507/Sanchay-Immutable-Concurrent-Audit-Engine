@@ -22,6 +22,8 @@ cutoff_before = 10
 cutoff_after = 15
 credit_note_after_max = 15
 credit_note_total = 20
+# Requests for a document that should not exist, placed among the ordinary requests (PRD 14.4).
+control_requests_max = 3
 
 [related_parties]
 jaro_winkler_min = 0.92
