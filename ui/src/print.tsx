@@ -141,7 +141,7 @@ export function Watermark({ className }: { className?: string }) {
 
 // A chapter number printed the way a note prints its value: inside a small
 // rosette, in colour-shift ink.
-export function Denomination({ n, size = 58, onDark }: { n: string; size?: number; onDark?: boolean }) {
+export function Denomination({ n, size = 50, onDark }: { n: string; size?: number; onDark?: boolean }) {
   return (
     <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }} aria-label={`Chapter ${n}`}>
       <Guilloche size={size} layers={2} tone={onDark ? "var(--color-spine-ink-2)" : "var(--color-guilloche)"} className="absolute inset-0" />
@@ -180,16 +180,16 @@ export function NoteBand({ title, eyebrow, summary, action }: { title: string; e
       <WaveLines className="absolute inset-x-0 top-0 h-full w-full opacity-40" rows={16} />
       {/* The medallion, with the watermark in its window. */}
       <div className="absolute top-1/2 right-6 hidden -translate-y-1/2 md:block">
-        <Guilloche size={200} />
+        <Guilloche size={160} />
         <Watermark className="absolute inset-0 m-auto h-14 w-14 rounded-full" />
       </div>
-      <div className="relative flex flex-wrap items-end justify-between gap-x-8 gap-y-4 px-6 pt-6 pb-5 md:px-8 md:pr-[250px]">
+      <div className="relative flex flex-wrap items-end justify-between gap-x-8 gap-y-3 px-6 pt-5 pb-3.5 md:px-8 md:pr-[210px]">
         <div className="min-w-0 max-w-3xl">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {story?.n && <Denomination n={story.n} />}
             <span className="text-[14.5px] font-semibold text-ink-2">{eyebrow ?? story?.line}</span>
           </div>
-          <h1 className="display mt-1.5 text-[42px] leading-[1.02] text-ink md:text-[50px]" style={{ fontVariationSettings: '"wdth" 80' }}>
+          <h1 className="display mt-1 text-[38px] leading-[1.02] text-ink md:text-[44px]" style={{ fontVariationSettings: '"wdth" 80' }}>
             {title}
           </h1>
           {eyebrow && story && <p className="mt-1 text-[15px] font-medium text-brand">{story.line}</p>}
@@ -197,7 +197,7 @@ export function NoteBand({ title, eyebrow, summary, action }: { title: string; e
         </div>
         {action && <div className="relative flex flex-wrap items-center gap-3">{action}</div>}
       </div>
-      <div className="relative flex items-center gap-4 px-6 pb-3 md:px-8">
+      <div className="relative flex items-center gap-4 px-6 pb-2.5 md:px-8">
         <Thread className="h-2 w-40 shrink-0 rounded-full" />
         <Microtext className="flex-1" />
       </div>
