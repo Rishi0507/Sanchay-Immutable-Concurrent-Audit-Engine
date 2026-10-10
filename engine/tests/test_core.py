@@ -78,3 +78,42 @@ def test_repo_append_only(tmp_path):
         with repo.engine.begin() as c:
             c.execute(text("UPDATE findings SET severity='High'"))
     assert repo.select(findings)[0]["severity"] == "Low"
+
+
+def test_model_output_is_parsed_leniently():
+    from audit_engine.model import parse_object
+
+    assert parse_object('```json\n{"invoice_no": "A/1"}\n```') == {"invoice_no": "A/1"}
+    assert parse_object('Here it is: {"gross": 118} as asked.') == {"gross": 118}
+    assert parse_object("no fields found") is None
+    assert parse_object(None) is None
+
+
+def test_model_fields_confirm_or_question_pattern_fields():
+    from audit_engine.evidence.extract import extract
+    from audit_engine.model import Model
+
+    class Stub(Model):
+        answer: dict = {}
+
+        def complete_json(self, prompt, schema=None):
+            return type(self).answer
+
+    text = b"TAX INVOICE\nInvoice No: SPC/25-26/00042\nInvoice Date: 2026-03-30\nTaxable Value: 100000.00\n"
+    plain = extract(text, "invoice")
+    assert not plain["model_used"]
+    number = plain["fields"]["invoice_no"]["value"]
+
+    Stub.answer = {"invoice_no": number}
+    agreed = extract(text, "invoice", Stub("http://model", "stub"))
+    assert agreed["model_used"]
+    assert agreed["fields"]["invoice_no"]["confidence"] >= plain["fields"]["invoice_no"]["confidence"]
+
+    Stub.answer = {"invoice_no": "SPC/25-26/99999"}
+    disputed = extract(text, "invoice", Stub("http://model", "stub"))
+    assert disputed["fields"]["invoice_no"]["value"] == number  # the pattern value stands (AI-3)
+    assert disputed["fields"]["invoice_no"]["alternative"] == "SPC/25-26/99999"
+    assert disputed["fields"]["invoice_no"]["confidence"] <= 0.6
+
+    Stub.answer = None  # the model failed: pattern rules alone (AI-1)
+    assert extract(text, "invoice", Stub("http://model", "stub")) == plain

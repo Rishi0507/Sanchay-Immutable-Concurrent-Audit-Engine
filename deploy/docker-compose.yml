@@ -53,8 +53,12 @@ services:
       FILES_DIR: /data/files
       ENGINE_ADDR: :7002
       ENGINE_OUTPUT_DIR: /data/outputs
-      # Set OLLAMA_URL to a local model to add model-based evidence extraction (optional).
+      # Optional model for evidence extraction and memo wording. OLLAMA_URL is a local model.
+      # LLM_URL, LLM_API_KEY and LLM_MODEL are a hosted chat completions service, which takes precedence.
       OLLAMA_URL: ${OLLAMA_URL:-}
+      LLM_URL: ${LLM_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
     volumes:
       - files:/data/files
     depends_on:

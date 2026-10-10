@@ -1,18 +1,19 @@
 """Findings memo in Markdown and Word (PRD 19.2).
 
-Every number comes from the findings table. The local model may rephrase a
+Every number comes from the findings table. The model may rephrase a
 description only; a rephrasing that changes any number is discarded and the
 template text is used (PRD 21, AI-3).
 """
 
 from __future__ import annotations
 
+import hashlib
 import io
 import re
 from collections import Counter, defaultdict
 
 from ..findings_service import all_findings
-from ..repo import finding_decisions
+from ..repo import extraction_cache, finding_decisions
 from ..money import rupees
 
 ORDER = {"High": 0, "Medium": 1, "Low": 2}
@@ -27,21 +28,38 @@ def _numbers(s: str) -> list[str]:
     return sorted(re.findall(r"\d[\d,]*(?:\.\d+)?", s))
 
 
-def rephrase(ctx, text: str) -> str:
-    url = ctx.engine.settings.ollama_url
-    if not url:
-        return text
-    try:
-        import httpx
+WORDING = "memo_wording"
+PROMPT = ("Rewrite this audit finding in formal, concise English for a findings memo. Keep every number, date, name "
+          "and document reference exactly as written. Return only the text.\n\n")
 
-        r = httpx.post(f"{url.rstrip('/')}/api/generate", timeout=30, json={
-            "model": ctx.engine.settings.ollama_model, "stream": False, "options": {"temperature": 0},
-            "prompt": "Rewrite this audit finding in formal, concise English for a findings memo. Keep every "
-                      "number, date, name and document reference exactly as written. Return only the text.\n\n" + text})
-        out = (r.json().get("response") or "").strip()
-    except Exception:
-        return text
-    return out if out and _numbers(out) == _numbers(text) else text
+
+def reworded(ctx, texts: list[str]) -> dict[str, str]:
+    """Model wording for each description that has one. A description absent from the result keeps its template text.
+
+    Accepted wording is kept in the extraction cache under the hash of the
+    template text, so drafting the memo again needs no model.
+    """
+    model = ctx.engine.settings.model()
+    if not model:
+        return {}
+    repo = ctx.engine.repo
+    key = lambda t: hashlib.sha256(t.encode()).hexdigest()  # noqa: E731
+    out, todo = {}, []
+    for t in dict.fromkeys(texts):
+        hit = repo.first(extraction_cache, file_hash=key(t), document_type=WORDING)
+        if hit:
+            out[t] = hit["result"]["text"]
+        else:
+            todo.append(t)
+    rows = []
+    for t, answer in zip(todo, model.map(lambda t: model.complete(PROMPT + t), todo)):
+        if answer is None:
+            continue  # The call failed: template text now, and a later draft tries again.
+        out[t] = answer if _numbers(answer) == _numbers(t) else t
+        rows.append({"file_hash": key(t), "document_type": WORDING, "result": {"text": out[t]}})
+    if rows:
+        repo.insert(extraction_cache, rows)
+    return out
 
 
 def revenue_adjustment(findings: list[dict]) -> int:
@@ -65,6 +83,7 @@ def build(ctx, changes: dict, integrity: dict) -> tuple[str, bytes]:
     decisions = defaultdict(list)
     for r in ctx.engine.repo.select(finding_decisions, order_by=finding_decisions.c.id, engagement_id=ctx.eid):
         decisions[r["finding_id"]].append(r)
+    wording = reworded(ctx, [f["reason"] for f in findings])
     md: list[str] = []
     md.append(f"# Findings memo: {eng['client_name']}")
     md.append("")
@@ -100,7 +119,7 @@ def build(ctx, changes: dict, integrity: dict) -> tuple[str, bytes]:
         md.append(f"`{f['finding_id']}` | {f['detector_id']} {f['category']} / {f['subtype']} | Severity "
                   f"{f['severity']} | Status: {status}" + (f" by {f['decided_by']}" if f.get("decided_by") else ""))
         md.append("")
-        md.append(f"**Description.** {rephrase(ctx, f['reason'])}")
+        md.append(f"**Description.** {wording.get(f['reason'], f['reason'])}")
         md.append("")
         md.append(f"**Basis.** {', '.join(f['standard_refs'])}.")
         md.append("")

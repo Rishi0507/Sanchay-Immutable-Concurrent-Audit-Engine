@@ -27,6 +27,11 @@ class Settings:
     ledger_url: str | None = None
     ollama_url: str | None = None
     ollama_model: str = "llama3.2:3b"
+    llm_url: str | None = None
+    llm_api_key: str | None = None
+    llm_model: str | None = None
+    llm_workers: int = 2
+    llm_reasoning_effort: str | None = None
     detector_workers: int = 0
     service_token: str | None = None
     company: dict = field(default_factory=dict)
@@ -44,6 +49,11 @@ class Settings:
             ledger_url=os.environ.get("LEDGER_URL") or None,
             ollama_url=os.environ.get("OLLAMA_URL") or None,
             ollama_model=os.environ.get("OLLAMA_MODEL", cls.ollama_model),
+            llm_url=os.environ.get("LLM_URL") or None,
+            llm_api_key=os.environ.get("LLM_API_KEY") or None,
+            llm_model=os.environ.get("LLM_MODEL") or None,
+            llm_workers=int(os.environ.get("LLM_WORKERS", "2")),
+            llm_reasoning_effort=os.environ.get("LLM_REASONING_EFFORT") or None,
             detector_workers=int(os.environ.get("ENGINE_DETECTOR_WORKERS", "0")),
         )
         company_file = os.environ.get("ENGINE_COMPANY_FILE") or (
@@ -52,3 +62,14 @@ class Settings:
             with open(company_file, "rb") as fh:
                 s.company = tomllib.load(fh)
         return s
+
+    def model(self):
+        """The configured language model, or None. A hosted model (LLM_URL) takes precedence over a local one."""
+        from .model import Model
+
+        if self.llm_url and self.llm_model:
+            return Model(self.llm_url, self.llm_model, "chat", self.llm_api_key, max(1, self.llm_workers),
+                         self.llm_reasoning_effort)
+        if self.ollama_url:
+            return Model(self.ollama_url, self.ollama_model)
+        return None

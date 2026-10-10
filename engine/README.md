@@ -24,6 +24,9 @@ Integration tests and the self-test live in `datagen/` because they need generat
 | `ENGINE_OUTPUT_DIR` | Where exported workpapers and memos are also written | `var/outputs` |
 | `LEDGER_URL` | Ledger core, for `/verify` and `/trail/verify` | unset |
 | `OLLAMA_URL`, `OLLAMA_MODEL` | Local model for evidence extraction and memo wording. Optional (AI-1). | unset, `llama3.2:3b` |
+| `LLM_URL`, `LLM_API_KEY`, `LLM_MODEL` | Hosted model that speaks the chat completions format, used in place of the local model where one is impractical. Takes precedence over `OLLAMA_URL`. Optional (AI-1). | unset |
+| `LLM_WORKERS` | Concurrent requests to the hosted model. Keep it low where the service enforces a rate limit. | `2` |
+| `LLM_REASONING_EFFORT` | Reasoning effort asked of the hosted model. Hidden reasoning is billed as output, so `minimal` suits document reading. | unset |
 | `TESSERACT_CMD` | Tesseract binary for OCR. Found on PATH or in the usual install folders when unset. | unset |
 | `ENGINE_COMPANY_FILE` | TOML with `[entities.E1]` name, GSTIN, PAN, phone, email, address and bank accounts of the company and group entities | unset |
 | `ENGINE_THRESHOLDS` | Alternative thresholds file (DT-6) | `audit_engine/thresholds.toml` |
@@ -44,6 +47,7 @@ The endpoints, headers and error format are in `contracts/engine-api/README.md`.
 | `graph.py` | 13.4 | Counterparty graph, Tarjan components, Johnson cycles up to length 6 |
 | `sampling.py` | 12 | Sales, cut-off and credit note TODs, seeded RNG, reasons, evidence requests |
 | `evidence/` | 14 | Text and OCR extraction, pattern rules and optional local model, checks E-1 to E-8, D-10 |
+| `model.py` | 21 | The optional model: local Ollama or a hosted chat completions service |
 | `findings.py`, `findings_service.py` | 15 | Stable finding IDs, severity, template reasons, decisions, sign-off |
 | `changes.py` | 16.3 | D-15 matching rules and sample reversion |
 | `integrity.py` | 16.2 | Chain recomputation, snapshot hash and Merkle root comparison, D-16 |
@@ -59,4 +63,5 @@ The endpoints, headers and error format are in `contracts/engine-api/README.md`.
 | Finding IDs | `F-` and 16 hex characters of SHA-256 over engagement, category, subtype and subject. Re-running a step adds nothing (DT-4). |
 | Evidence reuse (E-3) | Exact file hash and normalised text hash across samples of different transactions. Perceptual hash for raster scans. Samples of the same invoice in two TODs may share documents. |
 | Evidence confidence (EV-4) | Text PDFs 0.95, OCR 0.85, disagreement between model and patterns 0.6. A required field below 0.8 gives `Needs human review`. |
-| Model use | Optional. Model output is schema-validated and only fills or confirms fields. Memo rephrasing is discarded if any number changes. |
+| Model use | Optional. Model output is schema-validated and only fills or confirms fields. Memo rephrasing is discarded if any number changes. A failed call falls back to pattern rules or template text and is logged. |
+| Model cache | A file read with the model is cached apart from a file read by pattern rules alone, so files are read again once a model is configured. Accepted memo wording is cached by the hash of the template text. Repeating a step needs no model. |

@@ -2,7 +2,7 @@
 
 Text PDFs are read directly. Scans and images go through OCR (EV-1), with
 Hindi and Marathi packs when installed (EV-6). Fields are extracted into a
-fixed schema per document type by the local model when it is configured
+fixed schema per document type by the model when one is configured
 (EV-2), validated against the schema, and otherwise by pattern rules (EV-3,
 AI-3). Every field carries a confidence (EV-4).
 """
@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import datetime as dt
 import io
-import json
 import os
 import re
 import shutil
@@ -243,10 +242,8 @@ def by_patterns(text: str, doc_type: str, base_conf: float) -> dict[str, dict]:
     return fields
 
 
-def by_model(text: str, doc_type: str, url: str, model: str) -> dict[str, dict] | None:
-    """Local model extraction (EV-2). Output is validated; anything invalid returns None (AI-3)."""
-    import httpx
-
+def by_model(text: str, doc_type: str, model) -> dict[str, dict] | None:
+    """Model extraction (EV-2). Output is validated; anything invalid returns None (AI-3)."""
     keys = SCHEMA.get(doc_type, [])
     if not keys:
         return None
@@ -255,14 +252,7 @@ def by_model(text: str, doc_type: str, url: str, model: str) -> dict[str, dict] 
     prompt = (f"Extract these fields from the {doc_type.replace('_', ' ')} text below. Return JSON only with keys "
               f"{keys}. Amounts in rupees as numbers, dates as YYYY-MM-DD, date-times as YYYY-MM-DDTHH:MM:SS. "
               f"Use null when a field is absent.\n\n{text[:6000]}")
-    try:
-        r = httpx.post(f"{url.rstrip('/')}/api/generate", timeout=60,
-                       json={"model": model, "prompt": prompt, "format": schema, "stream": False,
-                             "options": {"temperature": 0}})
-        r.raise_for_status()
-        data = json.loads(r.json().get("response") or "{}")
-    except Exception:
-        return None
+    data = model.complete_json(prompt, schema)
     if not isinstance(data, dict):
         return None
     out = {}
@@ -290,13 +280,13 @@ def by_model(text: str, doc_type: str, url: str, model: str) -> dict[str, dict] 
     return out
 
 
-def extract(data: bytes, doc_type: str, ollama_url: str | None = None, model: str = "llama3.2:3b") -> dict:
+def extract(data: bytes, doc_type: str, model=None) -> dict:
     text, method, meta = text_of(data)
     base = {"pdf_text": 0.95, "plain_text": 0.95, "ocr": 0.85, "none": 0.0}[method]
     fields = by_patterns(text, doc_type, base) if text else {}
     used_model = False
-    if ollama_url and text:
-        model_fields = by_model(text, doc_type, ollama_url, model)
+    if model and text:
+        model_fields = by_model(text, doc_type, model)
         if model_fields:
             used_model = True
             for k, v in model_fields.items():

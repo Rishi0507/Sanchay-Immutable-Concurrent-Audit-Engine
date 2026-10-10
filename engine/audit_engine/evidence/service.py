@@ -90,17 +90,51 @@ def request_evidence(ctx, sample_id: str, document_type: str, note: str = "") ->
     return {"request_id": rid, "notification": {"audience": "client", "kind": "evidence_requested", "count": 1}}
 
 
+# A reading the model took part in is cached apart from a reading by pattern rules
+# alone, so a file first read with no model is read again once a model is configured.
+WITH_MODEL = "+model"
+
+
+def _cached(repo, file_hash: str, doc_type: str, model) -> dict | None:
+    if model:
+        hit = repo.first(extraction_cache, file_hash=file_hash, document_type=doc_type + WITH_MODEL)
+        return hit["result"] if hit else None
+    hit = repo.first(extraction_cache, file_hash=file_hash, document_type=doc_type)
+    return hit["result"] if hit else None
+
+
+def _read(data: bytes, file_hash: str, doc_type: str, model) -> dict:
+    res = extract(data, doc_type, model)
+    res["phash"] = perceptual_hash(data)
+    key = doc_type + WITH_MODEL if res["model_used"] else doc_type
+    return {"file_hash": file_hash, "document_type": key, "result": res}
+
+
 def _extract_cached(ctx, file_hash: str, doc_type: str) -> dict:
     repo = ctx.engine.repo
-    hit = repo.first(extraction_cache, file_hash=file_hash, document_type=doc_type)
+    model = ctx.engine.settings.model()
+    hit = _cached(repo, file_hash, doc_type, model)
     if hit:
-        return hit["result"]
-    data = ctx.engine.files.get(file_hash)
-    s = ctx.engine.settings
-    res = extract(data, doc_type, s.ollama_url, s.ollama_model)
-    res["phash"] = perceptual_hash(data)
-    repo.insert(extraction_cache, {"file_hash": file_hash, "document_type": doc_type, "result": res})
-    return res
+        return hit
+    row = _read(ctx.engine.files.get(file_hash), file_hash, doc_type, model)
+    repo.insert(extraction_cache, row)
+    return row["result"]
+
+
+def _warm_extractions(ctx, wanted: list[tuple[str, str]]) -> None:
+    """Read the files not yet in the cache, concurrently when a hosted model is configured.
+
+    One model call per file takes seconds. In sequence, a full set of samples
+    would outlast the caller's timeout.
+    """
+    model = ctx.engine.settings.model()
+    if not model or model.workers <= 1:
+        return
+    repo = ctx.engine.repo
+    todo = [(h, t, ctx.engine.files.get(h)) for h, t in dict.fromkeys(wanted) if not _cached(repo, h, t, model)]
+    rows = model.map(lambda item: _read(item[2], item[0], item[1], model), todo)
+    if rows:
+        repo.insert(extraction_cache, rows)
 
 
 def _v(ex: dict | None, field: str):
@@ -144,6 +178,7 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
     th = ctx.th["evidence"]
     findings, results, new_results, new_tests = [], [], [], []
     extracted_all: dict[str, dict] = {}
+    _warm_extractions(ctx, [(r["file_hash"], r["document_type"]) for r in status if r["upload_seq"]])
     for r in status:
         if r["upload_seq"]:
             ex = _extract_cached(ctx, r["file_hash"], r["document_type"])
