@@ -316,8 +316,8 @@ export default function Trail({ pulse }: ViewProps) {
         </div>
       )}
 
-      <div id="tr-rows" className="mb-3 flex flex-wrap items-center gap-3">
-        <div className="w-full sm:w-72">
+      <div id="tr-rows" className="toolbar mb-3">
+        <div className="search">
           <SearchBox value={query} onChange={setQuery} label="Search the trail" placeholder="Search user, action, hash" />
         </div>
         <Pills

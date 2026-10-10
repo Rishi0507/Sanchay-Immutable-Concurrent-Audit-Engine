@@ -661,11 +661,11 @@ export default function Findings({ identity, pulse, focus, goTo, can }: ViewProp
 
       {/* Toolbar */}
       <div id="fd-list" />
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="w-full sm:w-72">
+      <div className="toolbar mb-5">
+        <div className="search">
           <SearchBox value={query} onChange={setQuery} label="Search findings" placeholder="Search title, party, reference" />
         </div>
-        <select aria-label="Category" className={selectClass + " min-w-48"} value={cat} onChange={(e) => setCat(e.target.value)}>
+        <select aria-label="Category" className={selectClass + " max-w-[230px]"} value={cat} onChange={(e) => setCat(e.target.value)}>
           <option value="">All categories</option>
           {categories.map((c) => (
             <option key={c} value={c}>

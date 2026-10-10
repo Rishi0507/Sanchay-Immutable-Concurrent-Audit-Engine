@@ -138,7 +138,31 @@ export async function callTool<T = any>(name: string, args: Record<string, unkno
     headers: headers({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
-  return parse<T>(res);
+  return polish(name, await parse<T>(res));
+}
+
+const monthsShort = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// The engine writes its sentences for a log: "A -> B", "2026-01-01". On the
+// screen they read "A → B" and "1 Jan 2026". Document numbers are left alone.
+export function readable(text: string): string {
+  return text.replace(/\s*->\s*/g, " → ").replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, (whole, y, m, d) => {
+    const mi = Number(m) - 1;
+    return mi >= 0 && mi < 12 && Number(d) >= 1 && Number(d) <= 31 ? `${Number(d)} ${monthsShort[mi]} ${y}` : whole;
+  });
+}
+
+// Findings carry the engine's own sentences, made readable as they arrive.
+function polish<T>(name: string, result: T): T {
+  const fix = (f: any) => {
+    if (!f || typeof f !== "object") return f;
+    for (const k of ["title", "reason", "explanation"]) if (typeof f[k] === "string") f[k] = readable(f[k]);
+    return f;
+  };
+  const r = result as any;
+  if (name === "get_findings" && Array.isArray(r?.findings)) r.findings.forEach(fix);
+  if (name === "explain_finding") fix(r);
+  return result;
 }
 
 // Calls a tool as a named identity, without changing who is signed in. The

@@ -5,7 +5,7 @@ import { BrandMark, Button, Mark, Toasts, cx, inputClass, toast } from "./ui";
 import { setFullDetail, useDetail } from "./auditor/kit";
 import { CommandItem, CommandPalette } from "./Command";
 import { Thread, useTilt } from "./print";
-import { PalettePicker, UvSwitch } from "./inks";
+import { InkButton, PalettePicker, UvSwitch } from "./inks";
 import Upload from "./client/Upload";
 import Requests from "./client/Requests";
 import Records from "./client/Records";
@@ -111,7 +111,7 @@ function fiscalYear(start: string, end: string) {
 function ViewSwitch() {
   const d = useDetail();
   return (
-    <div className="px-4 pb-3">
+    <div className="px-4 pb-2.5">
       <div
         className="grid grid-cols-2 rounded-lg bg-black/25 p-1"
         role="group"
@@ -126,7 +126,7 @@ function ViewSwitch() {
             key={o.label}
             onClick={() => setFullDetail(o.full)}
             aria-pressed={d.full === o.full}
-            className={cx("h-8 rounded-md text-[13.5px] font-semibold transition-colors", d.full === o.full ? "bg-spine-ink text-spine" : "text-spine-ink-2 hover:text-spine-ink")}
+            className={cx("h-7 rounded-md text-[13.5px] font-semibold transition-colors", d.full === o.full ? "bg-spine-ink text-spine" : "text-spine-ink-2 hover:text-spine-ink")}
           >
             {o.label}
           </button>
@@ -693,7 +693,7 @@ export default function App() {
       <aside className="sticky top-0 hidden h-screen w-[264px] shrink-0 flex-col bg-spine text-spine-ink lg:flex">
         {/* The security thread runs down the spine. */}
         <Thread vertical className="absolute top-0 right-0 h-full opacity-60" />
-        <div className="flex h-[76px] items-center px-5">
+        <div className="flex h-[76px] items-center px-5 [@media(max-height:760px)]:h-[60px]">
           <Wordmark onClick={() => setScreen("landing")} />
         </div>
         {engagementSelect && (
@@ -718,7 +718,7 @@ export default function App() {
                     )}
                   >
                     <span className={cx("absolute inset-y-2.5 -left-3 w-1 rounded-r-full bg-highlight transition-opacity duration-150", on ? "opacity-100" : "opacity-0")} />
-                    <span className={cx("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors", on ? "bg-highlight text-spine" : "bg-white/[0.07]")}>
+                    <span className={cx("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors [@media(max-height:760px)]:h-7 [@media(max-height:760px)]:w-7", on ? "bg-highlight text-spine" : "bg-white/[0.07]")}>
                       <TabIcon id={t.id} />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -733,22 +733,22 @@ export default function App() {
           </ul>
         </nav>
         {auditing && <ViewSwitch />}
-        <div className="border-t border-white/10 px-5 py-4 text-[14px]">
+        <div className="border-t border-white/10 px-5 py-3 text-[14px]">
           <div className="flex min-w-0 items-center gap-3" title={identity.user}>
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-highlight text-[14px] font-bold text-spine">{(identity.department_name ?? roleLabel[identity.role]).slice(0, 1)}</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate font-bold">{identity.department_name ?? roleLabel[identity.role]}</span>
               <span className="block truncate text-[12.5px] text-spine-ink-2">{auditing ? "Can read, cannot change the books" : identity.user}</span>
             </span>
-          </div>
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <PalettePicker compact onDark />
-          </div>
-          <div className="mt-3 flex items-center justify-between gap-3 text-spine-ink-2">
-            <UvSwitch onDark />
-            <button onClick={signOut} className="font-semibold transition-colors hover:text-spine-ink">
-              Sign out
+            <button onClick={signOut} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-spine-ink-2 transition-colors hover:bg-white/10 hover:text-spine-ink" title="Sign out" aria-label="Sign out">
+              <svg width="17" height="17" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M8 4H4.5v12H8M12 6.5L15.5 10 12 13.5M15.5 10H8" />
+              </svg>
             </button>
+          </div>
+          <div className="mt-2.5 flex items-center gap-2">
+            <InkButton />
+            <UvSwitch onDark />
           </div>
         </div>
       </aside>

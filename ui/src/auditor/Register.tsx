@@ -404,8 +404,8 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
 
           <div id="rg-rows">
             <div className="min-w-0">
-              <div className="mb-3 flex flex-wrap items-center gap-3">
-                <div className="w-full sm:w-72">
+              <div className="toolbar mb-3">
+                <div className="search">
                   <SearchBox value={query} onChange={setQuery} label="Search the register" placeholder="Search bill no., customer, amount" />
                 </div>
                 <button onClick={() => setStatus(status === "attention" ? "" : "attention")} aria-pressed={status === "attention"} className={cx("inline-flex h-9 items-center gap-2 rounded-md border px-3 text-[14px] transition-colors", status === "attention" ? "border-ink bg-wash text-ink" : "border-line text-ink-2 hover:text-ink")}>

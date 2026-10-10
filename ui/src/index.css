@@ -1185,3 +1185,33 @@ html[data-uv="on"] body {
     opacity: 1;
   }
 }
+
+/* The search and filters above a list: one bar, and it stays in reach while
+   the list scrolls, just under the top bar. */
+.toolbar {
+  position: sticky;
+  top: 112px;
+  z-index: 15;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--color-paper) 94%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 24px -18px rgba(0, 0, 0, 0.35);
+}
+
+@media (min-width: 1024px) {
+  .toolbar {
+    top: 78px;
+  }
+}
+
+.toolbar .search {
+  min-width: 220px;
+  flex: 1 1 260px;
+  max-width: 420px;
+}

@@ -411,8 +411,8 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
       )}
 
       {samples.length > 0 && (
-        <div id="sm-rows" className="mb-3 flex flex-wrap items-center gap-3">
-          <div className="w-full sm:w-80">
+        <div id="sm-rows" className="toolbar mb-3">
+          <div className="search">
             <SearchBox value={query} onChange={setQuery} label="Search samples" placeholder="Search bill no., customer" />
           </div>
           <Tally n={shown.length} label={`of ${samples.length} shown`} />
