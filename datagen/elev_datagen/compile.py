@@ -117,7 +117,7 @@ class Compiler:
 
     def compile_sales(self) -> None:
         w = self.w
-        for s in w.sales:
+        for s in sorted(w.sales, key=lambda x: (x.dispatch_at, x.sale_id, x.short())):
             short = s.short()
             if s.has_enquiry:
                 self.emit(at(s.enquiry_date, 11, 0), "EnquiryRecorded", f"ENQ-{short}",

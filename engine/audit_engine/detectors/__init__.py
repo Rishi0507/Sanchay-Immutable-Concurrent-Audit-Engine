@@ -12,11 +12,16 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 
 REGISTRY = {
+    "D-04": "cycles",
     "D-05": "movement",
     "D-06": "cutoff",
     "D-08": "tax",
     "D-09": "revenue",
     "D-11": "credit_notes",
+    "D-07": "concentration",
+    "D-12": "promotions",
+    "D-13": "settlement",
+    "D-14": "integrity_docs",
 }
 
 
@@ -32,8 +37,11 @@ def run_detectors(ctx, only: list[str] | None = None) -> dict:
     from .common import period_invoices
 
     period_invoices(ctx)
-    if hasattr(ctx.engine, "warm_detector_caches"):
-        ctx.engine.warm_detector_caches(ctx)
+    from ..graph import build_graph
+    from ..related_parties import resolve
+
+    resolve(ctx)
+    build_graph(ctx)
 
     def run(det_id):
         t = time.perf_counter()
@@ -48,12 +56,9 @@ def run_detectors(ctx, only: list[str] | None = None) -> dict:
     all_findings = [f for det_id in ids for f in results[det_id][0]]
     ctx.engine.save_findings(all_findings)
     indicators = {}
-    try:
-        from .indicators import compute_indicators
+    from .indicators import compute_indicators
 
-        indicators = compute_indicators(ctx)
-    except ImportError:
-        pass
+    indicators = compute_indicators(ctx)
     return {"by_detector": {k: len(v[0]) for k, v in results.items()},
             "seconds": {k: v[1] for k, v in results.items()},
             "findings_raised": len(all_findings), "indicators": indicators}

@@ -398,8 +398,8 @@ class World:
     def new_sale(self, cust: Party, dispatch_at: dt.datetime, value: int | None = None,
                  terms: str | None = None, items: list[str] | None = None, plant: bool = False) -> Sale:
         terms = terms or cust.terms
-        value = value or int(cust.order_value * math.exp(self.rng.gauss(0, 0.25)))
-        value = min(value, 2_200_000_00)
+        if value is None:
+            value = min(int(cust.order_value * math.exp(self.rng.gauss(0, 0.25))), 2_200_000_00)
         chosen = items or self.rng.sample(cust.items, k=min(len(cust.items), self.rng.randint(1, 3)))
         order_lag = self.rng.randint(2, 6)
         order_date = dispatch_at.date() - dt.timedelta(days=order_lag)

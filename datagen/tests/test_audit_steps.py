@@ -61,19 +61,36 @@ def test_related_parties_recall(planted_engine, answer_key):
                 and f["subject"]["id"] == late[0]["subject"]["id"]]
 
 
-B4 = ("D-05", "D-06", "D-08", "D-09", "D-11")
+DETECTORS = ("D-04", "D-05", "D-06", "D-07", "D-08", "D-09", "D-11", "D-12", "D-13", "D-14")
 
 
-def test_b4_detectors_clean(clean_engine):
+def test_detectors_clean(clean_engine):
     clean_engine.step("run_detectors")
     eid = clean_engine.resolve(None)["engagement_id"]
-    fps = [f for f in clean_engine.repo.findings(eid) if f["detector_id"] in B4]
+    fps = [f for f in clean_engine.repo.findings(eid) if f["detector_id"] in DETECTORS]
     assert not fps, [(f["subtype"], f["subject"]["id"]) for f in fps]
 
 
-def test_b4_detectors_recall(planted_engine, answer_key):
+def test_detectors_recall(planted_engine, answer_key):
     planted_engine.step("run_detectors")
     eid = planted_engine.resolve(None)["engagement_id"]
-    findings = [f for f in planted_engine.repo.findings(eid) if f["detector_id"] in B4]
-    missed = recall(findings, [i for i in answer_key if i["detector"] in B4])
+    findings = [f for f in planted_engine.repo.findings(eid) if f["detector_id"] in DETECTORS]
+    missed = recall(findings, [i for i in answer_key if i["detector"] in DETECTORS])
     assert not missed, missed
+
+
+def test_detectors_rerun_adds_nothing(planted_engine):
+    from audit_engine.detectors import run_detectors
+
+    ctx = planted_engine.ctx()
+    before = len(planted_engine.repo.findings(ctx.eid))
+    run_detectors(ctx)
+    assert len(planted_engine.repo.findings(ctx.eid)) == before
+
+
+def test_graph_has_cycles(planted_engine):
+    from audit_engine.graph import build_graph
+
+    g = build_graph(planted_engine.ctx())
+    assert {c["type"] for c in g["cycles"]} == {"goods", "money"}
+    assert any(len(c["nodes"]) == 3 for c in g["cycles"])
