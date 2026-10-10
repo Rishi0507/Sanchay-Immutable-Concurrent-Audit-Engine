@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Identity, Notice, Role, getToken, setToken, subscribe, whoami } from "./api";
+import { Identity, Notice, Role, callTool, getEngagement, getToken, setEngagement, setRole, setToken, subscribe, whoami } from "./api";
 import { Button, Card, Chip, Toasts, cx, inputClass, toast } from "./ui";
 import Upload from "./client/Upload";
 import Requests from "./client/Requests";
@@ -18,6 +18,17 @@ export interface ViewProps {
   pulse: number;
   goTo: (tab: string, focus?: string) => void;
   focus?: string;
+  // The engagement in view, or "" when none is open. Auditor views only.
+  engagementId: string;
+  onEngagement: (id: string) => void;
+}
+
+interface EngagementRef {
+  engagement_id: string;
+  period_start: string;
+  period_end: string;
+  opened_at?: string;
+  signed_off?: boolean;
 }
 
 type TabDef = { id: string; label: string; view: (p: ViewProps) => JSX.Element };
@@ -71,7 +82,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (id: Identity) => void }) {
 
   return (
     <div className="flex min-h-full items-center justify-center p-6">
-      <Card className="view w-full max-w-sm p-8">
+      <Card className="view w-full max-w-md p-8">
         <div className="mb-6 flex items-center gap-3">
           <Logo />
           <div className="text-lg font-semibold tracking-tight">Revenue Audit</div>
@@ -127,6 +138,9 @@ export default function App() {
   const [focus, setFocus] = useState<string | undefined>();
   const [pulse, setPulse] = useState(0);
   const [badges, setBadges] = useState<Record<string, number>>({});
+  const [engagements, setEngagements] = useState<EngagementRef[]>([]);
+  const [engagementId, setEngagementId] = useState("");
+  const [engagementsLoaded, setEngagementsLoaded] = useState(false);
 
   useEffect(() => {
     if (!getToken()) {
@@ -140,10 +154,41 @@ export default function App() {
   }, []);
 
   const tabs = identity?.role === "client_employee" ? clientTabs : auditorTabs;
+  const auditing = !!identity && identity.role !== "client_employee";
 
   useEffect(() => {
+    setRole(identity?.role ?? "");
     if (identity) setTab(identity.role === "client_employee" ? "upload" : "overview");
   }, [identity]);
+
+  const chooseEngagement = useCallback((id: string) => {
+    setEngagement(id);
+    setEngagementId(id);
+  }, []);
+
+  // Keeps the list of engagements current and settles on one: the stored
+  // choice if it still exists, otherwise the most recent open engagement.
+  const loadEngagements = useCallback(async () => {
+    try {
+      const { engagements: list } = await callTool<{ engagements: EngagementRef[] }>("list_engagements");
+      const sorted = [...list].sort((a, b) => (b.opened_at ?? "").localeCompare(a.opened_at ?? ""));
+      setEngagements(sorted);
+      const stored = getEngagement();
+      if (stored && sorted.some((e) => e.engagement_id === stored)) {
+        setEngagementId(stored);
+      } else {
+        chooseEngagement((sorted.find((e) => !e.signed_off) ?? sorted[0])?.engagement_id ?? "");
+      }
+    } catch {
+      setEngagements([]);
+    } finally {
+      setEngagementsLoaded(true);
+    }
+  }, [chooseEngagement]);
+
+  useEffect(() => {
+    if (auditing) loadEngagements();
+  }, [auditing, loadEngagements]);
 
   // Live notices: a client upload badges the auditor's Overview, an evidence
   // request badges the client's Requests tab.
@@ -180,6 +225,10 @@ export default function App() {
     );
 
   const active = tabs.find((t) => t.id === tab) ?? tabs[0];
+  const onEngagement = (id: string) => {
+    chooseEngagement(id);
+    loadEngagements();
+  };
 
   return (
     <div className="flex min-h-full flex-col">
@@ -213,12 +262,31 @@ export default function App() {
             ))}
           </nav>
           <div className="flex items-center gap-3">
+            {auditing && engagements.length > 0 && (
+              <select
+                value={engagementId}
+                onChange={(e) => chooseEngagement(e.target.value)}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 outline-none transition-shadow focus:ring-4 focus:ring-indigo-100"
+                title="Engagement"
+              >
+                {engagements.map((e) => (
+                  <option key={e.engagement_id} value={e.engagement_id}>
+                    {e.period_start} to {e.period_end}
+                    {engagements.length > 1 && e.opened_at ? `, opened ${new Date(e.opened_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : ""}
+                    {e.signed_off ? " (signed off)" : ""}
+                  </option>
+                ))}
+                <option value="">New engagement</option>
+              </select>
+            )}
             <Chip tone="accent">{roleLabel[identity.role]}</Chip>
             <span className="hidden text-sm text-slate-500 sm:inline">{identity.user}</span>
             <button
               onClick={() => {
                 setToken("");
                 setIdentity(null);
+                setEngagements([]);
+                setEngagementsLoaded(false);
               }}
               className="text-sm text-slate-400 transition-colors hover:text-slate-700"
             >
@@ -228,8 +296,8 @@ export default function App() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-8">
-        <div key={active.id} className="view">
-          {active.view({ identity, pulse, goTo, focus })}
+        <div key={`${active.id}:${engagementId}`} className="view">
+          {auditing && !engagementsLoaded ? null : active.view({ identity, pulse, goTo, focus, engagementId, onEngagement })}
         </div>
       </main>
       <Toasts />

@@ -31,7 +31,7 @@ function label(tool: string) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
-function OpenEngagement({ onOpened, pulse }: { onOpened: () => void; pulse: number }) {
+function OpenEngagement({ onOpened, pulse }: { onOpened: (id: string) => void; pulse: number }) {
   const now = new Date();
   const startYear = now.getMonth() >= 3 ? now.getFullYear() - 1 : now.getFullYear() - 2;
   const [periodStart, setPeriodStart] = useState(`${startYear}-04-01`);
@@ -67,9 +67,9 @@ function OpenEngagement({ onOpened, pulse }: { onOpened: () => void; pulse: numb
           disabled={!ready}
           onClick={() =>
             run("open", async () => {
-              await callTool("open_engagement", { period_start: periodStart, period_end: periodEnd, seed });
+              const opened = await callTool("open_engagement", { period_start: periodStart, period_end: periodEnd, seed });
               toast("Engagement opened. The snapshot is frozen.");
-              onOpened();
+              onOpened(opened.engagement_id);
             })
           }
         >
@@ -80,11 +80,10 @@ function OpenEngagement({ onOpened, pulse }: { onOpened: () => void; pulse: numb
   );
 }
 
-export default function Overview({ pulse, goTo }: ViewProps) {
-  const status = useTool<any>("get_engagement_status", {}, [pulse]);
-  const noEngagement = (status.error as any)?.code === "NO_ENGAGEMENT";
-  const engagementId = status.data?.engagement_id;
-  const plan = useTool<{ steps: Step[]; next_tool?: string }>(engagementId ? "get_audit_plan" : null, { engagement_id: engagementId }, [pulse, engagementId]);
+export default function Overview({ pulse, goTo, engagementId, onEngagement }: ViewProps) {
+  const status = useTool<any>(engagementId ? "get_engagement_status" : null, {}, [pulse]);
+  const noEngagement = !engagementId || (status.error as any)?.code === "NO_ENGAGEMENT";
+  const plan = useTool<{ steps: Step[]; next_tool?: string }>(engagementId ? "get_audit_plan" : null, {}, [pulse]);
   const [integrity, setIntegrity] = useState<any>(null);
   const { busy, run } = useAction();
 
@@ -95,7 +94,7 @@ export default function Overview({ pulse, goTo }: ViewProps) {
 
   const runTool = (tool: string) =>
     run(tool, async () => {
-      const result = await callTool(tool, { engagement_id: engagementId });
+      const result = await callTool(tool, {});
       if (tool === "verify_ledger_integrity") setIntegrity(result);
       const made = result.findings_created;
       toast(`${label(tool)} finished${typeof made === "number" && made > 0 ? `, ${made} finding${made === 1 ? "" : "s"}` : ""}.`);
@@ -107,7 +106,7 @@ export default function Overview({ pulse, goTo }: ViewProps) {
     return (
       <>
         <Header title="Overview" />
-        <OpenEngagement onOpened={status.reload} pulse={pulse} />
+        <OpenEngagement onOpened={onEngagement} pulse={pulse} />
       </>
     );
   }

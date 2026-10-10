@@ -26,6 +26,12 @@ export class ApiError extends Error {
 
 const TOKEN_KEY = "revenue-audit-token";
 
+let currentRole: Role | "" = "";
+
+export function setRole(role: Role | "") {
+  currentRole = role;
+}
+
 export function getToken(): string {
   return localStorage.getItem(TOKEN_KEY) ?? "";
 }
@@ -68,11 +74,38 @@ function clean(args: Record<string, unknown>) {
   return out;
 }
 
+// The engagement the auditor is working on. Tools that take engagement_id
+// receive it automatically, so every screen follows the header's selection.
+const ENGAGEMENT_KEY = "revenue-audit-engagement";
+let currentEngagement = localStorage.getItem(ENGAGEMENT_KEY) ?? "";
+
+export function getEngagement(): string {
+  return currentEngagement;
+}
+
+export function setEngagement(id: string) {
+  currentEngagement = id;
+  if (id) localStorage.setItem(ENGAGEMENT_KEY, id);
+  else localStorage.removeItem(ENGAGEMENT_KEY);
+}
+
+const engagementTools = new Set([
+  "get_audit_plan", "get_engagement_status", "import_register", "reconcile_register", "get_register_rows",
+  "tag_related_parties", "run_detectors", "select_sales_tod", "select_cutoff_tod", "select_credit_note_tod",
+  "get_samples", "get_evidence_status", "request_evidence", "verify_evidence", "check_post_testing_changes",
+  "get_findings", "get_counterparty_graph", "draft_findings_memo", "export_workpaper", "sign_off_engagement",
+  "query_records", "get_sale_chain", "get_ledger_entries", "verify_ledger_integrity",
+]);
+
 export async function callTool<T = any>(name: string, args: Record<string, unknown> = {}): Promise<T> {
+  const body = clean(args);
+  if (currentEngagement && currentRole !== "client_employee" && engagementTools.has(name) && !("engagement_id" in body)) {
+    body.engagement_id = currentEngagement;
+  }
   const res = await fetch(`/api/tools/${name}`, {
     method: "POST",
     headers: headers({ "Content-Type": "application/json" }),
-    body: JSON.stringify(clean(args)),
+    body: JSON.stringify(body),
   });
   return parse<T>(res);
 }

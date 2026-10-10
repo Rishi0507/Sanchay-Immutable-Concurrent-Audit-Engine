@@ -37,8 +37,12 @@ export default function Graph({ pulse, goTo }: ViewProps) {
           selector: "node",
           style: {
             label: "data(label)",
-            "font-size": 10,
+            "font-size": 9,
             color: "#334155",
+            "text-background-color": "#ffffff",
+            "text-background-opacity": 0.85,
+            "text-background-padding": "2px",
+            "text-background-shape": "roundrectangle",
             "text-valign": "bottom",
             "text-margin-y": 4,
             "text-max-width": "110px",
@@ -65,7 +69,7 @@ export default function Graph({ pulse, goTo }: ViewProps) {
         { selector: "node.hot", style: { width: 30, height: 30, "border-width": 3, "border-color": "#e11d48" } },
         { selector: "edge.hot", style: { width: 3.5, "line-color": "#e11d48", "target-arrow-color": "#e11d48" } },
       ],
-      layout: { name: "cose", animate: false, nodeRepulsion: () => 9000, idealEdgeLength: () => 90, padding: 30 } as any,
+      layout: { name: "cose", animate: false, nodeRepulsion: () => 60000, idealEdgeLength: () => 150, nodeOverlap: 40, gravity: 0.2, padding: 40 } as any,
       wheelSensitivity: 0.25,
     });
     cy.current = instance;

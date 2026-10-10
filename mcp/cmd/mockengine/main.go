@@ -65,15 +65,15 @@ type finding map[string]any
 
 type engagement struct {
 	ID, PeriodStart, PeriodEnd, Seed, SnapshotHash, OpenedBy, OpenedAt string
-	SnapshotSeq                                                      int64
-	steps                                                            map[string]bool
-	register                                                         []map[string]any
-	columns                                                          []string
-	samples                                                          map[string][]*sample
-	requests                                                         []map[string]any
-	findings                                                         map[string]finding
-	order                                                            []string
-	signedOff                                                        bool
+	SnapshotSeq                                                        int64
+	steps                                                              map[string]bool
+	register                                                           []map[string]any
+	columns                                                            []string
+	samples                                                            map[string][]*sample
+	requests                                                           []map[string]any
+	findings                                                           map[string]finding
+	order                                                              []string
+	signedOff                                                          bool
 }
 
 type server struct {
@@ -150,7 +150,9 @@ func main() {
 		})
 	}
 
-	route("GET /health", func(*http.Request, map[string]any) (any, error) { return map[string]any{"status": "ok", "mock": true}, nil })
+	route("GET /health", func(*http.Request, map[string]any) (any, error) {
+		return map[string]any{"status": "ok", "mock": true}, nil
+	})
 	route("POST /engagements", s.open)
 	route("GET /engagements", s.list)
 	route("GET /engagements/status", s.status)
@@ -524,9 +526,9 @@ func (s *server) detect(r *http.Request, args map[string]any) (any, error) {
 			"severity": "High", "title": "Invoice " + no + " has no dispatch behind it",
 			"subject": map[string]any{"type": "invoice", "id": id, "label": no}, "amount_impact": taxable, "period_effect": "Overstated",
 			"proposed_adjustment": []map[string]any{{"account": "4000 Sales Revenue", "debit": taxable, "credit": 0}, {"account": "1100 Trade Receivables", "debit": 0, "credit": taxable}},
-			"standard_refs": []string{"SA 240", "SA 500", "Ind AS 115"},
-			"lineage":       map[string]any{"event_seqs": []int64{seq}, "document_ids": []string{id}, "rule_id": "D-05.no_dispatch"},
-			"reason":        "Revenue was recognised on invoice " + no + ", but no dispatch, e-way bill, lorry receipt or delivery is recorded for the sale.",
+			"standard_refs":       []string{"SA 240", "SA 500", "Ind AS 115"},
+			"lineage":             map[string]any{"event_seqs": []int64{seq}, "document_ids": []string{id}, "rule_id": "D-05.no_dispatch"},
+			"reason":              "Revenue was recognised on invoice " + no + ", but no dispatch, e-way bill, lorry receipt or delivery is recorded for the sale.",
 		}) {
 			created++
 		}
@@ -549,9 +551,9 @@ func (s *server) detect(r *http.Request, args map[string]any) (any, error) {
 			"severity": "High", "title": "Revenue posted by a manual journal",
 			"subject": map[string]any{"type": "journal", "id": id}, "amount_impact": credit, "period_effect": "Overstated",
 			"proposed_adjustment": []map[string]any{{"account": "4000 Sales Revenue", "debit": credit, "credit": 0}, {"account": "9000 Suspense", "debit": 0, "credit": credit}},
-			"standard_refs": []string{"SA 240", "SA 330"},
-			"lineage":       map[string]any{"event_seqs": []int64{seq}, "document_ids": []string{id}, "rule_id": "D-09.non_invoice_credit"},
-			"reason":        "A credit to Sales Revenue was posted by a journal, not by an invoice. It has no sale behind it.",
+			"standard_refs":       []string{"SA 240", "SA 330"},
+			"lineage":             map[string]any{"event_seqs": []int64{seq}, "document_ids": []string{id}, "rule_id": "D-09.non_invoice_credit"},
+			"reason":              "A credit to Sales Revenue was posted by a journal, not by an invoice. It has no sale behind it.",
 		}) {
 			created++
 		}
