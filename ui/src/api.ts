@@ -110,6 +110,27 @@ export async function callTool<T = any>(name: string, args: Record<string, unkno
   return parse<T>(res);
 }
 
+// Calls a tool as a named identity, without changing who is signed in. The
+// story page uses it to read live figures with the demo auditor identity.
+export async function callToolAs<T = any>(token: string, name: string, args: Record<string, unknown> = {}): Promise<T> {
+  const res = await fetch(`/api/tools/${name}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(clean(args)),
+  });
+  return parse<T>(res);
+}
+
+export async function health(): Promise<{ database: boolean; ledger: boolean; engine: boolean } | null> {
+  try {
+    const res = await fetch("/healthz");
+    const body = await res.json();
+    return body.services ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function uploadFile(file: File): Promise<{ file_hash: string; file_name: string; size: number }> {
   const form = new FormData();
   form.append("file", file);

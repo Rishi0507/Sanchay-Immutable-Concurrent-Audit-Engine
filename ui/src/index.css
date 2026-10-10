@@ -1,43 +1,92 @@
 @import "tailwindcss";
 
 /* Design tokens.
-   The palette comes from the auditor's desk. Ink blue is the one action
-   colour. Green, red and amber mean pass, exception and pending and are used
-   for nothing else. Highlighter yellow marks an exception row, as it does on
-   a paper workpaper. Plum marks a related party. */
+
+   One colour means one thing, everywhere: in the 3D scene, the tables, the
+   tags and the legends.
+
+     gold       the ledger: what is recorded, sealed and verified
+     ice        the client's own data, and anything still open
+     teal       agrees, passes
+     vermilion  an exception, an alteration, a refusal
+     violet     a related party
+
+   Graphite is the default theme. The light theme is a printed page: the same
+   meanings, with each hue deepened to hold contrast on paper. */
 @theme {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-serif: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
 
-  --color-paper: #ffffff;
-  --color-wash: #f5f6f8;
-  --color-line: #e1e4ea;
-  --color-line-soft: #eef0f4;
+  --color-paper: #14161a;
+  --color-wash: #1b1e24;
+  --color-line: #2c3038;
+  --color-line-soft: #22262d;
 
-  --color-ink: #1a2130;
-  --color-ink-2: #586174;
-  --color-ink-3: #8a93a3;
+  --color-ink: #ece7dc;
+  --color-ink-2: #a9a598;
+  --color-ink-3: #74726b;
 
-  --color-brand: #1f4e9e;
-  --color-brand-deep: #183d7d;
-  --color-brand-wash: #ebf1fa;
+  --color-brand: #d4a84b;
+  --color-brand-deep: #e4bf6e;
+  --color-brand-wash: #2a2415;
+  --color-on-brand: #17130a;
 
-  --color-pass: #17794a;
-  --color-pass-wash: #e7f4ec;
-  --color-fail: #b3261e;
-  --color-fail-wash: #fcecea;
-  --color-wait: #8a5a00;
-  --color-wait-wash: #fff3d1;
+  --color-pass: #45cfa6;
+  --color-pass-wash: #14271f;
+  --color-fail: #f2603f;
+  --color-fail-wash: #2e1814;
+  --color-wait: #8fc7e8;
+  --color-wait-wash: #16242d;
+  --color-warm: #f0994d;
 
-  --color-mark: #fff8c9;
-  --color-rp: #6b3fa0;
-  --color-rp-wash: #f2ecf9;
+  --color-mark: #2a1a15;
+  --color-mark-hover: #36201a;
+  --color-rp: #b9a0f4;
+  --color-rp-wash: #221c33;
+}
+
+:root[data-theme="light"] {
+  --color-paper: #fbfaf7;
+  --color-wash: #f2f0ea;
+  --color-line: #dcd9d0;
+  --color-line-soft: #e9e6de;
+
+  --color-ink: #1b1d22;
+  --color-ink-2: #5a5c63;
+  --color-ink-3: #8c8d92;
+
+  --color-brand: #8a6410;
+  --color-brand-deep: #6f500a;
+  --color-brand-wash: #f5ecd6;
+  --color-on-brand: #ffffff;
+
+  --color-pass: #0f7a5f;
+  --color-pass-wash: #e2f3ed;
+  --color-fail: #c2391d;
+  --color-fail-wash: #fbe9e4;
+  --color-wait: #2a6c95;
+  --color-wait-wash: #e4f0f7;
+  --color-warm: #b5661b;
+
+  --color-mark: #fcefea;
+  --color-mark-hover: #f9e2da;
+  --color-rp: #6a45b5;
+  --color-rp-wash: #efe9fa;
 }
 
 html,
 body,
 #root {
   height: 100%;
+}
+
+html {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
@@ -47,12 +96,30 @@ body {
   font-size: 14px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: "tnum" 0;
 }
 
 /* Figures line up in columns wherever numbers are compared. */
-.tabular-nums {
+.tabular-nums,
+.figure {
   font-variant-numeric: tabular-nums;
+}
+
+.figure {
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+}
+
+/* Small label set in mono capitals: section numbers, provenance, legends. */
+.label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.serif {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
 }
 
 :focus-visible {
@@ -61,8 +128,11 @@ body {
   border-radius: 4px;
 }
 
-/* Motion answers an action: a tab opening, a panel sliding in. Nothing moves
-   on its own in the working screens. */
+::selection {
+  background: color-mix(in srgb, var(--color-brand) 35%, transparent);
+}
+
+/* Motion answers an action: a tab opening, a panel sliding in. */
 @keyframes appear {
   from {
     opacity: 0;
@@ -83,6 +153,15 @@ body {
   }
 }
 
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 .view {
   animation: appear 0.16s ease-out;
 }
@@ -95,10 +174,46 @@ body {
   animation: appear 0.16s ease-out;
 }
 
+.marquee {
+  animation: marquee 46s linear infinite;
+}
+
+/* Paper grain and chart-axis ticks: the texture of a printed report. */
+.grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.ticks {
+  background-image: repeating-linear-gradient(to right, var(--color-line) 0 1px, transparent 1px 12px);
+  background-size: 100% 6px;
+  background-repeat: no-repeat;
+  background-position: left bottom;
+}
+
+/* Headline lines rise out of a mask, one after another. */
+.line-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+}
+
+.line-mask > span {
+  display: block;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .view,
   .drawer,
-  .scrim {
+  .scrim,
+  .marquee {
     animation: none;
   }
   * {
@@ -112,6 +227,48 @@ body {
 }
 
 .thin-scroll::-webkit-scrollbar-thumb {
-  background: #cfd4dc;
+  background: var(--color-line);
   border-radius: 8px;
+}
+
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+/* Story page reveals. An element with .reveal waits below its mask until it
+   enters the viewport, then .in releases it. */
+.reveal .line-mask > span {
+  transform: translateY(108%);
+  transition: transform 0.95s cubic-bezier(0.19, 0.9, 0.22, 1);
+}
+
+.reveal .rise {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.7s ease-out,
+    transform 0.7s cubic-bezier(0.19, 0.9, 0.22, 1);
+}
+
+.reveal.in .line-mask > span {
+  transform: none;
+}
+
+.reveal.in .rise {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal .line-mask > span,
+  .reveal .rise {
+    transform: none;
+    opacity: 1;
+    transition: none;
+  }
 }

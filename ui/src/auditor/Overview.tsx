@@ -110,7 +110,7 @@ function SeverityBar({ high, medium, low }: { high: number; medium: number; low:
   return (
     <div className="flex h-2 gap-px overflow-hidden rounded-full" role="img" aria-label={`${high} high, ${medium} medium, ${low} low`}>
       {high > 0 && <div className="bg-fail" style={{ width: part(high) }} />}
-      {medium > 0 && <div className="bg-[#d99a1c]" style={{ width: part(medium) }} />}
+      {medium > 0 && <div className="bg-warm" style={{ width: part(medium) }} />}
       {low > 0 && <div className="bg-ink-3" style={{ width: part(low) }} />}
     </div>
   );
@@ -119,7 +119,7 @@ function SeverityBar({ high, medium, low }: { high: number; medium: number; low:
 function Count({ n, label, tone }: { n: number; label: string; tone?: string }) {
   return (
     <span className="whitespace-nowrap">
-      <span className={cx("text-xl font-semibold tabular-nums", n > 0 && tone)}>{n}</span>
+      <span className={cx("figure text-xl font-medium", n > 0 && tone)}>{n}</span>
       <span className="ml-1.5 text-[13px] text-ink-2">{label}</span>
     </span>
   );
@@ -204,17 +204,17 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement }: Vi
           </div>
           <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1">
             <Count n={high} label="high" tone="text-fail" />
-            <Count n={medium} label="medium" tone="text-wait" />
+            <Count n={medium} label="medium" tone="text-warm" />
             <Count n={low} label="low" />
           </div>
         </button>
         <button onClick={() => goTo("samples")} className="flex flex-col bg-paper px-5 py-4 text-left transition-colors hover:bg-wash">
           <div className="mb-3 text-[13px] font-medium text-ink-2">Samples selected</div>
-          <div className="text-xl font-semibold tabular-nums">{samples}</div>
+          <div className="figure text-xl font-medium">{samples}</div>
         </button>
         <div className="bg-paper px-5 py-4">
           <div className="mb-3 text-[13px] font-medium text-ink-2">Documents awaited from the client</div>
-          <div className={cx("text-xl font-semibold tabular-nums", pending > 0 && "text-wait")}>{pending}</div>
+          <div className={cx("figure text-xl font-medium", pending > 0 && "text-wait")}>{pending}</div>
         </div>
       </div>
 

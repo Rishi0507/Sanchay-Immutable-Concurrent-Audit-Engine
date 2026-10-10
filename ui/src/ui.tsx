@@ -123,7 +123,7 @@ export function Button({
   small?: boolean;
 }) {
   const styles = {
-    primary: "bg-brand text-white hover:bg-brand-deep",
+    primary: "bg-brand text-on-brand hover:bg-brand-deep",
     ghost: "bg-paper text-ink border border-line hover:bg-wash",
     danger: "bg-paper text-fail border border-line hover:bg-fail-wash",
   }[kind];
@@ -152,7 +152,7 @@ export function Header({ title, hint, action }: { title: string; hint?: string; 
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
       <div className="min-w-0">
-        <h1 className="text-[22px] leading-7 font-semibold tracking-[-0.01em]">{title}</h1>
+        <h1 className="serif text-[28px] leading-8 font-[450] tracking-[-0.015em]">{title}</h1>
         {hint && <p className="mt-1 text-sm text-ink-2">{hint}</p>}
       </div>
       {action}
@@ -228,7 +228,7 @@ export function Table<T>({
                 className={cx(
                   "border-b border-line-soft last:border-0 transition-colors duration-100",
                   isMarked && "bg-mark",
-                  onRow && (isMarked ? "cursor-pointer hover:bg-[#fff3a8]" : "cursor-pointer hover:bg-wash"),
+                  onRow && (isMarked ? "cursor-pointer hover:bg-mark-hover" : "cursor-pointer hover:bg-wash"),
                   selected === key && "bg-brand-wash hover:bg-brand-wash",
                 )}
               >
@@ -292,8 +292,8 @@ export function Drawer({ open, onClose, title, children, footer }: { open: boole
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
-      <div className="scrim absolute inset-0 bg-ink/25" onClick={onClose} />
-      <aside className="drawer relative flex h-full w-full max-w-xl flex-col border-l border-line bg-paper shadow-[-12px_0_32px_rgba(26,33,48,0.10)]">
+      <div className="scrim absolute inset-0 bg-black/45" onClick={onClose} />
+      <aside className="drawer relative flex h-full w-full max-w-xl flex-col border-l border-line bg-paper shadow-[-16px_0_40px_rgba(0,0,0,0.28)]">
         <div className="flex items-center justify-between gap-4 border-b border-line px-6 py-4">
           <div className="min-w-0 truncate text-base font-semibold">{title}</div>
           <button onClick={onClose} className="rounded-md p-1.5 text-ink-3 transition-colors hover:bg-wash hover:text-ink" aria-label="Close panel">
@@ -418,8 +418,8 @@ export function Toasts() {
   return (
     <div className="pointer-events-none fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2" role="status" aria-live="polite">
       {items.map((t) => (
-        <div key={t.id} className="view pointer-events-auto flex max-w-lg items-start gap-2.5 rounded-md bg-ink px-3.5 py-2.5 text-sm text-white shadow-lg">
-          <span className={cx("mt-0.5", t.tone === "bad" ? "text-[#ff9c94]" : "text-[#7fd6a6]")}>
+        <div key={t.id} className="view pointer-events-auto flex max-w-lg items-start gap-2.5 rounded-md border border-line bg-wash px-3.5 py-2.5 text-sm text-ink shadow-xl">
+          <span className={cx("mt-0.5", t.tone === "bad" ? "text-fail" : "text-pass")}>
             <Mark tone={t.tone === "bad" ? "bad" : "good"} />
           </span>
           {t.text}

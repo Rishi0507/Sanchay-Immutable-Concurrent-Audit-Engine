@@ -2,6 +2,7 @@ import cytoscape, { Core } from "cytoscape";
 import { useEffect, useRef, useState } from "react";
 import { money } from "../api";
 import type { ViewProps } from "../App";
+import { token, useTheme } from "../theme";
 import { Card, Empty, ErrorNote, Header, Loading, cx, useTool } from "../ui";
 
 interface GraphData {
@@ -10,23 +11,33 @@ interface GraphData {
   cycles: { finding_id?: string; path: string[]; value: number }[];
 }
 
-// Hues are taken from the design tokens. Red is kept for cycles alone.
-const nodeColor: Record<string, string> = {
-  company: "#1a2130",
-  entity: "#1a2130",
-  customer: "#1f4e9e",
-  vendor: "#c98a1a",
-  cluster: "#6b3fa0",
-};
+// Colours are read from the design tokens when the graph is drawn, so they
+// follow the theme and mean what they mean everywhere else.
+function colours() {
+  return {
+    company: token("brand"),
+    customer: token("wait"),
+    vendor: token("warm"),
+    related: token("rp"),
+    ink: token("ink"),
+    paper: token("paper"),
+    goods: token("ink-3"),
+    money: token("pass"),
+    cycle: token("fail"),
+  };
+}
 
 export default function Graph({ pulse, goTo }: ViewProps) {
   const { data, error, loading, reload } = useTool<GraphData>("get_counterparty_graph", {}, [pulse]);
   const holder = useRef<HTMLDivElement>(null);
   const cy = useRef<Core | null>(null);
   const [active, setActive] = useState<number | null>(null);
+  const [theme] = useTheme();
 
   useEffect(() => {
     if (!holder.current || !data?.nodes?.length) return;
+    const c = colours();
+    const nodeColor: Record<string, string> = { company: c.company, entity: c.company, customer: c.customer, vendor: c.vendor, cluster: c.related };
     const instance = cytoscape({
       container: holder.current,
       elements: [
@@ -39,9 +50,9 @@ export default function Graph({ pulse, goTo }: ViewProps) {
           style: {
             label: "data(label)",
             "font-size": 10,
-            color: "#1a2130",
-            "font-family": "IBM Plex Sans, sans-serif",
-            "text-background-color": "#ffffff",
+            color: c.ink,
+            "font-family": "Geist Variable, sans-serif",
+            "text-background-color": c.paper,
             "text-background-opacity": 0.85,
             "text-background-padding": "2px",
             "text-background-shape": "roundrectangle",
@@ -51,25 +62,25 @@ export default function Graph({ pulse, goTo }: ViewProps) {
             "text-wrap": "ellipsis",
             width: 22,
             height: 22,
-            "background-color": (el: any) => nodeColor[el.data("kind")] ?? "#94a3b8",
+            "background-color": (el: any) => nodeColor[el.data("kind")] ?? c.goods,
             "border-width": (el: any) => (el.data("related") ? 3 : 0),
-            "border-color": "#6b3fa0",
+            "border-color": c.related,
           },
         },
         {
           selector: "edge",
           style: {
             width: 1.5,
-            "line-color": (el: any) => (el.data("kind") === "money" ? "#7fbf9c" : "#c3c9d4"),
-            "target-arrow-color": (el: any) => (el.data("kind") === "money" ? "#7fbf9c" : "#c3c9d4"),
+            "line-color": (el: any) => (el.data("kind") === "money" ? c.money : c.goods),
+            "target-arrow-color": (el: any) => (el.data("kind") === "money" ? c.money : c.goods),
             "target-arrow-shape": "triangle",
             "curve-style": "bezier",
             "line-style": (el: any) => (el.data("kind") === "money" ? "dashed" : "solid"),
           },
         },
         { selector: ".dim", style: { opacity: 0.12 } },
-        { selector: "node.hot", style: { width: 30, height: 30, "border-width": 3, "border-color": "#b3261e" } },
-        { selector: "edge.hot", style: { width: 3.5, "line-color": "#b3261e", "target-arrow-color": "#b3261e" } },
+        { selector: "node.hot", style: { width: 30, height: 30, "border-width": 3, "border-color": c.cycle } },
+        { selector: "edge.hot", style: { width: 3.5, "line-color": c.cycle, "target-arrow-color": c.cycle } },
       ],
       layout: { name: "cose", animate: false, nodeDimensionsIncludeLabels: true, nodeRepulsion: () => 42000, idealEdgeLength: () => 120, nodeOverlap: 40, gravity: 0.25, numIter: 2500, padding: 56 } as any,
       wheelSensitivity: 0.25,
@@ -79,7 +90,7 @@ export default function Graph({ pulse, goTo }: ViewProps) {
       instance.destroy();
       cy.current = null;
     };
-  }, [data]);
+  }, [data, theme]);
 
   // Highlights one cycle and dims everything else.
   useEffect(() => {
@@ -111,9 +122,9 @@ export default function Graph({ pulse, goTo }: ViewProps) {
         hint="Goods and money between the company and its counterparties."
         action={
           <div className="flex items-center gap-3 text-xs text-ink-2">
-            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-ink" />Company</span>
-            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-brand" />Customer</span>
-            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-[#c98a1a]" />Vendor</span>
+            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-brand" />Company</span>
+            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-wait" />Customer</span>
+            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-warm" />Vendor</span>
             <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full border-2 border-rp" />Related party</span>
             <span className="flex items-center gap-1.5"><i className="h-0.5 w-4 bg-ink-3" />Goods</span>
             <span className="flex items-center gap-1.5"><i className="h-0 w-4 border-t-2 border-dashed border-pass" />Money</span>
