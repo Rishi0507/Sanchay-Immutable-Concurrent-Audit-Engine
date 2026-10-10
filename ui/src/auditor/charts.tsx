@@ -766,7 +766,12 @@ export function Calendar({
   format,
   selected,
   onSelect,
+  flagWord = "not agreeing",
+  flagNote = (n: number) => `${n === 1 ? "1 row does" : `${n} rows do`} not agree with the books`,
 }: {
+  // How a flagged day is described: the register calls it "not agreeing".
+  flagWord?: string;
+  flagNote?: (n: number) => string;
   start: string;
   end: string;
   days: Map<string, DayCell>;
@@ -861,7 +866,7 @@ export function Calendar({
                 strokeWidth={on ? 2 : flagged ? 2 : 0}
                 tabIndex={d ? 0 : -1}
                 role="gridcell"
-                aria-label={`${x.date}: ${d ? format(d.value) : "no sales"}${flagged ? `, ${d!.flagged} not agreeing` : ""}`}
+                aria-label={`${x.date}: ${d ? format(d.value) : "no sales"}${flagged ? `, ${d!.flagged} ${flagWord}` : ""}`}
                 style={{ cursor: d && onSelect ? "pointer" : undefined, outline: "none" }}
                 onPointerEnter={(e) => place(e.clientX, e.clientY, d ?? empty)}
                 onPointerLeave={() => setTip(null)}
@@ -891,7 +896,7 @@ export function Calendar({
                 <div className="num">
                   {format(tip.d.value)} in {tip.d.rows} {tip.d.rows === 1 ? "row" : "rows"}
                 </div>
-                {tip.d.flagged > 0 && <div className="text-fail">{tip.d.flagged === 1 ? "1 row does" : `${tip.d.flagged} rows do`} not agree with the books</div>}
+                {tip.d.flagged > 0 && <div className="text-fail">{flagNote(tip.d.flagged)}</div>}
               </>
             ) : (
               <div className="text-ink-2">No sales</div>
@@ -915,7 +920,7 @@ export function Calendar({
         </span>
         <span className="flex items-center gap-1.5">
           <i className="inline-block h-2.5 w-2.5 rounded-[2px] border-2 border-fail" />
-          Rows not agreeing that day
+          Rows {flagWord} that day
         </span>
       </div>
     </div>

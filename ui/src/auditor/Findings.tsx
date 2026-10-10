@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { callTool, money, when } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Mark, Pills, Section, Status, Table, cx, inputClass, toast, toneFor, useAction, useTool } from "../ui";
+import { Stamp } from "../Stamp";
 import { Ranked, RiskMap, Swatch, ink } from "./charts";
 import { EmailAction, FindingLite, ListSkeleton, MoreBar, PageBrief, dedupe, Panel, SearchBox, Severity, SeverityBadge, SeverityIcon, Tally, Term, ViewHead, byPriority, catColor, category, findingStatus, inr, plural, sevFill, severities, sum } from "./kit";
 
@@ -85,6 +86,9 @@ function Detail({ id, manager, onDecided, onNext, goTo }: { id: string; manager:
   const { data, error, loading, reload } = useTool<Finding>("explain_finding", { finding_id: id }, [id]);
   const [note, setNote] = useState("");
   const [more, setMore] = useState(false);
+  // The stamp the manager's decision leaves on the finding, shown for a moment.
+  const [stamp, setStamp] = useState<string | null>(null);
+  useEffect(() => setStamp(null), [id]);
   const [linked, setLinked] = useState<{ evidence: Map<string, EvidenceSample>; samples: Map<string, LinkedSample> } | null>(null);
   const { busy, run } = useAction();
   const sampleIds = data?.sample_ids ?? [];
@@ -123,10 +127,11 @@ function Detail({ id, manager, onDecided, onNext, goTo }: { id: string; manager:
       await callTool("confirm_finding", { finding_id: id, decision, note });
       toast(`Finding ${(findingStatus[decision] ?? decision).toLowerCase()}.`);
       setNote("");
+      setStamp(decision);
       reload();
       onDecided();
-      // Move on to the next finding, once the mark has been seen.
-      if (onNext) window.setTimeout(onNext, 450);
+      // Move on to the next finding, once the stamp has been seen.
+      if (onNext) window.setTimeout(onNext, 1100);
     });
 
   // The manager decides from the keyboard: C confirms, R rejects, I asks for more.
@@ -221,6 +226,15 @@ function Detail({ id, manager, onDecided, onNext, goTo }: { id: string; manager:
       </Section>
 
       {/* The decision. */}
+      <div className="relative">
+      {stamp && (
+        <Stamp
+          word={stamp === "confirmed" ? "CONFIRMED" : stamp === "rejected" ? "REJECTED" : "MORE INFO"}
+          tone={stamp === "confirmed" ? "fail" : stamp === "rejected" ? "pass" : "wait"}
+          small
+          className="stamp -top-2 right-2 z-10"
+        />
+      )}
       <Section title="Decision">
         {f.decided_by && (
           <div className="mb-3">
@@ -269,6 +283,7 @@ function Detail({ id, manager, onDecided, onNext, goTo }: { id: string; manager:
           </>
         )}
       </Section>
+      </div>
 
       <button onClick={() => setMore((m) => !m)} aria-expanded={more} className="mb-4 text-[14px] font-medium text-brand hover:underline">
         {more ? "Hide detail" : "More detail: full reasoning, adjusting entry and lineage"}

@@ -19,6 +19,7 @@ import Export from "./auditor/Export";
 // The heavy parts load only where they are used: the story page with its 3D
 // scene, and the graph library on the Graph tab.
 const Story = lazy(() => import("./story/Story"));
+const Lens = lazy(() => import("./lens/Lens"));
 const Graph = lazy(() => import("./auditor/Graph"));
 
 export interface ViewProps {
@@ -55,6 +56,7 @@ const clientTabs: TabDef[] = [
   { id: "records", hint: "Every record you have made", label: "Records", view: (p) => <Records {...p} /> },
   { id: "new", hint: "Record a step of a sale", label: "New record", view: (p) => <NewRecord {...p} /> },
   { id: "access", hint: "Who may do what", label: "Access", view: (p) => <Access {...p} /> },
+  { id: "lens", hint: "Check any file in the browser", label: "Lens", view: () => <Lens embedded /> },
 ];
 
 const auditorTabs: TabDef[] = [
@@ -65,6 +67,7 @@ const auditorTabs: TabDef[] = [
   { id: "graph", hint: "Money going round in circles", label: "Graph", view: (p) => <Graph {...p} /> },
   { id: "trail", hint: "Every action, sealed", label: "Trail", view: (p) => <Trail {...p} /> },
   { id: "export", hint: "Reports, files and emails", label: "Export", view: (p) => <Export {...p} /> },
+  { id: "lens", hint: "Audit any file in the browser", label: "Lens", view: () => <Lens embedded /> },
 ];
 
 const roleLabel: Record<Role, string> = {
@@ -205,6 +208,13 @@ function TabIcon({ id }: { id: string }) {
           <path d="M4 17c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5" />
         </svg>
       );
+    case "lens":
+      return (
+        <svg {...p}>
+          <circle cx="8.5" cy="8.5" r="5" />
+          <path d="M12.2 12.2L17 17M6 8.6l1.7 1.7 3-3.4" />
+        </svg>
+      );
     case "theme":
       return (
         <svg {...p}>
@@ -245,7 +255,7 @@ function Wordmark({ onClick }: { onClick?: () => void }) {
   );
   const className = "flex shrink-0 items-center gap-3";
   return onClick ? (
-    <button onClick={onClick} className={cx(className, "rounded-lg transition-opacity hover:opacity-85")} title="How it works">
+    <button onClick={onClick} className={cx(className, "rounded-lg transition-opacity hover:opacity-85")} title="The front page">
       {mark}
     </button>
   ) : (
@@ -414,9 +424,9 @@ function SignIn({ onSignedIn, onBack }: { onSignedIn: (id: Identity) => void; on
 export default function App() {
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [checking, setChecking] = useState(true);
-  // Before sign-in the story page is the front door. Signed in, it is one
-  // click on the wordmark away.
-  const [screen, setScreen] = useState<"story" | "signin" | "app">("story");
+  // Before sign-in the Lens is the front door: drop a file and watch it
+  // audited, with no account and no server. The story explains the system.
+  const [screen, setScreen] = useState<"lens" | "story" | "signin" | "app">("lens");
   const [tab, setTab] = useState("");
   const [focus, setFocus] = useState<string | undefined>();
   const [pulse, setPulse] = useState(0);
@@ -589,6 +599,14 @@ export default function App() {
       </Suspense>
     );
 
+  if (screen === "lens")
+    return (
+      <Suspense fallback={null}>
+        <Lens onSignIn={() => setScreen(identity ? "app" : "signin")} onStory={() => setScreen("story")} />
+        <Toasts />
+      </Suspense>
+    );
+
   if (!identity)
     return (
       <>
@@ -667,7 +685,7 @@ export default function App() {
       {/* The ledger's cloth spine: sections down the left on wide screens. */}
       <aside className="sticky top-0 hidden h-screen w-[264px] shrink-0 flex-col bg-spine text-spine-ink lg:flex">
         <div className="flex h-[76px] items-center px-5">
-          <Wordmark onClick={() => setScreen("story")} />
+          <Wordmark onClick={() => setScreen("lens")} />
         </div>
         {engagementSelect && (
           <div className="px-4 pb-4">
@@ -727,7 +745,7 @@ export default function App() {
         {/* Narrow screens keep a top bar with the sections in a scrolling row. */}
         <header className="sticky top-0 z-30 bg-spine text-spine-ink lg:hidden">
           <div className="flex h-[60px] items-center gap-3 px-4 text-[14px]">
-            <Wordmark onClick={() => setScreen("story")} />
+            <Wordmark onClick={() => setScreen("lens")} />
             <div className="ml-auto flex min-w-0 items-center gap-3 whitespace-nowrap">
               {engagementSelect && <div className="w-32">{engagementSelect}</div>}
               <button onClick={() => setPalette(true)} className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10" aria-label="Search and jump">

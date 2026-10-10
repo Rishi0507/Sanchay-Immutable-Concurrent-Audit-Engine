@@ -583,3 +583,69 @@ html[data-detail="simple"]:not([data-open~="tr"]) [data-more="tr"],
 html[data-detail="simple"]:not([data-open~="ex"]) [data-more="ex"] {
   display: none;
 }
+
+/* Lens. The rubber stamp comes down hard, once, and the page jolts under it. */
+@keyframes stamp-down {
+  0% {
+    opacity: 0;
+    transform: scale(2.4) rotate(-20deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.94) rotate(-9deg);
+  }
+  75% {
+    transform: scale(1.03) rotate(-8deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-8deg);
+  }
+}
+
+.stamp {
+  animation: stamp-down 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.stamp-still {
+  transform: rotate(-8deg);
+}
+
+@keyframes stage-shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-3px, 2px);
+  }
+  40% {
+    transform: translate(3px, -2px);
+  }
+  60% {
+    transform: translate(-2px, 1px);
+  }
+  80% {
+    transform: translate(1px, -1px);
+  }
+}
+
+.stage-shake {
+  animation: stage-shake 0.32s ease-out 0.24s;
+}
+
+/* Cards that settle in one after another, each with its own delay. */
+.settle-item {
+  animation: settle 0.4s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp,
+  .stage-shake,
+  .settle-item {
+    animation: none;
+  }
+  .stamp {
+    transform: rotate(-8deg);
+  }
+}

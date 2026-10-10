@@ -443,7 +443,7 @@ A full chain does not make a sale genuine, and the page says so: circular tradin
 
 ## User interface
 
-The interface opens on a page that explains the approach, then asks for an identity. Each identity sees only what its role and department allow, because the tabs follow from the tool list that the server returns.
+The interface opens on Sanchay Lens, described below. The workspace asks for an identity, and a page that explains the approach is one link away. Each identity sees only what its role and department allow, because the tabs follow from the tool list that the server returns.
 
 | Identity | Tab | Purpose |
 |---|---|---|
@@ -459,6 +459,22 @@ The interface opens on a page that explains the approach, then asks for an ident
 | Auditor | Graph | The counterparty graph in two or three dimensions, with the trading cycles. |
 | Auditor | Trail | The audit trail and the result of verifying it. |
 | Auditor | Export | The summary report, the workpaper and the findings memo. |
+| Any | Lens | Audit any register in the browser, as below. |
+
+### Lens
+
+The front page is Sanchay Lens. A visitor drops a sales register (Excel, CSV or JSON), or presses Audit the sample register, and the browser audits it with no account, no server call and no model. The related-party list can be dropped with it.
+
+| Stage | What happens |
+|---|---|
+| Read | The file is parsed in the browser. Total rows are set aside. |
+| Understand | Each column is given a meaning (date, amount, party, GSTIN, state, document number, category) with the reason. A reader can change any meaning, and every test and view follows. |
+| Seal | Every row is hashed with SHA-256, each hash covering the one before. |
+| Test | Fourteen tests: duplicate numbers, the number series, rows that do not add up, GSTIN check characters, state against GSTIN, the kind of GST for the place of supply, dates outside the year, the year-end rush, Benford's law, round figures, Sunday bills, missing details, unusually large amounts and sales to related parties. A test whose columns are missing says so. |
+| Sample | Thirty samples: the five largest, rows caught by the tests, then value-weighted draws seeded from the seal. |
+| Build the page | The views are chosen from the column meanings and written as a spec that can be read: every row as a point, money by month, the parties, a 3D city of party by month, the calendar, a tile map of India, each category, Benford's law and the size of the amounts. Each view states why it was built. |
+
+The run plays as it happens, with every figure taken from the computation. The GSTIN rule is the same as the engine's. The sample is the planted FY 2025-26 register from the data generator, in `ui/public/samples/`.
 
 ## Tools
 
