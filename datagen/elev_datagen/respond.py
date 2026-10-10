@@ -5,7 +5,8 @@ document from its own records (the local copy written while seeding), and
 uploads it (upload_evidence). A request for a document the client does not
 hold is answered as not available. With plant=True some uploads are forged or
 reused, one document that does not exist is supplied all the same, and the
-answer-key items are written beside the dataset.
+answer-key items are written beside the dataset. With regional=True every
+fourth sample sends its own documents in Hindi or Marathi.
 """
 
 from __future__ import annotations
@@ -56,7 +57,7 @@ def pending_requests(client: GatewayClient) -> list[dict]:
             return out
 
 
-def respond(base: str, token: str, dataset_dir: str | Path, plant: bool = False) -> dict:
+def respond(base: str, token: str, dataset_dir: str | Path, plant: bool = False, regional: bool = False) -> dict:
     ds = Path(dataset_dir)
     client = GatewayClient(base, token)
     reqs = pending_requests(client)
@@ -79,7 +80,7 @@ def respond(base: str, token: str, dataset_dir: str | Path, plant: bool = False)
     uploader = _Uploader(client)
     key = upload_all(uploader, [{"request_id": r["request_id"], "sample_id": r["sample_id"],
                                  "document_type": r["document_type"]} for r in reqs],
-                     samples, snap, company_of(ds), plant=plant)
+                     samples, snap, company_of(ds), plant=plant, regional=regional)
     (ds / "evidence_answer_key.json").write_text(json.dumps(key, indent=2), encoding="utf-8")
     return {"pending_requests": len(reqs), "uploaded": uploader.count, "not_available": uploader.declined,
-            "planted": len(key)}
+            "planted": len(key), "regional": regional}

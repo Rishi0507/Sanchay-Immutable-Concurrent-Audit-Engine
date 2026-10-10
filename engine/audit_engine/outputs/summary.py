@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections import Counter
 
 from ..detectors.common import period_invoices
-from ..evidence.service import control_summary, request_status
+from ..evidence.service import control_summary, regional_documents, request_status
 from ..findings_service import all_findings
 from ..money import rupees
 from ..repo import samples
@@ -81,6 +81,7 @@ def collect(ctx) -> dict:
         "evidence": {"requested": sum(requests.values()),
                      "received": requests.get("uploaded", 0) + requests.get("verified", 0) + requests.get("replaced after verification", 0),
                      "not_available": requests.get("declined", 0), "awaited": requests.get("requested", 0),
+                     "regional_language": sum(len(v) for v in regional_documents(ctx).values()),
                      "control_requests": control_summary(ctx)},
         "revenue": {"invoices": len(invoices), "taxable_value": booked, "proof": levels,
                     "fully_evidenced_share": round(levels[0]["taxable_value"] / booked, 4) if booked else None},
@@ -225,6 +226,8 @@ def render(s: dict, head_hash: str) -> bytes:
     lines += [("", None)] + [(k, sm["by_result"][k]) for k in ("Pass", "Exception", "Needs human review", "Pending evidence", "Changed after testing") if sm["by_result"].get(k)]
     lines += [("", None), ("Documents requested", ev["requested"]), ("Received", ev["received"]),
               ("Answered as not available", ev["not_available"]), ("Still awaited", ev["awaited"])]
+    if ev.get("regional_language"):
+        lines.append(("Read in Hindi or Marathi", ev["regional_language"]))
     for name, n in lines:
         if n is None:
             y += 5

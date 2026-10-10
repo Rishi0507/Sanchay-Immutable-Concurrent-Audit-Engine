@@ -14,6 +14,7 @@ from ..repo import control_requests, evidence_requests, evidence_results, extrac
 from ..sampling import overall
 from ..snapshot import _doc, d, ts
 from .extract import extract, perceptual_hash
+from .regional import LANGUAGE_NAMES
 
 EDIT_TOOLS = ("photoshop", "gimp", "sejda", "ilovepdf", "pdf editor", "pdfescape", "smallpdf", "canva", "phantompdf",
               "nitro pro", "pdf-xchange editor", "inkscape", "paint")
@@ -77,6 +78,19 @@ def control_summary(ctx) -> dict:
         if r["request_id"] in ids:
             out["declined" if r["declined"] else "supplied" if r["upload_seq"] else "pending"] += 1
     return out
+
+
+def regional_documents(ctx) -> dict[str, list[str]]:
+    """Samples whose tested documents were read in Hindi or Marathi (EV-6): sample to one language per document."""
+    latest: dict[str, dict] = {}
+    for r in ctx.engine.repo.select(evidence_results, order_by=evidence_results.c.id, engagement_id=ctx.eid):
+        latest[r["request_id"]] = r
+    out: dict[str, list[str]] = defaultdict(list)
+    for r in latest.values():
+        language = (r["extracted"] or {}).get("language")
+        if language and language != "en":
+            out[r["sample_id"]].append(LANGUAGE_NAMES.get(language, language))
+    return dict(out)
 
 
 def evidence_status(ctx, sample_id: str | None = None) -> dict:
@@ -231,7 +245,9 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
             if ex is None:
                 continue
             if ex["low_confidence"]:
-                low.append(f"{doc}: {', '.join(ex['low_confidence'])}")
+                unread = (f" ({ex['labels_unplaced']} labels in {LANGUAGE_NAMES.get(ex.get('language'), 'another language')}"
+                          f" not recognised)" if ex.get("labels_unplaced") else "")
+                low.append(f"{doc}: {', '.join(ex['low_confidence'])}{unread}")
             # E-8: replaced after it had been verified.
             prev = prior_results.get(req["request_id"], [])
             if prev and prev[-1]["upload_seq"] != req["upload_seq"]:

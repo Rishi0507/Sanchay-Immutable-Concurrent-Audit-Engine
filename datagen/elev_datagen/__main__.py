@@ -23,11 +23,13 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--token", default="client-demo-token")
     r.add_argument("--dataset", required=True, help="Directory written by generate, the client's own records")
     r.add_argument("--plant", action="store_true", help="Plant forged and reused documents among the uploads")
+    r.add_argument("--regional", action="store_true",
+                   help="Send the client's own documents of every fourth sample in Hindi or Marathi")
     args = ap.parse_args(argv)
     if args.cmd == "respond":
         from .respond import respond
 
-        out = respond(args.mcp_url, args.token, args.dataset, plant=args.plant)
+        out = respond(args.mcp_url, args.token, args.dataset, plant=args.plant, regional=args.regional)
         json.dump(out, sys.stdout, indent=2)
         print()
         return 0

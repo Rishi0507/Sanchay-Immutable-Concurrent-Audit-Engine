@@ -311,6 +311,22 @@ Sample selection sends the client a request for each document. The client answer
 
 Fields are read from text PDFs directly and from scans by OCR, with Tesseract, which the engine's Docker image includes. A field read with low confidence, or a scan that cannot be read, marks the sample `Needs human review`. It never passes silently.
 
+### Documents in Hindi and Marathi
+
+A client's own papers are often not in English. An invoice, a lorry receipt, a credit note or a goods return note written in Hindi or Marathi is read with the same schema and tested with the same nine checks.
+
+```mermaid
+flowchart LR
+    D[Document in Devanagari] --> C[Digits to ASCII<br/>plain spaces and hyphens]
+    C --> M{Label matches a known<br/>Hindi or Marathi wording?}
+    M -->|yes| E[Label rewritten in English] --> P[Same pattern rules<br/>same checks E-1 to E-9]
+    M -->|no| R[Field left empty] --> H[Needs human review]
+```
+
+The text layer of a Devanagari PDF is rarely exact: conjunct letters come back as stray symbols and vowel signs drift. A label is therefore compared with a dictionary of Hindi and Marathi wordings by its consonants only, and the kind of value on the line (a date, a GSTIN, an amount, a vehicle number) narrows which label it can be. Document numbers, GSTINs, names and amounts are left exactly as written. A label that cannot be placed is not guessed: its field stays empty and the sample goes to a person.
+
+The sample panel shows the language its documents were read in, and the summary report counts them. E-way bills come from the government portal and stay in English.
+
 ### Findings and the human decision
 
 A finding carries its severity, its amount, its effect on the period, a proposed adjusting entry, references to the Standards on Auditing, and its lineage: the rule, the ledger events, the documents and the evidence files it rests on. `explain_finding` returns a plain-language reason that needs no model.
@@ -504,6 +520,8 @@ docker compose -f deploy/docker-compose.yml up --build
 
 The first build compiles the OCaml ledger core and takes several minutes. To set tokens or a model key, copy `deploy/.env.example` to `deploy/.env`. Git ignores that file.
 
+The sign-in belongs to the browser tab. An auditor, an audit manager and a client employee can be open side by side in one browser, each in a tab. A screen reloads when another person changes something, and not when they only read.
+
 ## Load the demo business
 
 The data generator loads a synthetic manufacturer with planted irregularities through the client tools, with the historical record time of each event. That needs the seeding clock, which is off unless the stack is started with `SIM_CLOCK=1`.
@@ -523,9 +541,10 @@ After the auditor selects samples, the client simulator answers the evidence req
 cd datagen
 uv run python -m elev_datagen respond --dataset ../var/seed          # an honest client
 uv run python -m elev_datagen respond --dataset ../var/seed --plant  # forgeries, and a document supplied for every request
+uv run python -m elev_datagen respond --dataset ../var/seed --plant --regional  # and every fourth sample in Hindi or Marathi
 ```
 
-The generator writes `answer_key.json` beside the dataset, outside the file store, so no tool can read it. With `--plant`, the forged evidence is listed in `evidence_answer_key.json`.
+The generator writes `answer_key.json` beside the dataset, outside the file store, so no tool can read it. With `--plant`, the forged evidence is listed in `evidence_answer_key.json`. With `--regional`, the client's own documents of every fourth sample are written in Marathi or Hindi, and the invoice with the forged amount is one of the Hindi ones.
 
 ## Run without Docker
 

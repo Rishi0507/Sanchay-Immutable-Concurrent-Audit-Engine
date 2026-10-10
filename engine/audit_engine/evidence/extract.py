@@ -1,8 +1,9 @@
 """Field extraction from evidence files (PRD 14.2).
 
 Text PDFs are read directly. Scans and images go through OCR (EV-1), with
-Hindi and Marathi packs when installed (EV-6). Fields are extracted into a
-fixed schema per document type by the model when one is configured
+Hindi and Marathi packs when installed. A document in Devanagari is first
+rewritten with English labels and ASCII digits (EV-6). Fields are extracted
+into a fixed schema per document type by the model when one is configured
 (EV-2), validated against the schema, and otherwise by pattern rules (EV-3,
 AI-3). Every field carries a confidence (EV-4).
 """
@@ -15,6 +16,8 @@ import os
 import re
 import shutil
 from pathlib import Path
+
+from . import regional
 
 SCHEMA = {
     "invoice": ["invoice_no", "invoice_date", "customer_name", "customer_gstin", "supplier_gstin", "taxable_value",
@@ -47,7 +50,7 @@ _DOCNO = r"([A-Z0-9][A-Z0-9/\-]{2,30})"
 
 PATTERNS = {
     "invoice_no": [r"(?<!Against )(?<!Original )(?<!Ref. )Invoice\s*(?:No\.?|Number|#)\s*[:\-]?\s*" + _DOCNO,
-                   r"(?<!Way )(?<!Way)Bill\s*(?:No\.?|Number|#)\s*[:\-]?\s*" + _DOCNO,
+                   r"(?<!Way )(?<!Way)\bBill\s*(?:No\.?|Number|#)\s*[:\-]?\s*" + _DOCNO,
                    r"\u092c\u0940\u091c\u0915\s*(?:\u0915\u094d\u0930\.?|\u0938\u0902\u0916\u094d\u092f\u093e)\s*[:\-]?\s*" + _DOCNO],
     "original_invoice_no": [r"(?:Original|Against|Ref\.?)\s*(?:Invoice|Bill)\s*(?:No\.?|Number)?\s*[:\-]?\s*" + _DOCNO],
     "credit_note_no": [r"Credit\s*Note\s*(?:No\.?|Number)\s*[:\-]?\s*" + _DOCNO],
@@ -56,7 +59,7 @@ PATTERNS = {
     "invoice_date": [r"(?:Invoice|Bill|Document)\s*Date\s*[:\-]?\s*" + _D,
                      r"\u0926\u093f\u0928\u093e\u0902\u0915\s*[:\-]?\s*" + _D],
     "date": [r"(?:Credit\s*Note|L\.?R\.?|Lorry\s*Receipt|Booking)\s*Date\s*[:\-]?\s*" + _D,
-             r"Date\s*[:\-]\s*" + _D],
+             r"\bDate\s*[:\-]\s*" + _D],
     "inward_date": [r"(?:Inward|Received|Return|GRN)\s*Date\s*[:\-]?\s*" + _D],
     "generated_at": [r"(?:Generated\s*(?:Date|On|At)?|EWB\s*Date)\s*[:\-]?\s*" + _DT],
     "valid_until": [r"Valid\s*(?:Upto|Up\s*to|Until|Till)\s*[:\-]?\s*" + _DT],
@@ -281,8 +284,12 @@ def by_model(text: str, doc_type: str, model) -> dict[str, dict] | None:
 
 
 def extract(data: bytes, doc_type: str, model=None) -> dict:
-    text, method, meta = text_of(data)
+    original, method, meta = text_of(data)
+    # A document in Hindi or Marathi is rewritten with English labels and ASCII digits first (EV-6).
+    text, lang = regional.normalise(original)
     base = {"pdf_text": 0.95, "plain_text": 0.95, "ocr": 0.85, "none": 0.0}[method]
+    if lang["labels_translated"]:
+        base = min(base, 0.9)
     fields = by_patterns(text, doc_type, base) if text else {}
     used_model = False
     if model and text:
@@ -300,7 +307,9 @@ def extract(data: bytes, doc_type: str, model=None) -> dict:
     required = REQUIRED.get(doc_type, [])
     low = [k for k in required if k not in fields or fields[k]["confidence"] < 0.8]
     return {"doc_type": doc_type, "method": method, "model_used": used_model, "fields": fields, "metadata": meta,
-            "low_confidence": low, "text_hash": _text_hash(text), "chars": len(text)}
+            "low_confidence": low, "text_hash": _text_hash(original), "chars": len(original),
+            "language": lang["language"], "labels_translated": lang["labels_translated"],
+            "labels_unplaced": lang["labels_unplaced"]}
 
 
 def _text_hash(text: str) -> str | None:

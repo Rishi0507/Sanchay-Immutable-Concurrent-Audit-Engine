@@ -551,6 +551,7 @@ All tools in section 9.4, plus:
 | NT-1 | When `SalesRegisterUploaded`, `RelatedPartyListUploaded` or `EvidenceUploaded` is appended, a notification for the auditor side is created. | P0 |
 | NT-2 | When samples are selected, a notification for the client side is created with the list of requested documents. | P0 |
 | NT-3 | Notifications are available through `get_notifications`, `list_evidence_requests` and a Server-Sent Events stream to the UI at `/api/stream`. Agents poll the two tools and need no push channel. | P0 |
+| NT-4 | Each tool call is reported on the stream to the audit side with a `changes` flag. The flag is true only for a call that changed a client record or completed an audit step. A screen reloads on a change and never on a read, so two auditors on one engagement cannot reload each other. | P0 |
 
 ---
 
@@ -824,7 +825,9 @@ A cycle is reported when its edges fall within a 60-day window and the smallest 
 | EV-3 | If the model is unavailable, fields are extracted with pattern rules for invoice number, GSTIN, dates, amounts, vehicle number, e-way bill number and LR number. | P0 |
 | EV-4 | Each field has a confidence value. Below 0.8 the sample is marked `Needs human review`. It never passes silently. | P0 |
 | EV-5 | Results are cached by file hash. | P1 |
-| EV-6 | Hindi and Marathi documents are supported by OCR language packs and the same schema. | P2 |
+| EV-6 | Hindi and Marathi documents are supported with the same schema and the same checks. A document in Devanagari is first rewritten with English labels and ASCII digits, and the fields are then extracted as for an English document. Scans use the OCR language packs. | P2 |
+| EV-6a | A Devanagari label is matched to a dictionary of Hindi and Marathi wordings by its consonants, because the text layer of a Devanagari PDF is rarely exact. The kind of value on the line (date, GSTIN, amount, vehicle number) narrows the match. A label that cannot be placed leaves its field empty, so that EV-4 sends the sample to human review. Nothing is guessed. | P2 |
+| EV-6b | The language each document was read in is stored with its extraction result, shown with the sample, and counted in the summary report. | P2 |
 
 ### 14.3 Checks
 
@@ -838,7 +841,6 @@ A cycle is reported when its edges fall within a 60-day window and the smallest 
 | E-6 | Delivery time is feasible for the stated distance, at no more than 60 km per hour average. | Fabricated movement |
 | E-7 | PDF metadata shows creation after the evidence request, or an editing tool as producer. | Document made to order |
 | E-8 | The evidence was replaced after it had been verified. | Post-testing change, also reported by D-15 |
-
 | E-9 | A document was supplied although the system of record holds none for the transaction. | Document made for the request |
 
 Each failed check is a finding of category `EVIDENCE_SUSPECT` (D-10) linked to the sample.
@@ -1033,7 +1035,7 @@ A file listing every trail entry of the engagement (AT-1) with the trail head ha
 
 | ID | Requirement | Priority |
 |---|---|---|
-| SR-1 | The page shows findings by severity and by area, the five largest findings by amount, the proposed adjustment to revenue, the samples by sheet and by result, and the documents requested, received, answered as not available and still awaited. | P1 |
+| SR-1 | The page shows findings by severity and by area, the five largest findings by amount, the proposed adjustment to revenue, the samples by sheet and by result, and the documents requested, received, answered as not available and still awaited, with the number read in Hindi or Marathi when there are any. | P1 |
 | SR-2 | The page grades the revenue of the period by the record behind each invoice: ordered, shipped, delivered and paid; delivered and not yet paid; some movement; order only; nothing. It states that a full chain does not make a sale genuine. | P1 |
 | SR-3 | The page states the safeguards: how the sampling seed came about (section 12.5), how the control requests were answered (section 14.4), whether the ledger verifies, and whether the client changed anything that touches a sample. | P1 |
 | SR-4 | The page states how many findings await the audit manager's decision, and the snapshot hash and ledger head hash it rests on. | P1 |
@@ -1053,6 +1055,7 @@ A file listing every trail entry of the engagement (AT-1) with the trail head ha
 | UI-4 | One accent colour, neutral background, consistent spacing and soft transitions on tab change and panel open. |
 | UI-5 | Each tab shows at most one primary action button. |
 | UI-6 | The role is chosen at sign-in by token. The tabs shown depend on the role. |
+| UI-7 | The sign-in belongs to the browser tab. An auditor, an audit manager and a client employee can work side by side in one browser, each in a tab. |
 
 ### 20.2 Client view
 

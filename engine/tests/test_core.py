@@ -117,3 +117,17 @@ def test_model_fields_confirm_or_question_pattern_fields():
 
     Stub.answer = None  # the model failed: pattern rules alone (AI-1)
     assert extract(text, "invoice", Stub("http://model", "stub")) == plain
+
+
+def test_other_wordings_of_a_number_and_a_date_are_read():
+    from audit_engine.evidence.extract import extract
+
+    # Many invoices say "Bill No" and many lorry receipts say only "Date".
+    bill = extract(b"TAX INVOICE\nBill No: SPC/25-26/00042\nInvoice Date: 30-03-2026\nGrand Total: Rs 1,18,000.00\n", "invoice")
+    assert bill["fields"]["invoice_no"]["value"] == "SPC/25-26/00042"
+    receipt = extract(b"LORRY RECEIPT\nLR No: LR0000042\nDate: 30-03-2026\nVehicle No: MH12AB1234\n", "lr_copy")
+    assert receipt["fields"]["date"]["value"] == "2026-03-30"
+    assert not receipt["low_confidence"]
+    # The number of an e-way bill is not the number of the invoice.
+    ewb = extract(b"E-WAY BILL\nE-Way Bill No: 3912 3456 7890\nValid Upto: 31-03-2026 23:59:59\n", "eway_bill")
+    assert "invoice_no" not in ewb["fields"] and ewb["fields"]["ewb_no"]["value"] == "391234567890"

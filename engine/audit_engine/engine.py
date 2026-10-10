@@ -145,6 +145,8 @@ class Engine:
         self._snapshots: OrderedDict[int, Snapshot] = OrderedDict()
         self._lock = threading.RLock()
         self._step_locks: dict[tuple[str, str], threading.Lock] = {}
+        # Views built from tables that only change when a step completes, kept until the next step.
+        self.views: dict[tuple[str, str], tuple[int, Any]] = {}
 
     # Snapshots
 

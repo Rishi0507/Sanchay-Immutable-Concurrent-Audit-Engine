@@ -10,10 +10,20 @@ from pathlib import Path
 
 from .evidence import EvidenceFactory
 
+# Documents the client writes itself, and so may keep in Hindi or Marathi (EV-6).
+# An e-way bill comes from the government portal, in English.
+REGIONAL_DOCS = ("invoice", "lr_copy", "credit_note", "sales_return")
+
+
+def regional_samples(samples: dict[str, dict]) -> dict[str, str]:
+    """Every fourth sample keeps its papers in a regional language, Marathi and Hindi in turn."""
+    return {sid: ("mr", "hi")[n % 2] for n, sid in enumerate(sorted(samples)[::4])}
+
 
 def upload_all(client, requests: list[dict], samples: dict[str, dict], snap, company: dict,
-               plant: bool = True) -> list[dict]:
+               plant: bool = True, regional: bool = False) -> list[dict]:
     fac = EvidenceFactory(snap, company)
+    language = regional_samples(samples) if regional else {}
     sales = sorted([s for s in samples.values() if s["sheet"] == "sales_tod" and s["subject_type"] == "invoice"],
                    key=lambda s: s["sample_id"])
     key: list[dict] = []
@@ -35,6 +45,9 @@ def upload_all(client, requests: list[dict], samples: dict[str, dict], snap, com
 
         tamper[(picks[0]["sample_id"], "invoice")] = {"amount_delta": 50_000_00}
         note(picks[0], "E-1", "Invoice copy amount raised by Rs 50,000.")
+        if regional:
+            # The forged amount is on a Hindi invoice, so the check is shown to work in that language too.
+            language[picks[0]["sample_id"]] = "hi"
         tamper[(picks[1]["sample_id"], "eway_bill")] = {"short_validity": True}
         note(picks[1], "E-5", "E-way bill validity shortened to six hours.")
         tamper[(picks[2]["sample_id"], "invoice")] = {"producer": "Adobe Photoshop 25.1 (Windows)"}
@@ -71,7 +84,10 @@ def upload_all(client, requests: list[dict], samples: dict[str, dict], snap, com
 
     for r in sorted(requests, key=order):
         s = samples[r["sample_id"]]
-        made = fac.make(s, r["document_type"], tamper.get((r["sample_id"], r["document_type"])))
+        change = tamper.get((r["sample_id"], r["document_type"]))
+        if r["sample_id"] in language and r["document_type"] in REGIONAL_DOCS:
+            change = {**(change or {}), "language": language[r["sample_id"]]}
+        made = fac.make(s, r["document_type"], change)
         if not made:
             # The honest answer to a request for a document that does not exist.
             client.decline_evidence(r["sample_id"], r["request_id"], r["document_type"],

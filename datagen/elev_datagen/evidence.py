@@ -30,7 +30,32 @@ def _fmt_dt(iso: str | None) -> str:
     return t.strftime("%d-%m-%Y %H:%M:%S") if t else ""
 
 
-def render_pdf(lines: list[str], title: str, producer: str, created: dt.datetime) -> bytes:
+def render_regional(lines: list[str], title: str, producer: str, created: dt.datetime, language: str) -> bytes:
+    """The same document in Hindi or Marathi. PyMuPDF shapes Devanagari, which reportlab does not."""
+    import html
+
+    import pymupdf
+
+    from audit_engine.evidence.regional import to_regional
+
+    lines, title = to_regional(lines, language, title)
+    doc = pymupdf.open()
+    page = doc.new_page(width=595, height=842)
+    body = f"<h1>{html.escape(title)}</h1>" + "".join(f"<p>{html.escape(ln) or '&#160;'}</p>" for ln in lines)
+    page.insert_htmlbox(pymupdf.Rect(50, 42, 545, 800), body,
+                        css="h1 {font-size: 14pt; margin: 0 0 10pt 0;} p {font-size: 10pt; margin: 0 0 3pt 0;}")
+    try:
+        doc.subset_fonts()  # keeps only the glyphs used, so the file stays small
+    except Exception:  # noqa: BLE001 - the document is complete either way
+        pass
+    stamp = created.strftime("D:%Y%m%d%H%M%S+05'30'")
+    doc.set_metadata({"producer": producer, "creator": producer, "creationDate": stamp, "modDate": stamp, "title": title})
+    return doc.tobytes(deflate=True, garbage=3, no_new_id=True)
+
+
+def render_pdf(lines: list[str], title: str, producer: str, created: dt.datetime, language: str | None = None) -> bytes:
+    if language in ("hi", "mr"):
+        return render_regional(lines, title, producer, created, language)
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4, invariant=1)
     c.setTitle(title)
@@ -180,6 +205,8 @@ class EvidenceFactory:
         tamper = tamper or {}
         data = sample["data"]
         producer = tamper.get("producer") or "Tally.ERP 9"
+        # The client's own documents may be in Hindi or Marathi. An e-way bill comes from the government portal in English.
+        lang = tamper.get("language")
         if sample["subject_type"] == "credit_note":
             cn = next((c for c in self.snap.credit_notes if c["_aggregate_id"] == data.get("aggregate_id")), None)
             if cn is None:
@@ -192,7 +219,8 @@ class EvidenceFactory:
                 if not srs:
                     return None
                 lines, title = self.return_lines(srs[0]), "SALES RETURN - GOODS RECEIPT NOTE"
-            return render_pdf(lines, title, producer, created), f"{doc_type}_{cn['credit_note_no'].replace('/', '-')}.pdf"
+            return (render_pdf(lines, title, producer, created, lang),
+                    f"{doc_type}_{cn['credit_note_no'].replace('/', '-')}.pdf")
         inv = self.snap.by_aggregate.get(data.get("aggregate_id") or "")
         if inv is None:
             return None
@@ -202,10 +230,10 @@ class EvidenceFactory:
             lines = self.invoice_lines(inv, tamper.get("amount_delta", 0), tamper.get("number"))
             if tamper.get("scan"):
                 return render_png(lines, "TAX INVOICE"), f"invoice_{safe}.png"
-            return render_pdf(lines, "TAX INVOICE", producer, created), f"invoice_{safe}.pdf"
+            return render_pdf(lines, "TAX INVOICE", producer, created, lang), f"invoice_{safe}.pdf"
         if doc_type == "credit_note" and tamper.get("fabricate"):
             cn = self.made_up_credit_note(inv)
-            return (render_pdf(self.cn_lines(cn), "CREDIT NOTE", producer, ts(cn["date"] + "T12:00:00")),
+            return (render_pdf(self.cn_lines(cn), "CREDIT NOTE", producer, ts(cn["date"] + "T12:00:00"), lang),
                     f"credit_note_{safe}.pdf")
         ds = self.snap.dispatch_for_invoice(inv)
         if doc_type == "eway_bill":
@@ -228,6 +256,6 @@ class EvidenceFactory:
             if not lrs:
                 return None
             return (render_pdf(self.lr_lines(lrs[0], str(inv["invoice_no"]), tamper.get("vehicle")), "LORRY RECEIPT",
-                               tamper.get("producer") or lrs[0].get("transporter"), ts(lrs[0]["date"] + "T19:00:00")),
+                               tamper.get("producer") or lrs[0].get("transporter"), ts(lrs[0]["date"] + "T19:00:00"), lang),
                     f"lr_{lrs[0]['lr_no']}.pdf")
         return None

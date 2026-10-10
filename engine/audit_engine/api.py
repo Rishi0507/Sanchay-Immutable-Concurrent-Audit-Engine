@@ -21,7 +21,8 @@ from fastapi.responses import JSONResponse
 from . import __version__
 from .changes import check_post_testing_changes
 from .engine import STEPS, Engine, EngineError
-from .evidence.service import control_summary, request_evidence, request_status, verify_evidence
+from .evidence.service import (control_summary, regional_documents, request_evidence, request_status,
+                               verify_evidence)
 from .findings_service import all_findings, confirm_finding, sign_off
 from .graph import build_graph
 from .integrity import integrity_report
@@ -256,8 +257,18 @@ def reconcile_register(request: Request, body: dict | None = Body(default=None))
 
 
 def register_views(ctx) -> tuple[list[str], list[dict]]:
-    """Register rows as provided, with the tag, reconciliation status and finding references beside each."""
-    repo = engine().repo
+    """Register rows as provided, with the tag, reconciliation status and finding references beside each.
+
+    The tables behind the view are written by the steps and by nothing else, so
+    the view is built once and kept until another step completes. A screen that
+    reads the whole register page by page then pays for it once.
+    """
+    e = engine()
+    repo = e.repo
+    stamp = len(repo.steps_done(ctx.eid))
+    held = e.views.get(("register", ctx.eid))
+    if held and held[0] == stamp:
+        return held[1]
     imp = repo.first(register_imports, engagement_id=ctx.eid) or {}
     names = (imp.get("headers") or {}).get("names", [])
     colmap = {int(k): v for k, v in (imp.get("column_map") or {}).items()}
@@ -298,6 +309,7 @@ def register_views(ctx) -> tuple[list[str], list[dict]]:
                     "suggested_rp": det.get("explanation") if tag.get("tag") == "suggested" else None,
                     "recon_status": recon_code(rec.get("status")), "recon_detail": rec.get("status"),
                     "finding_ids": rec.get("finding_refs") or []})
+    e.views[("register", ctx.eid)] = (stamp, (names, out))
     return names, out
 
 
@@ -353,7 +365,8 @@ def run_detectors(request: Request, body: dict | None = Body(default=None)):
             "auto_ran": r["auto_ran"]}
 
 
-def sample_record(ctx, s: dict, tests: dict | None, refs: dict[str, list[str]]) -> dict:
+def sample_record(ctx, s: dict, tests: dict | None, refs: dict[str, list[str]],
+                  languages: dict[str, list[str]] | None = None) -> dict:
     d = s["data"] or {}
     rec = {"sample_id": s["sample_id"], "sheet": s["sheet"], "position": s["position"],
            "subject_type": s["subject_type"], "subject_id": d.get("aggregate_id") or s["subject_id"],
@@ -381,6 +394,9 @@ def sample_record(ctx, s: dict, tests: dict | None, refs: dict[str, list[str]]) 
               "original_date": "Original date", "reason_given": "Reason", "approver": "Approver",
               "return_inward_date": "Goods returned", "days_from_invoice": "Days after invoice"}
     rec["detail"] = {label: d.get(k) for k, label in labels.items() if d.get(k) not in (None, "")}
+    read_in = (languages or {}).get(s["sample_id"])
+    if read_in:
+        rec["detail"]["Documents read in"] = ", ".join(sorted(set(read_in)))
     return rec
 
 
@@ -392,7 +408,8 @@ def sheet_samples(ctx, sheet: str) -> list[dict]:
         for sid in f.get("sample_ids") or []:
             refs[sid].append(f["finding_id"])
     rows = repo.select(samples, order_by=samples.c.position, engagement_id=ctx.eid, sheet=sheet)
-    return [sample_record(ctx, s, (tests.get(s["sample_id"]) or {}).get("tests"), refs) for s in rows]
+    languages = regional_documents(ctx)
+    return [sample_record(ctx, s, (tests.get(s["sample_id"]) or {}).get("tests"), refs, languages) for s in rows]
 
 
 def select(request: Request, body: dict | None, sheet: str, step: str, fn):

@@ -46,7 +46,7 @@ The endpoints, headers and error format are in `contracts/engine-api/README.md`.
 | `detectors/` | 13 | D-04 to D-09, D-11 to D-14, indicators, parallel runner |
 | `graph.py` | 13.4 | Counterparty graph, Tarjan components, Johnson cycles up to length 6 |
 | `sampling.py` | 12, 14.4 | Sales, cut-off and credit note TODs, seeded RNG, reasons, evidence requests, control requests |
-| `evidence/` | 14 | Text and OCR extraction, pattern rules and optional local model, checks E-1 to E-8, D-10 |
+| `evidence/` | 14 | Text and OCR extraction, Hindi and Marathi documents (`regional.py`), pattern rules and optional model, checks E-1 to E-9, D-10 |
 | `model.py` | 21 | The optional model: local Ollama or a hosted chat completions service |
 | `findings.py`, `findings_service.py` | 15 | Stable finding IDs, severity, template reasons, decisions, sign-off |
 | `changes.py` | 16.3 | D-15 matching rules and sample reversion |
@@ -65,5 +65,7 @@ The endpoints, headers and error format are in `contracts/engine-api/README.md`.
 | Finding IDs | `F-` and 16 hex characters of SHA-256 over engagement, category, subtype and subject. Re-running a step adds nothing (DT-4). |
 | Evidence reuse (E-3) | Exact file hash and normalised text hash across samples of different transactions. Perceptual hash for raster scans. Samples of the same invoice in two TODs may share documents. |
 | Evidence confidence (EV-4) | Text PDFs 0.95, OCR 0.85, disagreement between model and patterns 0.6. A required field below 0.8 gives `Needs human review`. |
+| Regional documents (EV-6) | A Devanagari document is rewritten with English labels and ASCII digits, then read by the same pattern rules. Labels are matched by their consonants with a fuzzy ratio of at least 0.6 and a lead of 0.08 over the next label, within the labels that can carry the value on the line. Fields read this way carry confidence 0.9. An unplaced label leaves its field empty. |
+| Register view | The register rows with their tags and reconciliation status are built once per engagement and kept until another step completes, because only steps write the tables behind them. |
 | Model use | Optional. Model output is schema-validated and only fills or confirms fields. Memo rephrasing is discarded if any number changes. A failed call falls back to pattern rules or template text and is logged. |
 | Model cache | A file read with the model is cached apart from a file read by pattern rules alone, so files are read again once a model is configured. Accepted memo wording is cached by the hash of the template text. Repeating a step needs no model. |
