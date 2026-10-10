@@ -59,3 +59,21 @@ def test_related_parties_recall(planted_engine, answer_key):
     assert len(late) == 1
     assert not [f for f in findings if f["subtype"] == "DISCLOSED_STARTS_IN_PERIOD"
                 and f["subject"]["id"] == late[0]["subject"]["id"]]
+
+
+B4 = ("D-05", "D-06", "D-08", "D-09", "D-11")
+
+
+def test_b4_detectors_clean(clean_engine):
+    clean_engine.step("run_detectors")
+    eid = clean_engine.resolve(None)["engagement_id"]
+    fps = [f for f in clean_engine.repo.findings(eid) if f["detector_id"] in B4]
+    assert not fps, [(f["subtype"], f["subject"]["id"]) for f in fps]
+
+
+def test_b4_detectors_recall(planted_engine, answer_key):
+    planted_engine.step("run_detectors")
+    eid = planted_engine.resolve(None)["engagement_id"]
+    findings = [f for f in planted_engine.repo.findings(eid) if f["detector_id"] in B4]
+    missed = recall(findings, [i for i in answer_key if i["detector"] in B4])
+    assert not missed, missed
