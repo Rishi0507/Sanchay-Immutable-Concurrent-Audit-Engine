@@ -32,7 +32,28 @@ const statusLabel: Record<string, string> = {
   needs_info: "Needs info",
 };
 
+// Plain names for the detector categories (PRD section 13.2).
+const categoryNames: Record<string, string> = {
+  REGISTER_MISMATCH: "Register differs from the books",
+  RP_UNDISCLOSED: "Undisclosed related party",
+  RP_MID_PERIOD: "Related party from mid-period",
+  CIRCULAR_TRADING: "Circular trading",
+  NO_MOVEMENT: "No physical movement",
+  CUTOFF: "Cut-off",
+  PERIOD_END_CONCENTRATION: "Period-end concentration",
+  DOC_TAX_MISMATCH: "Tax documents and GSTR-1",
+  NON_SALE_REVENUE: "Revenue not from a sale",
+  EVIDENCE_SUSPECT: "Suspect evidence",
+  CREDIT_NOTE: "Credit note",
+  PROMOTION_DISCOUNT: "Promotion or discount",
+  SETTLEMENT: "Settlement",
+  DOCUMENT_INTEGRITY: "Document integrity",
+  POST_TESTING_CHANGE: "Changed after testing",
+  LEDGER_INTEGRITY: "Ledger integrity",
+};
+
 function category(c: string) {
+  if (categoryNames[c]) return categoryNames[c];
   const text = c.replace(/_/g, " ").toLowerCase();
   return text.charAt(0).toUpperCase() + text.slice(1);
 }

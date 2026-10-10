@@ -168,7 +168,7 @@ def plan(request: Request, engagement_id: str | None = None):
             raise
         eid = None
     steps, next_tool = plan_steps(eid)
-    return {"engagement_id": eid, "steps": steps, "next_tool": next_tool or "open_engagement"}
+    return {"engagement_id": eid, "steps": steps, "next_tool": next_tool if eid else "open_engagement"}
 
 
 @app.post("/engagements")
