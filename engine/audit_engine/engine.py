@@ -234,6 +234,11 @@ class Engine:
                               "Ask the client to upload it, then call open_engagement again.")
         if not entity_ids:
             entity_ids = [reg[-1]["entity_id"]]
+        known = sorted({e["entity_id"] for e in uploads})
+        unknown = [e for e in entity_ids if e not in known]
+        if unknown:
+            raise EngineError("VALIDATION_FAILED", f"No client upload exists for entity {', '.join(map(str, unknown))}.",
+                              f"Leave entity_ids out, or use one of: {', '.join(known)}.")
         seed = str(seed) if seed not in (None, "") else secrets.token_hex(8)
         raw = f"{ps}|{pe}|{','.join(sorted(entity_ids))}|{head_seq}|{seed}"
         eid = "eng_" + hashlib.sha256(raw.encode()).hexdigest()[:16]
