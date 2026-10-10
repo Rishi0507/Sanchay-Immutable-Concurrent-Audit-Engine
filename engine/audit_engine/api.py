@@ -58,6 +58,19 @@ DETECTOR_CATEGORY = {"D-04": "CIRCULAR_TRADING", "D-05": "NO_MOVEMENT", "D-06": 
                      "D-14": "DOCUMENT_INTEGRITY"}
 SUBJECT_TYPES = {"gstr1_line": "gstr1", "upload": "register_row", "event": "sample", "eway_bill": "invoice",
                  "lr": "invoice", "vehicle": "invoice", "order": "invoice"}
+RECON_CODES = {"Matched": "MATCHED", "Field difference": "FIELD_DIFFERENCE", "Not in system": "NOT_IN_SYSTEM",
+               "Duplicate": "DUPLICATE_ROW", "Arithmetic": "ROW_ARITHMETIC", "Reversed in system": "REVERSED_IN_SYSTEM",
+               "Blank row": "BLANK_ROW", "Total row": "TOTAL_ROW", "Total row differs": "TOTAL_ROW_MISMATCH"}
+
+
+def recon_code(label: str | None) -> str | None:
+    """The register status as a code. A row with several statuses reports its first exception."""
+    if not label:
+        return None
+    parts = [RECON_CODES.get(p.strip(), p.strip().upper().replace(" ", "_")) for p in label.split(";")]
+    return next((p for p in parts if p != "MATCHED"), parts[0])
+
+
 EVIDENCE_STATUS = {"requested": "pending", "uploaded": "received", "verified": "verified",
                    "replaced after verification": "received"}
 
@@ -267,7 +280,8 @@ def register_views(ctx) -> tuple[list[str], list[dict]]:
         out.append({"row_no": r["row_no"], "raw": values,
                     "rp_tag": ("Related Party" if det.get("disclosed_from") else "Non Related Party") if kind == "data" else None,
                     "suggested_rp": det.get("explanation") if tag.get("tag") == "suggested" else None,
-                    "recon_status": rec.get("status"), "finding_ids": rec.get("finding_refs") or []})
+                    "recon_status": recon_code(rec.get("status")), "recon_detail": rec.get("status"),
+                    "finding_ids": rec.get("finding_refs") or []})
     return names, out
 
 
@@ -278,9 +292,8 @@ def get_register_rows(request: Request, engagement_id: str | None = None, recon_
     ctx = engine().ctx(engagement_id, ident)
     names, rows = register_views(ctx)
     if recon_status:
-        want = recon_status.replace("_", " ").lower()
-        rows = [r for r in rows if want in (r["recon_status"] or "").lower()
-                or (want == "matched" and r["recon_status"] == "Matched")]
+        want = recon_status.upper()
+        rows = [r for r in rows if r["recon_status"] == want or want in (r.get("recon_detail") or "").upper().replace(" ", "_")]
     if rp_tag:
         rows = [r for r in rows if (r["rp_tag"] or "").lower() == rp_tag.lower()]
     after = int(cursor) if cursor and cursor.isdigit() else 0
@@ -344,6 +357,14 @@ def sample_record(ctx, s: dict, tests: dict | None, refs: dict[str, list[str]]) 
         rec.update({k: d.get(k) for k in ("dispatch_date", "delivery_date", "terms", "control_date", "posting_date",
                                          "period_recognised", "correct_period", "conclusion", "side", "state_code",
                                          "gstin", "ledger_account")})
+    # Shown as label and value pairs in the sample panel.
+    labels = {"unit": "Unit", "quarter": "Quarter", "bu": "Business unit", "job_no": "Order", "related_kind": "Related party",
+              "dispatch_date": "Dispatched", "delivery_date": "Delivered", "terms": "Delivery terms",
+              "control_date": "Control passed", "posting_date": "Posted", "period_recognised": "Recognised in",
+              "correct_period": "Belongs to", "conclusion": "Conclusion", "original_bill_no": "Original invoice",
+              "original_date": "Original date", "reason_given": "Reason", "approver": "Approver",
+              "return_inward_date": "Goods returned", "days_from_invoice": "Days after invoice"}
+    rec["detail"] = {label: d.get(k) for k, label in labels.items() if d.get(k) not in (None, "")}
     return rec
 
 

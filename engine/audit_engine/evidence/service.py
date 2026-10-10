@@ -128,7 +128,9 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
     if sample_id and not any(r["upload_seq"] for r in by_sample[sample_id]):
         raise EngineError("EVIDENCE_PENDING", f"No evidence has been uploaded for {sample_id}.",
                           "Wait for the client to upload, or call request_evidence for a follow-up.")
-    all_ups = uploads(ctx)
+    mine = {x["sample_id"] for x in all_samples}
+    # Only this engagement's samples: another engagement may sample the same invoice and receive the same copy.
+    all_ups = [u for u in uploads(ctx) if u.get("sample_id") in mine]
     hash_samples = defaultdict(set)
     text_samples = defaultdict(set)
     phashes = []

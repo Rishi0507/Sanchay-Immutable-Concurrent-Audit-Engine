@@ -83,7 +83,8 @@ def test_full_flow_contract_shapes(client):
     assert len(rows["rows"]) == 5 and rows["next_cursor"] and "Bill no." in rows["rows"][0]["raw"]
     assert rows["rows"][0]["rp_tag"] in ("Related Party", "Non Related Party")
     bad = client.get("/register/rows", params={"recon_status": "NOT_IN_SYSTEM"}, headers=AUD).json()["rows"]
-    assert bad and all("Not in system" in r["recon_status"] for r in bad)
+    assert bad and all(r["recon_status"] == "NOT_IN_SYSTEM" for r in bad)
+    assert client.get("/register/rows", params={"recon_status": "MATCHED", "limit": 3}, headers=AUD).json()["rows"][0]["recon_status"] == "MATCHED"
 
     f = client.get("/findings", params={"severity": "High", "limit": 5}, headers=AUD).json()
     assert f["findings"] and f["next_cursor"] and f["totals"]["count"] > 5
