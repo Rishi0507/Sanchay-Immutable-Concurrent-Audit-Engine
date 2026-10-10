@@ -2,12 +2,26 @@ import { useState } from "react";
 import { callTool, fileUrl, money, shortHash } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Mark, Status, toast, useAction, useTool } from "../ui";
+import { Guilloche, Watermark } from "../print";
+import { Stamp } from "../Stamp";
 import { EmailAction, FindingLite, Kpi, MoreBar, PageBrief, Panel, ReviewProgress, spotlight, Term, ViewHead, day, dedupe, inr, plural, sum } from "./kit";
 
 interface FileRef {
   file_hash: string;
   file_name: string;
   content_type?: string;
+}
+
+// What makes an output look like a printed document: a rosette in the corner,
+// the watermark, and once the file exists, the stamp that issued it.
+function DocMarks({ issued }: { issued: boolean }) {
+  return (
+    <>
+      <Guilloche size={190} layers={2} className="absolute -right-16 -bottom-16 opacity-70" />
+      <Watermark className="absolute right-6 bottom-6 h-12 w-12" />
+      {issued && <Stamp word="ISSUED" tone="pass" small className="stamp right-2 bottom-1 z-10 scale-[0.8]" />}
+    </>
+  );
 }
 
 function Download({ file }: { file: FileRef }) {
@@ -168,7 +182,8 @@ export default function Export({ pulse, engagementId, identity, can }: ViewProps
       )}
 
       <div id="ex-files" className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_1fr_300px]">
-        <Panel title="Summary report" meta="One page">
+        <Panel title="Summary report" meta="One page" className="doc relative overflow-hidden">
+          <DocMarks issued={!!report?.file} />
           {report ? (
             <p className="mb-5 text-[14px] text-ink-2">
               {plural(Number(report.summary?.findings?.count ?? 0), "finding")}, with{" "}
@@ -187,7 +202,8 @@ export default function Export({ pulse, engagementId, identity, can }: ViewProps
           </Button>
         </Panel>
 
-        <Panel title="Workpaper" meta="Excel">
+        <Panel title="Workpaper" meta="Excel" className="doc relative overflow-hidden">
+          <DocMarks issued={!!workpaper?.file} />
           <Contents items={(workpaper?.sheets ?? ["Sales Register", "Sales TOD", "Sales Cut-off TOD", "Credit Note TOD"]).map((x: string) => `${x} sheet`)} />
           {workpaper?.file && (
             <div className="mb-4">
@@ -199,7 +215,8 @@ export default function Export({ pulse, engagementId, identity, can }: ViewProps
           </Button>
         </Panel>
 
-        <Panel title="Findings memo" meta="Document">
+        <Panel title="Findings memo" meta="Document" className="doc relative overflow-hidden">
+          <DocMarks issued={!!memo?.files?.length} />
           {memo ? (
             <p className="mb-5 text-[14px] text-ink-2">
               {plural(Number(memo.findings ?? 0), "finding")}, with proposed adjustments of <span className="num font-medium text-ink">₹ {money(memo.total_adjustment)}</span> in total.

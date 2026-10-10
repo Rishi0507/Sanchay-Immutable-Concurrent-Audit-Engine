@@ -380,24 +380,53 @@ function Flows({ flows, pal, hot, reduced }: { flows: Flow[]; pal: ReturnType<ty
 }
 
 // Labels are DOM elements placed every frame from the 3D positions, so text stays crisp.
-function Labels({ columns, nodes, extra, extraEls }: {
+// They are placed in priority order, and a label that would cover one already
+// placed is hidden, so the names never pile on top of each other.
+function Labels({ columns, nodes, extra, extraEls, focus }: {
   columns: Column[];
   nodes: React.MutableRefObject<(HTMLDivElement | null)[]>;
   extra: THREE.Vector3[];
   extraEls: React.MutableRefObject<(HTMLDivElement | null)[]>;
+  // The column the reader points at or picked: its label always shows.
+  focus: number | null;
 }) {
   const { camera, size } = useThree();
   const v = useMemo(() => new THREE.Vector3(), []);
   const at = useMemo(() => new THREE.Vector3(), []);
-  const put = (el: HTMLDivElement | null, p: THREE.Vector3) => {
-    if (!el) return;
+  const order = useMemo(() => {
+    const weight = (c: Column) => (isCompany(c.side) ? 4e15 : 0) + (c.inCycle ? 2e15 : 0) + (c.related ? 1e15 : 0) + c.volume;
+    return columns.map((_, i) => i).sort((a, b) => weight(columns[b]) - weight(columns[a]));
+  }, [columns]);
+  const place = (el: HTMLDivElement | null, p: THREE.Vector3) => {
+    if (!el) return null;
     v.copy(p).project(camera);
-    el.style.visibility = v.z < 1 ? "visible" : "hidden";
-    el.style.transform = `translate(-50%, -100%) translate(${((v.x + 1) / 2) * size.width}px, ${((1 - v.y) / 2) * size.height}px)`;
+    const x = ((v.x + 1) / 2) * size.width;
+    const y = ((1 - v.y) / 2) * size.height;
+    el.style.transform = `translate(-50%, -100%) translate(${x}px, ${y}px)`;
+    return v.z < 1 ? { x, y, w: el.offsetWidth, h: el.offsetHeight } : null;
   };
   useFrame(() => {
-    columns.forEach((c, i) => put(nodes.current[i], at.set(c.pos.x, c.height + 0.35 + labelLift(c), c.pos.z)));
-    extra.forEach((p, i) => put(extraEls.current[i], p));
+    const taken: { l: number; r: number; t: number; b: number }[] = [];
+    const seq = focus !== null ? [focus, ...order.filter((i) => i !== focus)] : order;
+    for (const i of seq) {
+      const c = columns[i];
+      const el = nodes.current[i];
+      const box = place(el, at.set(c.pos.x, c.height + 0.35 + labelLift(c), c.pos.z));
+      if (!el) continue;
+      if (!box || !box.w) {
+        el.style.visibility = "hidden";
+        continue;
+      }
+      const r = { l: box.x - box.w / 2 - 3, r: box.x + box.w / 2 + 3, t: box.y - box.h - 2, b: box.y + 2 };
+      const clash = taken.some((o) => r.l < o.r && r.r > o.l && r.t < o.b && r.b > o.t);
+      el.style.visibility = clash && i !== focus ? "hidden" : "visible";
+      if (!clash || i === focus) taken.push(r);
+    }
+    extra.forEach((p, i) => {
+      const el = extraEls.current[i];
+      const box = place(el, p);
+      if (el) el.style.visibility = box ? "visible" : "hidden";
+    });
   });
   return null;
 }
@@ -509,7 +538,7 @@ export default function Graph3D({ data, active, onPickCycle }: { data: GraphData
           <ColumnMesh key={c.id} c={c} i={i} pal={pal} state={stateOf(i)} onHover={setHovered} onPick={setPicked} />
         ))}
         <Flows flows={flows} pal={pal} hot={hotFlows} reduced={reduced} />
-        <Labels columns={columns} nodes={labelEls} extra={sideAnchors} extraEls={sideEls} />
+        <Labels columns={columns} nodes={labelEls} extra={sideAnchors} extraEls={sideEls} focus={picked ?? hovered} />
       </Canvas>
 
       <div className="pointer-events-none absolute inset-0">

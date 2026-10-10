@@ -66,17 +66,10 @@ export function WaveLines({ className, rows = 14, tone = "var(--color-guilloche)
 // ---------------------------------------------------------------- Security thread
 
 // The windowed metal thread, its foil shifting colour as the page moves.
-export function Thread({ vertical, className, label = "SANCHAY" }: { vertical?: boolean; className?: string; label?: string }) {
-  return (
-    // Positioned by the caller when it says so, otherwise in the flow.
-    <div className={cx("thread overflow-hidden", /(absolute|fixed|sticky)/.test(className ?? "") ? "" : "relative", vertical ? "w-2.5" : "h-2.5", className)} aria-hidden>
-      <div className={cx("absolute inset-0 flex items-center justify-around font-mono text-[6px] font-bold tracking-[0.3em] text-white/80", vertical && "flex-col [writing-mode:vertical-rl]")}>
-        {Array.from({ length: 6 }, (_, i) => (
-          <span key={i}>{label}</span>
-        ))}
-      </div>
-    </div>
-  );
+export function Thread({ vertical, className }: { vertical?: boolean; className?: string }) {
+  // It takes the caller's positioning, and has none of its own, so it can run
+  // down an edge (absolute) or sit in a row (in the flow).
+  return <div className={cx("thread", vertical ? "thread-v w-1.5" : "h-1.5", className)} aria-hidden />;
 }
 
 // ---------------------------------------------------------------- Microtext
@@ -144,6 +137,21 @@ export function Watermark({ className }: { className?: string }) {
   return <img src="/logo-mark.png" alt="" aria-hidden className={cx("watermark pointer-events-none select-none", className)} />;
 }
 
+// ---------------------------------------------------------------- Denomination
+
+// A chapter number printed the way a note prints its value: inside a small
+// rosette, in colour-shift ink.
+export function Denomination({ n, size = 58, onDark }: { n: string; size?: number; onDark?: boolean }) {
+  return (
+    <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }} aria-label={`Chapter ${n}`}>
+      <Guilloche size={size} layers={2} tone={onDark ? "var(--color-spine-ink-2)" : "var(--color-guilloche)"} className="absolute inset-0" />
+      <ShiftInk className="display relative text-[26px] leading-none" >
+        {n}
+      </ShiftInk>
+    </span>
+  );
+}
+
 // ---------------------------------------------------------------- The note band
 
 // Each page opens like a note: its chapter of the story on the front page,
@@ -168,7 +176,7 @@ const pageStory: { test: RegExp; n?: string; line: string }[] = [
 export function NoteBand({ title, eyebrow, summary, action }: { title: string; eyebrow?: ReactNode; summary?: ReactNode; action?: ReactNode }) {
   const story = pageStory.find((s) => s.test.test(title));
   return (
-    <section className="note relative mb-6 overflow-hidden rounded-[26px] border border-line bg-paper shadow-[0_1px_0_var(--color-line-soft),0_22px_50px_-40px_rgba(0,0,0,0.5)]">
+    <section className="note note-band relative mb-6 overflow-hidden rounded-[26px] border border-line bg-paper shadow-[0_1px_0_var(--color-line-soft),0_22px_50px_-40px_rgba(0,0,0,0.5)]">
       <WaveLines className="absolute inset-x-0 top-0 h-full w-full opacity-40" rows={16} />
       {/* The medallion, with the watermark in its window. */}
       <div className="absolute top-1/2 right-6 hidden -translate-y-1/2 md:block">
@@ -178,11 +186,7 @@ export function NoteBand({ title, eyebrow, summary, action }: { title: string; e
       <div className="relative flex flex-wrap items-end justify-between gap-x-8 gap-y-4 px-6 pt-6 pb-5 md:px-8 md:pr-[250px]">
         <div className="min-w-0 max-w-3xl">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            {story?.n && (
-              <ShiftInk className="display text-[40px] leading-none">
-                <Serial value={story.n} from={0.6} />
-              </ShiftInk>
-            )}
+            {story?.n && <Denomination n={story.n} />}
             <span className="text-[14.5px] font-semibold text-ink-2">{eyebrow ?? story?.line}</span>
           </div>
           <h1 className="display mt-1.5 text-[42px] leading-[1.02] text-ink md:text-[50px]" style={{ fontVariationSettings: '"wdth" 80' }}>

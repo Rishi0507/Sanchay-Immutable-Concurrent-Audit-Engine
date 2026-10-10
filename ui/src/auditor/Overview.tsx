@@ -490,7 +490,7 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement, iden
       <ViewHead eyebrow={`Revenue audit, ${day(s.period_start)} to ${day(s.period_end)}`} title="Overview" />
 
       {/* The verdict, on a page of ledger paper. */}
-      <section className="mb-6 grid overflow-hidden rounded-2xl border border-line shadow-[0_1px_0_var(--color-line-soft),0_18px_40px_-28px_rgba(12,58,43,0.35)] xl:grid-cols-[minmax(0,1fr)_380px]" aria-label="The answer">
+      <section className="attach mb-6 grid overflow-hidden rounded-2xl border border-line shadow-[0_1px_0_var(--color-line-soft),0_18px_40px_-28px_rgba(12,58,43,0.35)] xl:grid-cols-[minmax(0,1fr)_380px]" aria-label="The answer">
         <div className="ledger-paper py-7 pr-6 pl-[72px] sm:pr-10">
           <p className="text-[15px] font-semibold text-ink-2">{s.signed_off ? "Misstatement confirmed" : "Revenue in question"}</p>
           <div className="mt-2 flex flex-wrap items-end gap-x-5 gap-y-2">

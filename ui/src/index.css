@@ -810,9 +810,21 @@ html[data-detail="simple"]:not([data-open~="ex"]) [data-more="ex"] {
   mask: repeating-linear-gradient(to right, #000 0 22px, transparent 22px 30px);
 }
 
-.thread.w-2\.5 {
+.thread {
+  border-radius: 999px;
+}
+
+.thread-v {
+  background-size: 100% 200%;
+  animation-name: foil-v;
   -webkit-mask: repeating-linear-gradient(to bottom, #000 0 22px, transparent 22px 30px);
   mask: repeating-linear-gradient(to bottom, #000 0 22px, transparent 22px 30px);
+}
+
+@keyframes foil-v {
+  to {
+    background-position: 0 200%;
+  }
 }
 
 /* Colour-shift ink: the gradient slides with the pointer (useTilt writes --tilt-x). */
@@ -893,4 +905,52 @@ html[data-uv="on"] body {
   .scroll-cue::after {
     animation: none;
   }
+}
+
+/* A page's note band and the summary under it are one document: the note
+   and its counterfoil, joined at a perforated tear line. A notch is punched out
+   of each end of the line with a mask, so both keep their clipping. */
+.note-band:has(+ .brief),
+.note-band:has(+ .attach) {
+  margin-bottom: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+  -webkit-mask:
+    radial-gradient(circle at 0 100%, transparent 11px, #000 11.5px) left / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 100%, transparent 11px, #000 11.5px) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle at 0 100%, transparent 11px, #000 11.5px) left / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 100%, transparent 11px, #000 11.5px) right / 51% 100% no-repeat;
+}
+
+.note-band + .brief,
+.note-band + .attach {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+  border-top: 2px dashed var(--color-line) !important;
+  -webkit-mask:
+    radial-gradient(circle at 0 0, transparent 11px, #000 11.5px) left / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 0, transparent 11px, #000 11.5px) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle at 0 0, transparent 11px, #000 11.5px) left / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 0, transparent 11px, #000 11.5px) right / 51% 100% no-repeat;
+}
+
+/* An output on the Export page is a sheet of paper with its corner turned down. */
+.doc::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(225deg, var(--color-canvas) 50%, var(--color-line) 50%, var(--color-wash) 75%);
+  border-bottom-left-radius: 6px;
+  z-index: 3;
+}
+
+.doc > div:first-of-type {
+  padding-right: 44px;
 }

@@ -4,7 +4,7 @@
 import { Component, ReactNode, Suspense, lazy, useEffect, useRef, useState } from "react";
 import { BrandMark, Mark, cx } from "../ui";
 import { Stamp } from "../Stamp";
-import { Guilloche, Microtext, Serial, ShiftInk, Thread, Watermark } from "../print";
+import { Denomination, Guilloche, Microtext, ShiftInk, Thread, Watermark } from "../print";
 import { prefersReducedMotion, usePalette, useUv } from "../theme";
 import { PalettePicker, UvSwitch } from "../inks";
 import type { StoryState } from "./Scene";
@@ -108,9 +108,7 @@ function ChapterPanel({ c, i, onOpen }: { c: Chapter; i: number; onOpen: (tab: s
         <Watermark className="absolute right-8 bottom-8 h-24 w-24" />
         <div className="relative">
           <div className="flex items-center gap-4">
-            <ShiftInk className="display text-[64px] leading-none" >
-              <Serial value={c.n} from={0.6} />
-            </ShiftInk>
+            <Denomination n={c.n} size={76} onDark />
             <Thread className="h-2.5 flex-1" />
           </div>
           <h2 id={`ch-${c.n}`} className="display mt-5 text-[40px] leading-[1.02] md:text-[50px]">

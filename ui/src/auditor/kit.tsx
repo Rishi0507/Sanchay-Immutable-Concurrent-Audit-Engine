@@ -300,7 +300,8 @@ export function Tally({ n, label, className }: { n: ReactNode; label: string; cl
   );
 }
 
-export const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+// "6,885 rows": counts carry Indian digit grouping wherever they are written.
+export const plural = (n: number, one: string, many = one + "s") => `${n.toLocaleString("en-IN")} ${n === 1 ? one : many}`;
 
 // ---------------------------------------------------------------- Register
 
