@@ -312,12 +312,6 @@ export default function Story({ onOpen }: { onOpen: () => void }) {
           Sanchay
         </div>
         <div className="flex items-center gap-5 text-[13px]">
-          {live.up !== null && (
-            <span className="hidden items-center gap-2 text-ink-2 sm:flex">
-              <span className={cx("h-1.5 w-1.5 rounded-full", live.up ? "bg-pass" : "bg-fail")} />
-              {live.up ? "Ledger running" : "Ledger not reachable"}
-            </span>
-          )}
           <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="font-medium text-ink-2 transition-colors hover:text-ink">
             {theme === "dark" ? "Light" : "Dark"}
           </button>
