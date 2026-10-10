@@ -118,14 +118,20 @@ class Ctx:
         return self.cache["rp_tags"]
 
     def is_related(self, customer_id: str | None, on: dt.date | None = None) -> str | None:
-        """Return 'disclosed', 'suggested' or None, honouring effective dates (RP-2)."""
+        """Return 'disclosed', 'suggested' or None for a sale dated ``on`` (RP-2)."""
         tag = self.rp_tags().get(customer_id or "")
         if not tag or tag["tag"] == "non_related":
             return None
-        ef = d((tag.get("detail") or {}).get("effective_from"))
-        if on is not None and ef is not None and on < ef:
-            return None
-        return tag["tag"]
+        det = tag.get("detail") or {}
+        for kind in ("disclosed", "suggested"):
+            since = d(det.get(f"{kind}_from"))
+            if det.get(f"{kind}_from") and (on is None or since is None or on >= since):
+                return kind
+        return None
+
+    def disclosed(self, customer_id: str | None) -> bool:
+        tag = self.rp_tags().get(customer_id or "")
+        return bool(tag and (tag.get("detail") or {}).get("disclosed_from"))
 
 
 class Engine:

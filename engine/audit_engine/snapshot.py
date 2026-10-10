@@ -92,6 +92,7 @@ class Snapshot:
                  company: dict | None = None):
         self.snapshot_seq = snapshot_seq
         self.company_profile = company or {}
+        self.cache: dict = {}
         self.events: list[dict] = []
         self.postings: list[dict] = list(postings)
         self.customers: dict[str, Party] = {}
