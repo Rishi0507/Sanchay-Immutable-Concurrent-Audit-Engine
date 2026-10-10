@@ -14,10 +14,10 @@ The full specification is in [docs/PRD.md](docs/PRD.md).
 | `db/` | Schemas, roles, append-only triggers | SQL | Built |
 | `contracts/` | Shared definitions used by every component | JSON, Markdown | Built |
 | `deploy/` | Docker Compose and the end-to-end check | YAML, Python | Built |
-| `engine/` | Audit engine: reconciliation, sampling, detectors, outputs | Python | Pending |
-| `datagen/` | Synthetic data and self-test | Python | Pending |
+| `engine/` | Audit engine: reconciliation, sampling, detectors, outputs | Python | Built |
+| `datagen/` | Synthetic data and self-test | Python | Built |
 
-Until the audit engine exists, `mcp/cmd/mockengine` answers the engine API with simple results so the rest of the system can run.
+The engine service runs the audit engine in `engine/`. The stand-in in `mcp/cmd/mockengine` is kept as a development aid.
 
 ## Run with Docker
 
@@ -32,6 +32,27 @@ docker compose -f deploy/docker-compose.yml up --build
 | http://localhost:8080/healthz | Health of the server and the services behind it |
 
 The first build compiles the OCaml ledger core and takes several minutes.
+
+## Load the demo business
+
+The data generator loads a synthetic manufacturer with planted irregularities through the client tools, with the historical record time of each event. That needs the seeding clock, which is off unless the stack is started with `SIM_CLOCK=1`.
+
+```sh
+SIM_CLOCK=1 docker compose -f deploy/docker-compose.yml up --build -d
+cd datagen
+uv run python -m elev_datagen generate --dataset planted --scale 0.15 --out ../var/seed --mcp-url http://localhost:8080
+cd .. && docker compose -f deploy/docker-compose.yml up -d   # restart with the seeding clock off
+```
+
+`--scale 0.15` loads about 1,000 sales (about 11,000 events, 11 minutes). `--scale 1` loads a full year of about 7,000 sales.
+
+After the auditor selects samples, the client answers the evidence requests:
+
+```sh
+cd datagen
+uv run python -m elev_datagen respond --dataset ../var/seed          # genuine copies
+uv run python -m elev_datagen respond --dataset ../var/seed --plant  # with planted forgeries
+```
 
 ## Identities
 
