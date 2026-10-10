@@ -3,6 +3,7 @@
 
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, callTool } from "./api";
+import { NoteBand } from "./print";
 
 export function cx(...parts: (string | false | null | undefined)[]) {
   return parts.filter(Boolean).join(" ");
@@ -152,16 +153,9 @@ export function Card({ children, className }: { children: ReactNode; className?:
   return <div className={cx("rounded-xl border border-line bg-paper shadow-[0_1px_0_var(--color-line-soft)]", className)}>{children}</div>;
 }
 
+// Every client page opens with its note band (print.tsx).
 export function Header({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
-  return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-      <div className="min-w-0">
-        <h1 className="display text-[34px] leading-[1.05]">{title}</h1>
-        {hint && <p className="mt-1.5 max-w-2xl text-[15px] text-ink-2">{hint}</p>}
-      </div>
-      {action}
-    </div>
-  );
+  return <NoteBand title={title} summary={hint} action={action} />;
 }
 
 export function Pills<T extends string>({ options, value, onChange }: { options: { value: T; label: string; count?: number }[]; value: T; onChange: (v: T) => void }) {

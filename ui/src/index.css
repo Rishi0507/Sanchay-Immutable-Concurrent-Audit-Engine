@@ -1,18 +1,20 @@
 @import "tailwindcss";
 
-/* Design tokens: the green-ink ledger.
+/* Design tokens: security print.
 
-   An Indian statutory auditor ticks vouchers in green ink, on columnar paper
-   ruled in pale green. The interface is that file. One colour means one
-   thing, everywhere: in the 3D scene, the tables, the tags and the legends.
+   Sanchay checks whether a sale is genuine the way a bank checks a note, so
+   the interface is printed like one: guilloche rosettes, a security thread,
+   colour-shift ink and microtext. A palette is the ink of one Indian note.
+   One colour means one thing in every palette:
 
-     green ink   checked, agrees, verified, and the action to take
-     vermilion   an exception, an alteration, a refusal
-     marigold    the highlighter: waiting, needs a look
-     indigo      a related party
+     brand       the intaglio ink: the action to take, what is verified
+     shift-a/b   the two ends of the colour-shift ink on the key figures
+     fail        an exception, an alteration, a refusal
+     highlight   the attention mark: waiting, needs a look
+     rp          a related party
 
-   The light theme, ledger paper, is the default. The dark theme is the same
-   ledger at night: each hue lifted to hold contrast on deep green. */
+   Stone is the default. Night is the dark palette. The UV lamp
+   ([data-uv]) sits on top of any of them. */
 @theme {
   --font-sans: "Anek Latin Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
   --font-serif: "Anek Latin Variable", ui-sans-serif, system-ui, sans-serif;
@@ -24,42 +26,44 @@
   --text-sm: 15px;
   --text-sm--line-height: 1.45;
 
-  --color-paper: #ffffff;
-  /* The desk under the pages: pale ledger green. */
-  --color-canvas: #e7f0ea;
-  --color-wash: #f1f6f2;
-  --color-line: #cfdcd3;
-  --color-line-soft: #e2ebe5;
+  /* Stone: the ₹500 note. */
+  --color-paper: #f9f9f6;
+  --color-canvas: #e3e2dc;
+  --color-wash: #efeeea;
+  --color-line: #cac8c0;
+  --color-line-soft: #dfded8;
 
-  --color-ink: #0d2a1f;
-  --color-ink-2: #45594f;
-  --color-ink-3: #6f8379;
+  --color-ink: #1c1f23;
+  --color-ink-2: #4a4e54;
+  --color-ink-3: #74787e;
 
-  --color-brand: #0b6e4f;
-  --color-brand-deep: #075a40;
-  --color-brand-wash: #dff1e8;
+  --color-brand: #1e5f8c;
+  --color-brand-deep: #154a6e;
+  --color-brand-wash: #dfeaf2;
   --color-on-brand: #ffffff;
 
-  --color-pass: #0f7d58;
-  --color-pass-wash: #e1f3ea;
-  --color-fail: #c8371b;
-  --color-fail-wash: #fce9e3;
-  --color-wait: #8a5d00;
-  --color-wait-wash: #fff0c2;
+  --color-pass: #1b7a55;
+  --color-pass-wash: #e0f1e8;
+  --color-fail: #c2381f;
+  --color-fail-wash: #fae6e0;
+  --color-wait: #875800;
+  --color-wait-wash: #fbeccd;
   --color-warm: #b5601a;
 
-  /* Rows that need a look carry the highlighter. */
-  --color-mark: #fff5d1;
-  --color-mark-hover: #ffedb3;
-  --color-rp: #5440bd;
-  --color-rp-wash: #edeafb;
+  --color-mark: #fbf0d6;
+  --color-mark-hover: #f7e5b9;
+  --color-rp: #5b45b8;
+  --color-rp-wash: #ebe8f9;
 
-  /* The ledger's cloth spine: the side navigation. */
-  --color-spine: #0c3a2b;
-  --color-spine-2: #12493a;
-  --color-spine-ink: #eaf4ee;
-  --color-spine-ink-2: #a5c6b7;
-  --color-highlight: #ffd84d;
+  --color-spine: #22262c;
+  --color-spine-2: #2e333a;
+  --color-spine-ink: #eef0f2;
+  --color-spine-ink-2: #a8aeb6;
+  --color-highlight: #f2a93b;
+
+  --color-shift-a: #128a6c;
+  --color-shift-b: #2b5fb8;
+  --color-guilloche: #8e9a92;
 
   /* Six kinds of problem, validated for colour-blind separation on paper. */
   --color-fam-1: #2a78d6;
@@ -70,22 +74,116 @@
   --color-fam-6: #d55181;
 }
 
-:root[data-theme="dark"] {
-  --color-paper: #10201a;
-  --color-canvas: #0a1511;
-  --color-wash: #16291f;
-  --color-line: #27403a;
-  --color-line-soft: #1c3129;
+/* Magenta: the ₹2000 note. */
+:root[data-palette="magenta"] {
+  --color-paper: #fffbfd;
+  --color-canvas: #f1e1ea;
+  --color-wash: #f8edf3;
+  --color-line: #e0c6d5;
+  --color-line-soft: #eddae4;
+  --color-ink: #2b0d20;
+  --color-ink-2: #5e3a51;
+  --color-ink-3: #8a687d;
+  --color-brand: #a3125f;
+  --color-brand-deep: #7f0c49;
+  --color-brand-wash: #f7dceb;
+  --color-mark: #fff1cf;
+  --color-mark-hover: #ffe6ad;
+  --color-spine: #380a27;
+  --color-spine-2: #4a1135;
+  --color-spine-ink: #fcf0f6;
+  --color-spine-ink-2: #d8a8c3;
+  --color-highlight: #ffc93c;
+  --color-shift-a: #a3125f;
+  --color-shift-b: #5b2bbf;
+  --color-guilloche: #c48aaa;
+}
 
-  --color-ink: #e6f1eb;
-  --color-ink-2: #a6bfb3;
-  --color-ink-3: #74907f;
+/* Lavender: the ₹100 note. */
+:root[data-palette="lavender"] {
+  --color-paper: #fcfbff;
+  --color-canvas: #e6e3f3;
+  --color-wash: #f2f0fa;
+  --color-line: #d0cbe6;
+  --color-line-soft: #e2def0;
+  --color-ink: #1d1838;
+  --color-ink-2: #4b4468;
+  --color-ink-3: #787295;
+  --color-brand: #5b47b0;
+  --color-brand-deep: #46368f;
+  --color-brand-wash: #e5e0f7;
+  --color-spine: #211a44;
+  --color-spine-2: #2c2357;
+  --color-spine-ink: #f1eeff;
+  --color-spine-ink-2: #b2a8dc;
+  --color-highlight: #7ce0c3;
+  --color-shift-a: #5b47b0;
+  --color-shift-b: #138a86;
+  --color-guilloche: #a598d4;
+}
 
-  --color-brand: #4cc38a;
-  --color-brand-deep: #6fd6a3;
-  --color-brand-wash: #143426;
-  --color-on-brand: #05190f;
+/* Marigold: the ₹200 note. */
+:root[data-palette="marigold"] {
+  --color-paper: #fffdf3;
+  --color-canvas: #f3e5b0;
+  --color-wash: #fbf3d6;
+  --color-line: #e3d29a;
+  --color-line-soft: #efe4bd;
+  --color-ink: #2a1e05;
+  --color-ink-2: #5b4b24;
+  --color-ink-3: #85754b;
+  --color-brand: #8f5400;
+  --color-brand-deep: #6f4100;
+  --color-brand-wash: #fae8bb;
+  --color-mark: #ffe9a8;
+  --color-mark-hover: #ffdf85;
+  --color-spine: #2d2106;
+  --color-spine-2: #3b2c0b;
+  --color-spine-ink: #fff6da;
+  --color-spine-ink-2: #d7c38b;
+  --color-highlight: #f7c21c;
+  --color-shift-a: #c47a00;
+  --color-shift-b: #2d7a3e;
+  --color-guilloche: #c4a24a;
+}
 
+/* Peacock: the ₹50 note. */
+:root[data-palette="peacock"] {
+  --color-paper: #f9fdfe;
+  --color-canvas: #d8edf2;
+  --color-wash: #eaf5f8;
+  --color-line: #bcd9e2;
+  --color-line-soft: #d7eaf0;
+  --color-ink: #04242d;
+  --color-ink-2: #325460;
+  --color-ink-3: #61808a;
+  --color-brand: #08758f;
+  --color-brand-deep: #065d72;
+  --color-brand-wash: #d3edf4;
+  --color-spine: #05303b;
+  --color-spine-2: #0a414f;
+  --color-spine-ink: #e8fafe;
+  --color-spine-ink-2: #94c5d1;
+  --color-highlight: #ffb547;
+  --color-shift-a: #08758f;
+  --color-shift-b: #1a9e5c;
+  --color-guilloche: #7db4c2;
+}
+
+/* Night: intaglio ink on a dark sheet. */
+:root[data-palette="night"] {
+  --color-paper: #13171c;
+  --color-canvas: #0b0e11;
+  --color-wash: #1a1f26;
+  --color-line: #2b323b;
+  --color-line-soft: #20262e;
+  --color-ink: #e9edf1;
+  --color-ink-2: #a7b0ba;
+  --color-ink-3: #758089;
+  --color-brand: #5bb8e8;
+  --color-brand-deep: #86cdf0;
+  --color-brand-wash: #142634;
+  --color-on-brand: #061520;
   --color-pass: #4cc38a;
   --color-pass-wash: #143426;
   --color-fail: #ff6d4f;
@@ -93,24 +191,64 @@
   --color-wait: #f2c14e;
   --color-wait-wash: #33290f;
   --color-warm: #f09a4d;
-
   --color-mark: #2b2410;
   --color-mark-hover: #372e14;
   --color-rp: #a99af6;
   --color-rp-wash: #241f3d;
-
-  --color-spine: #07110d;
-  --color-spine-2: #10241b;
-  --color-spine-ink: #e6f1eb;
-  --color-spine-ink-2: #8fae9f;
-  --color-highlight: #f2c14e;
-
+  --color-spine: #07090b;
+  --color-spine-2: #11161b;
+  --color-spine-ink: #e9edf1;
+  --color-spine-ink-2: #8f99a4;
+  --color-highlight: #f2a93b;
+  --color-shift-a: #3fd3a6;
+  --color-shift-b: #6a8cff;
+  --color-guilloche: #3a4652;
   --color-fam-1: #3987e5;
-  --color-fam-2: #c98500;
   --color-fam-3: #9085e9;
   --color-fam-4: #0fa39d;
   --color-fam-5: #a8662f;
   --color-fam-6: #e0609a;
+}
+
+/* The UV lamp: dark violet, and what the tests caught fluoresces. */
+:root[data-uv="on"] {
+  --color-paper: #140a33;
+  --color-canvas: #0b0420;
+  --color-wash: #1d1045;
+  --color-line: #3a2a70;
+  --color-line-soft: #26185a;
+  --color-ink: #ede6ff;
+  --color-ink-2: #b6a8e6;
+  --color-ink-3: #8576b8;
+  --color-brand: #b8ff3c;
+  --color-brand-deep: #d4ff7a;
+  --color-brand-wash: #22331a;
+  --color-on-brand: #120526;
+  --color-pass: #3cffa0;
+  --color-pass-wash: #10302a;
+  --color-fail: #ff3d9a;
+  --color-fail-wash: #3a0f37;
+  --color-wait: #f8ff3c;
+  --color-wait-wash: #2f2c10;
+  --color-warm: #ffb03c;
+  --color-mark: #3d0f4d;
+  --color-mark-hover: #4c1460;
+  --color-rp: #6ee7ff;
+  --color-rp-wash: #0f2f45;
+  --color-spine: #07021a;
+  --color-spine-2: #150a36;
+  --color-spine-ink: #ede6ff;
+  --color-spine-ink-2: #a594dd;
+  --color-highlight: #f8ff3c;
+  --color-shift-a: #3cffa0;
+  --color-shift-b: #ff3d9a;
+  --color-guilloche: #4b2e9c;
+  --color-fam-1: #4fa3ff;
+  --color-fam-2: #ffb020;
+  --color-fam-3: #b19dff;
+  --color-fam-4: #22d6c8;
+  --color-fam-5: #ff8a4c;
+  --color-fam-6: #ff5fb0;
 }
 
 html,
@@ -281,15 +419,6 @@ body {
   border-radius: 8px;
 }
 
-html.lenis,
-html.lenis body {
-  height: auto;
-}
-
-.lenis.lenis-smooth {
-  scroll-behavior: auto !important;
-}
-
 /* Story page reveals. An element with .reveal waits below its mask until it
    enters the viewport, then .in releases it. */
 .reveal .line-mask > span {
@@ -453,7 +582,8 @@ html.lenis body {
   box-decoration-break: clone;
 }
 
-html[data-theme="dark"] .highlight {
+html[data-theme="dark"] .highlight,
+html[data-uv="on"] .highlight {
   background: linear-gradient(transparent 55%, color-mix(in oklab, var(--color-highlight) 38%, transparent) 55% 92%, transparent 92%);
 }
 
@@ -647,5 +777,120 @@ html[data-detail="simple"]:not([data-open~="ex"]) [data-more="ex"] {
   }
   .stamp {
     transform: rotate(-8deg);
+  }
+}
+
+/* Security print. Rosettes turn slowly; the layers turn against each other. */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 90s linear infinite;
+}
+
+.spin-rev {
+  animation: spin 120s linear infinite reverse;
+}
+
+/* The security thread: windowed foil whose colour slides as the page moves. */
+@keyframes foil {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.thread {
+  background: linear-gradient(100deg, var(--color-shift-a), var(--color-highlight), var(--color-shift-b), var(--color-fail), var(--color-shift-a));
+  background-size: 200% 100%;
+  animation: foil 6s linear infinite;
+  -webkit-mask: repeating-linear-gradient(to right, #000 0 22px, transparent 22px 30px);
+  mask: repeating-linear-gradient(to right, #000 0 22px, transparent 22px 30px);
+}
+
+.thread.w-2\.5 {
+  -webkit-mask: repeating-linear-gradient(to bottom, #000 0 22px, transparent 22px 30px);
+  mask: repeating-linear-gradient(to bottom, #000 0 22px, transparent 22px 30px);
+}
+
+/* Colour-shift ink: the gradient slides with the pointer (useTilt writes --tilt-x). */
+.shift-ink {
+  background: linear-gradient(110deg, var(--color-shift-a) 0%, var(--color-shift-a) 35%, var(--color-shift-b) 65%, var(--color-shift-b) 100%);
+  background-size: 260% 100%;
+  background-position: calc(var(--tilt-x, 0.5) * 100%) 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  transition: background-position 0.4s ease-out;
+}
+
+/* The watermark shows when the panel is held to the light. */
+.watermark {
+  opacity: 0.06;
+  filter: grayscale(1);
+  transition: opacity 0.5s ease-out;
+}
+
+.note:hover .watermark {
+  opacity: 0.2;
+}
+
+/* A hologram patch: a sheen that follows the pointer. */
+.holo {
+  background: linear-gradient(calc(var(--tilt-x, 0.5) * 180deg + 30deg), color-mix(in oklab, var(--color-shift-a) 55%, white), color-mix(in oklab, var(--color-highlight) 60%, white), color-mix(in oklab, var(--color-shift-b) 55%, white), color-mix(in oklab, var(--color-rp) 50%, white));
+}
+
+/* Under the UV lamp the exceptions fluoresce. */
+html[data-uv="on"] .text-fail,
+html[data-uv="on"] .text-pass,
+html[data-uv="on"] .text-brand {
+  text-shadow: 0 0 12px color-mix(in oklab, currentColor 70%, transparent);
+}
+
+html[data-uv="on"] .bg-mark,
+html[data-uv="on"] .bg-fail-wash {
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-fail) 60%, transparent), 0 0 18px -4px var(--color-fail);
+}
+
+html[data-uv="on"] .bg-fail {
+  box-shadow: 0 0 14px var(--color-fail);
+}
+
+html[data-uv="on"] body {
+  background-image: radial-gradient(600px circle at calc(var(--tilt-x, 0.5) * 100%) calc(var(--tilt-y, 0.4) * 100%), rgba(122, 60, 255, 0.22), transparent 70%);
+  background-attachment: fixed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin,
+  .spin-rev,
+  .thread {
+    animation: none;
+  }
+}
+
+/* The landing's scroll cue: a drop of ink running down a line. */
+@keyframes cue {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(100%);
+  }
+}
+
+.scroll-cue::after {
+  content: "";
+  display: block;
+  height: 50%;
+  background: var(--color-highlight);
+  animation: cue 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-cue::after {
+    animation: none;
   }
 }

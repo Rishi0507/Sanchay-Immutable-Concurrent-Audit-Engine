@@ -443,7 +443,17 @@ A full chain does not make a sale genuine, and the page says so: circular tradin
 
 ## User interface
 
-The interface opens on Sanchay Lens, described below. The workspace asks for an identity, and a page that explains the approach is one link away. Each identity sees only what its role and department allow, because the tabs follow from the tool list that the server returns.
+The interface is printed like a banknote, because the question it asks of a sale is the one a bank asks of a note: is it genuine? Pages carry guilloche rosettes, a security thread, microtext, a watermark that shows when a panel is held to the light (hovered), serial numbers whose digits grow from left to right, and figures in colour-shift ink that move from one colour to the other with the pointer.
+
+The front page tells the whole system as one story over a 3D scene of a year's sales, drawn as notes that re-form for each chapter: the register as a wall, thirty samples stepping out, the fakes glowing under ultraviolet light, a ring of companies passing money round, the hash chain as a helix, and the signed stacks. Each chapter opens its page of the workspace, and each page opens with the same chapter in its heading. The Lens and the workspace are one click from the front page.
+
+| Control | What it does |
+|---|---|
+| Ink | Six palettes from the inks of Indian notes: Stone (the ₹500), Magenta (the ₹2000), Lavender (the ₹100), Marigold (the ₹200), Peacock (the ₹50) and Night. The whole interface follows, the 3D included. Every text colour was checked for contrast in each. |
+| UV lamp | Turns the page dark violet. Exceptions, caught rows and failed tests fluoresce, as a note's hidden marks do under ultraviolet light. |
+| Ctrl K | Finds a page, an action or a finding. |
+
+The workspace asks for an identity. Each identity sees only what its role and department allow, because the tabs follow from the tool list that the server returns.
 
 | Identity | Tab | Purpose |
 |---|---|---|

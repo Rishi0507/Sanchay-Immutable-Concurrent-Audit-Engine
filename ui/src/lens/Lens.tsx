@@ -4,6 +4,7 @@
 import { ReactNode, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BrandMark, Button, Drawer, Mark, cx, toast } from "../ui";
 import { inr } from "../auditor/kit";
+import { Guilloche, NoteBand } from "../print";
 import { Check, Sample, Seal, periodOf, pickSamples, runChecks, seal } from "./audit";
 import { Profile, Role, profile, roleNames, text, toDay, toNumber } from "./profile";
 import { Table, readFile, readUrl } from "./read";
@@ -217,10 +218,7 @@ function FrontDoor({ embedded, busy, error, onFiles, onSignIn, onStory }: { embe
   if (embedded)
     return (
       <div>
-        <div className="mb-6">
-          <h1 className="display text-[40px] leading-[1.02]">Lens</h1>
-          <p className="mt-2 max-w-2xl text-[16px] text-ink-2">Audit any register in the browser. Sanchay reads the columns, builds the page the file needs, seals every row and runs fourteen tests.</p>
-        </div>
+        <NoteBand title="Lens" summary="Audit any register in the browser. Sanchay reads the columns, builds the page the file needs, seals every row and runs fourteen tests." />
         <div className="max-w-2xl">{drop}</div>
       </div>
     );
@@ -229,6 +227,7 @@ function FrontDoor({ embedded, busy, error, onFiles, onSignIn, onStory }: { embe
     <div className="relative flex min-h-full flex-col overflow-hidden bg-spine text-spine-ink">
       <div className="pointer-events-none absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "repeating-linear-gradient(to bottom, transparent 0 39px, #eaf4ee 39px 40px)" }} aria-hidden />
       <div className="pointer-events-none absolute top-0 bottom-0 left-[8%] w-[3px] border-x border-[#e5532f]/40" aria-hidden />
+      <Guilloche size={680} layers={4} tone="var(--color-spine-ink-2)" className="absolute top-1/2 right-[2%] -translate-y-1/2 opacity-25" />
       <TopBar onSignIn={onSignIn} onStory={onStory} />
       <main className="relative grid flex-1 items-center gap-12 px-6 py-10 md:px-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:px-[10%]">
         <div>

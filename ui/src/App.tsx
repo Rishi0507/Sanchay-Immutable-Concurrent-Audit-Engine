@@ -4,6 +4,8 @@ import { useTheme } from "./theme";
 import { BrandMark, Button, Mark, Toasts, cx, inputClass, toast } from "./ui";
 import { setFullDetail, useDetail } from "./auditor/kit";
 import { CommandItem, CommandPalette } from "./Command";
+import { Thread, useTilt } from "./print";
+import { PalettePicker, UvSwitch } from "./inks";
 import Upload from "./client/Upload";
 import Requests from "./client/Requests";
 import Records from "./client/Records";
@@ -18,8 +20,9 @@ import Export from "./auditor/Export";
 
 // The heavy parts load only where they are used: the story page with its 3D
 // scene, and the graph library on the Graph tab.
-const Story = lazy(() => import("./story/Story"));
+const Landing = lazy(() => import("./landing/Landing"));
 const Lens = lazy(() => import("./lens/Lens"));
+const Preview = lazy(() => import("./Preview"));
 const Graph = lazy(() => import("./auditor/Graph"));
 
 export interface ViewProps {
@@ -263,26 +266,6 @@ function Wordmark({ onClick }: { onClick?: () => void }) {
   );
 }
 
-function ThemeSwitch({ className }: { className?: string }) {
-  const [theme, setTheme] = useTheme();
-  const dark = theme === "dark";
-  return (
-    <button onClick={() => setTheme(dark ? "light" : "dark")} className={cx("inline-flex items-center gap-1.5 font-semibold transition-colors", className)} aria-label={`Switch to the ${dark ? "light" : "dark"} theme`}>
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden>
-        {dark ? (
-          <>
-            <circle cx="8" cy="8" r="3" />
-            <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1" />
-          </>
-        ) : (
-          <path d="M13.5 9.5A5.5 5.5 0 016.5 2.5a5.5 5.5 0 107 7z" />
-        )}
-      </svg>
-      {dark ? "Light" : "Dark"}
-    </button>
-  );
-}
-
 function SignIn({ onSignedIn, onBack }: { onSignedIn: (id: Identity) => void; onBack: () => void }) {
   const [token, setValue] = useState("");
   const [busy, setBusy] = useState("");
@@ -316,7 +299,7 @@ function SignIn({ onSignedIn, onBack }: { onSignedIn: (id: Identity) => void; on
             </svg>
             How it works
           </button>
-          <ThemeSwitch className="text-spine-ink-2 hover:text-spine-ink" />
+          <PalettePicker compact onDark />
         </div>
         <div className="relative my-12 lg:my-0">
           <img src="/logo.png" alt="Sanchay" width={150} height={104} className="logo-ground rounded-2xl" />
@@ -422,11 +405,15 @@ function SignIn({ onSignedIn, onBack }: { onSignedIn: (id: Identity) => void; on
 }
 
 export default function App() {
+  // Colour-shift ink and holograms follow the pointer everywhere.
+  useTilt();
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [checking, setChecking] = useState(true);
-  // Before sign-in the Lens is the front door: drop a file and watch it
-  // audited, with no account and no server. The story explains the system.
-  const [screen, setScreen] = useState<"lens" | "story" | "signin" | "app">("lens");
+  // The landing tells the story and is the front door. The Lens audits a file
+  // in the browser with no account. The workspace needs a sign-in.
+  const [screen, setScreen] = useState<"landing" | "lens" | "signin" | "app">("landing");
+  // A tab a landing chapter asked for, opened once the reader has signed in.
+  const [pendingTab, setPendingTab] = useState("");
   const [tab, setTab] = useState("");
   const [focus, setFocus] = useState<string | undefined>();
   const [pulse, setPulse] = useState(0);
@@ -447,7 +434,7 @@ export default function App() {
     whoami()
       .then((id) => {
         setIdentity(id);
-        // A link to #story opens the story even for someone signed in.
+        // A link to #story opens the landing even for someone signed in.
         if (window.location.hash !== "#story") setScreen("app");
       })
       .catch(() => setToken(""))
@@ -462,7 +449,8 @@ export default function App() {
   useEffect(() => {
     setRole(identity?.role ?? "");
     setTools(null);
-    setTab("");
+    setTab(pendingTab);
+    setPendingTab("");
     if (!identity) return;
     listTools()
       .then(setTools)
@@ -584,7 +572,7 @@ export default function App() {
       : [];
     const general: CommandItem[] = [
       { id: "do:theme", group: "Do", label: theme === "dark" ? "Switch to the light theme" : "Switch to the dark theme", icon: <TabIcon id="theme" />, run: () => setThemeValue(theme === "dark" ? "light" : "dark") },
-      { id: "do:story", group: "Do", label: "Read how Sanchay works", hint: "The story page", icon: <TabIcon id="story" />, run: () => setScreen("story") },
+      { id: "do:story", group: "Do", label: "Read how Sanchay works", hint: "The front page and its six chapters", icon: <TabIcon id="story" />, run: () => setScreen("landing") },
       { id: "do:signout", group: "Do", label: "Sign out", icon: <TabIcon id="signout" />, run: signOut },
     ];
     return [...go, ...filters, ...general];
@@ -592,17 +580,35 @@ export default function App() {
 
   if (checking) return null;
 
-  if (screen === "story")
+  if (import.meta.env.DEV && window.location.hash === "#preview")
     return (
       <Suspense fallback={null}>
-        <Story onOpen={() => setScreen(identity ? "app" : "signin")} />
+        <Preview />
+      </Suspense>
+    );
+
+  const openWorkspace = (next?: string) => {
+    if (identity) {
+      if (next) goTo(next);
+      setScreen("app");
+    } else {
+      setPendingTab(next ?? "");
+      setScreen("signin");
+    }
+  };
+
+  if (screen === "landing")
+    return (
+      <Suspense fallback={<div className="h-screen bg-spine" />}>
+        <Landing onInspect={() => setScreen("lens")} onWorkspace={openWorkspace} />
+        <Toasts />
       </Suspense>
     );
 
   if (screen === "lens")
     return (
       <Suspense fallback={null}>
-        <Lens onSignIn={() => setScreen(identity ? "app" : "signin")} onStory={() => setScreen("story")} />
+        <Lens onSignIn={() => openWorkspace()} onStory={() => setScreen("landing")} />
         <Toasts />
       </Suspense>
     );
@@ -615,7 +621,7 @@ export default function App() {
             setIdentity(id);
             setScreen("app");
           }}
-          onBack={() => setScreen("story")}
+          onBack={() => setScreen("landing")}
         />
         <Toasts />
       </>
@@ -684,8 +690,10 @@ export default function App() {
     <div className="flex min-h-full bg-canvas">
       {/* The ledger's cloth spine: sections down the left on wide screens. */}
       <aside className="sticky top-0 hidden h-screen w-[264px] shrink-0 flex-col bg-spine text-spine-ink lg:flex">
+        {/* The security thread runs down the spine. */}
+        <Thread vertical className="absolute top-0 right-0 h-full opacity-60" />
         <div className="flex h-[76px] items-center px-5">
-          <Wordmark onClick={() => setScreen("lens")} />
+          <Wordmark onClick={() => setScreen("landing")} />
         </div>
         {engagementSelect && (
           <div className="px-4 pb-4">
@@ -732,8 +740,11 @@ export default function App() {
               <span className="block truncate text-[12.5px] text-spine-ink-2">{auditing ? "Can read, cannot change the books" : identity.user}</span>
             </span>
           </div>
-          <div className="mt-3 flex items-center gap-4 text-spine-ink-2">
-            <ThemeSwitch className="hover:text-spine-ink" />
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <PalettePicker compact onDark />
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-3 text-spine-ink-2">
+            <UvSwitch onDark />
             <button onClick={signOut} className="font-semibold transition-colors hover:text-spine-ink">
               Sign out
             </button>
@@ -745,7 +756,7 @@ export default function App() {
         {/* Narrow screens keep a top bar with the sections in a scrolling row. */}
         <header className="sticky top-0 z-30 bg-spine text-spine-ink lg:hidden">
           <div className="flex h-[60px] items-center gap-3 px-4 text-[14px]">
-            <Wordmark onClick={() => setScreen("lens")} />
+            <Wordmark onClick={() => setScreen("landing")} />
             <div className="ml-auto flex min-w-0 items-center gap-3 whitespace-nowrap">
               {engagementSelect && <div className="w-32">{engagementSelect}</div>}
               <button onClick={() => setPalette(true)} className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10" aria-label="Search and jump">

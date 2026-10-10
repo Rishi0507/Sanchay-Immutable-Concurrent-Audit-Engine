@@ -5,6 +5,7 @@
 import { CSSProperties, KeyboardEvent as RKeyboardEvent, ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 import { callTool, money } from "../api";
 import { Button, Mark, cx, toast, useAction } from "../ui";
+import { NoteBand } from "../print";
 
 export type Severity = "High" | "Medium" | "Low";
 export const severities: Severity[] = ["High", "Medium", "Low"];
@@ -130,17 +131,9 @@ export function Eyebrow({ children }: { children: ReactNode }) {
   return <div className="mb-1 text-[14px] font-medium text-ink-2">{children}</div>;
 }
 
+// Every auditor page opens with its note band (print.tsx).
 export function ViewHead({ eyebrow, title, summary, action }: { eyebrow?: ReactNode; title: string; summary?: ReactNode; action?: ReactNode }) {
-  return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-      <div className="min-w-0 max-w-3xl">
-        {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-        <h1 className="display text-[40px] leading-[1.02] text-ink">{title}</h1>
-        {summary && <p className="mt-2 text-[16px] leading-relaxed text-ink-2">{summary}</p>}
-      </div>
-      {action && <div className="flex flex-wrap items-center gap-3">{action}</div>}
-    </div>
-  );
+  return <NoteBand title={title} eyebrow={eyebrow} summary={summary} action={action} />;
 }
 
 // One headline figure. `tone` colours the figure only when it carries meaning.
