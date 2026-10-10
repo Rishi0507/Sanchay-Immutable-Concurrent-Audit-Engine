@@ -38,7 +38,8 @@ TOOL_FOR_EVENT = {
 # The identifier field each create tool returns.
 ID_FIELD = {"create_customer": "customer_id", "create_vendor": "vendor_id", "record_enquiry": "enquiry_id",
             "create_sales_order": "order_id", "record_dispatch": "dispatch_id", "issue_invoice": "invoice_id",
-            "issue_credit_note": "credit_note_id", "record_purchase_invoice": "purchase_invoice_id"}
+            "issue_credit_note": "credit_note_id", "record_purchase_invoice": "purchase_invoice_id",
+            "post_journal": "journal_id"}
 IST = dt.timedelta(hours=5, minutes=30)
 
 
@@ -266,6 +267,7 @@ class McpSink:
             ref = next((ln.get("ref") for ln in p.get("lines") or [] if ln.get("ref")), None)
             a = {"date": p.get("date"), "narration": p.get("narration"), "reference": ref,
                  "approver": p.get("approver"), "lines": lines}
+            key = p.get("journal_id")
         elif t == "DocumentReversed":
             a = {"document_id": self._id(p.get("target_aggregate_id")), "reason": p.get("reason"),
                  "date": intent["business_date"]}
