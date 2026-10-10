@@ -1,78 +1,134 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { callTool, money, when } from "../api";
 import type { ViewProps } from "../App";
-import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, Header, KeyValues, Loading, Pills, Section, Status, Table, inputClass, toast, toneFor, useAction, useTool } from "../ui";
+import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Pills, Section, Status, Table, cx, inputClass, toast, toneFor, useAction, useTool } from "../ui";
+import { Ranked, RiskMap, Swatch, ink } from "./charts";
+import { FindingLite, ListSkeleton, PageBrief, dedupe, Panel, SearchBox, Severity, SeverityBadge, SeverityIcon, Tally, Term, ViewHead, byPriority, catColor, category, findingStatus, inr, plural, sevFill, severities, sum } from "./kit";
 
-interface Finding {
-  finding_id: string;
-  detector_id: string;
-  category: string;
-  subtype?: string;
-  severity: "High" | "Medium" | "Low";
-  title: string;
-  subject?: { type: string; id: string; label?: string };
-  amount_impact: number;
-  period_effect?: string;
-  status: string;
-  sample_ids?: string[];
-  reason?: string;
+interface Finding extends FindingLite {
   explanation?: string;
   proposed_adjustment?: { account: string; debit: number; credit: number; narration?: string }[];
   standard_refs?: string[];
   lineage?: Record<string, any>;
-  decided_by?: string;
-  decided_at?: string;
   decision_note?: string;
 }
 
-const statusLabel: Record<string, string> = {
-  proposed: "Awaiting confirmation",
-  confirmed: "Confirmed",
-  rejected: "Rejected",
-  needs_info: "Needs info",
-};
+const statusTone = (s: string) => toneFor(s);
 
-// Plain names for the detector categories (PRD section 13.2).
-const categoryNames: Record<string, string> = {
-  REGISTER_MISMATCH: "Register differs from the books",
-  RP_UNDISCLOSED: "Undisclosed related party",
-  RP_MID_PERIOD: "Related party from mid-period",
-  CIRCULAR_TRADING: "Circular trading",
-  NO_MOVEMENT: "No physical movement",
-  CUTOFF: "Cut-off",
-  PERIOD_END_CONCENTRATION: "Period-end concentration",
-  DOC_TAX_MISMATCH: "Tax documents and GSTR-1",
-  NON_SALE_REVENUE: "Revenue not from a sale",
-  EVIDENCE_SUSPECT: "Suspect evidence",
-  CREDIT_NOTE: "Credit note",
-  PROMOTION_DISCOUNT: "Promotion or discount",
-  SETTLEMENT: "Settlement",
-  DOCUMENT_INTEGRITY: "Document integrity",
-  POST_TESTING_CHANGE: "Changed after testing",
-  LEDGER_INTEGRITY: "Ledger integrity",
-};
-
-function category(c: string) {
-  if (categoryNames[c]) return categoryNames[c];
-  const text = c.replace(/_/g, " ").toLowerCase();
-  return text.charAt(0).toUpperCase() + text.slice(1);
+interface EvidenceSample {
+  sample_id: string;
+  sheet: string;
+  documents: { document_type: string; status: string }[];
 }
 
-function Detail({ id, manager, onDecided }: { id: string; manager: boolean; onDecided: () => void }) {
+interface LinkedSample {
+  sample_id: string;
+  sheet: string;
+  invoice_no?: string;
+  credit_note_no?: string;
+  subject_id: string;
+  taxable_value?: number;
+  tests?: Record<string, string>;
+}
+
+// Documents in the order a sale produces them.
+const docOrder = ["invoice", "eway_bill", "lr_copy", "credit_note", "sales_return"];
+const docName: Record<string, string> = { invoice: "Invoice", eway_bill: "E-way bill", lr_copy: "LR copy", credit_note: "Credit note", sales_return: "Sales return" };
+const sheetName: Record<string, string> = { sales_tod: "Sales", cutoff_tod: "Cut-off", credit_note_tod: "Credit notes" };
+
+// The first sentence, for the one-line reason.
+const firstSentence = (t?: string) => {
+  if (!t) return "";
+  const m = t.match(/^(.+?[.!?])(\s|$)/);
+  return m ? m[1] : t;
+};
+
+// Each linked sample's documents as a chain: received and verified, received,
+// or still awaited; then the sample's own evidence test.
+function EvidenceChain({ docs, test }: { docs: { document_type: string; status: string }[]; test?: string }) {
+  const sorted = [...docs].sort((a, b) => docOrder.indexOf(a.document_type) - docOrder.indexOf(b.document_type));
+  const mark = (st: string) =>
+    st === "verified" ? { sym: "✓", cls: "text-pass", word: "verified" } : st === "received" ? { sym: "✓", cls: "text-ink-2", word: "received, not yet tested" } : { sym: "✗", cls: "text-fail", word: "not received" };
+  return (
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
+      {sorted.map((d, i) => {
+        const m = mark(d.status);
+        return (
+          <span key={d.document_type + i} className="inline-flex items-center gap-1.5">
+            {i > 0 && (
+              <span className="text-ink-3" aria-hidden>
+                →
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1 rounded-md border border-line px-2 py-0.5" title={`${docName[d.document_type] ?? d.document_type}: ${m.word}`}>
+              <span className="text-ink">{docName[d.document_type] ?? d.document_type.replace(/_/g, " ")}</span>
+              <span className={cx("font-semibold", m.cls)} aria-label={m.word}>
+                {m.sym}
+              </span>
+            </span>
+          </span>
+        );
+      })}
+      {test && (
+        <span className="ml-1 inline-flex items-center gap-1.5">
+          <span className="text-ink-3" aria-hidden>
+            =
+          </span>
+          <Status tone={toneFor(test)}>{test === "Pass" ? "Evidence passes" : `Evidence: ${test.toLowerCase()}`}</Status>
+        </span>
+      )}
+    </div>
+  );
+}
+
+function Detail({ id, manager, onDecided, goTo }: { id: string; manager: boolean; onDecided: () => void; goTo: ViewProps["goTo"] }) {
   const { data, error, loading, reload } = useTool<Finding>("explain_finding", { finding_id: id }, [id]);
   const [note, setNote] = useState("");
+  const [more, setMore] = useState(false);
+  const [linked, setLinked] = useState<{ evidence: Map<string, EvidenceSample>; samples: Map<string, LinkedSample> } | null>(null);
   const { busy, run } = useAction();
+  const sampleIds = data?.sample_ids ?? [];
+  const sampleKey = sampleIds.join(",");
 
-  if (loading && !data) return <Loading />;
+  // Evidence and sample details only for the samples this finding touches.
+  useEffect(() => {
+    if (!sampleKey) {
+      setLinked(null);
+      return;
+    }
+    let live = true;
+    (async () => {
+      try {
+        const ev = await callTool<{ samples: EvidenceSample[] }>("get_evidence_status", {});
+        const evidence = new Map<string, EvidenceSample>();
+        for (const s of ev.samples ?? []) if (sampleKey.split(",").includes(s.sample_id)) evidence.set(s.sample_id, s);
+        const sheets = [...new Set([...evidence.values()].map((s) => s.sheet))];
+        const samples = new Map<string, LinkedSample>();
+        for (const sheet of sheets) {
+          const r = await callTool<{ samples: LinkedSample[] }>("get_samples", { sheet });
+          for (const s of r.samples ?? []) if (evidence.has(s.sample_id)) samples.set(s.sample_id, { ...s, sheet });
+        }
+        if (live) setLinked({ evidence, samples });
+      } catch {
+        if (live) setLinked({ evidence: new Map(), samples: new Map() });
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [sampleKey]);
+
+  if (loading && !data) return <ListSkeleton rows={7} />;
   if (error) return <ErrorNote error={error} onRetry={reload} />;
   if (!data) return null;
   const f = data;
   const lineage = f.lineage ?? {};
+  const confirmed = f.status === "confirmed";
 
   const decide = (decision: string) =>
     run(decision, async () => {
       await callTool("confirm_finding", { finding_id: id, decision, note });
-      toast(`Finding ${statusLabel[decision].toLowerCase()}.`);
+      toast(`Finding ${(findingStatus[decision] ?? decision).toLowerCase()}.`);
       setNote("");
       reload();
       onDecided();
@@ -80,179 +136,591 @@ function Detail({ id, manager, onDecided }: { id: string; manager: boolean; onDe
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Chip tone={toneFor(f.severity)}>{f.severity} severity</Chip>
-        <span className="text-[13px] text-ink-2">{category(f.category)}</span>
-        <Status tone={toneFor(f.status)}>{statusLabel[f.status] ?? f.status}</Status>
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <SeverityBadge severity={f.severity} />
+        <span className="inline-flex items-center gap-1.5 text-[13px] text-ink-2">
+          <Swatch color={catColor(f.category)} shape="dot" />
+          {category(f.category)}
+        </span>
+        <span className="ml-auto">
+          <Status tone={statusTone(f.status)}>{findingStatus[f.status] ?? f.status}</Status>
+        </span>
       </div>
-      <Section title="Why this is a finding">
-        <p className="text-sm leading-relaxed text-ink">{f.explanation ?? f.reason}</p>
-      </Section>
-      <Section title="Impact">
-        <KeyValues
-          items={[
-            ["Amount", `₹ ${money(f.amount_impact)}`],
-            ["Period revenue", f.period_effect && f.period_effect !== "None" ? f.period_effect : undefined],
-            ["Subject", f.subject?.label ?? f.subject?.id],
-            ["Detector", `${f.detector_id}${f.subtype ? ", " + f.subtype.replace(/_/g, " ").toLowerCase() : ""}`],
-            ["Samples", f.sample_ids?.length ? `${f.sample_ids.length} affected` : undefined],
-          ]}
-        />
-      </Section>
-      {(f.proposed_adjustment?.length ?? 0) > 0 && (
-        <Section title="Proposed adjustment">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-ink-2">
-                <th className="pb-1 font-medium">Account</th>
-                <th className="pb-1 text-right font-medium">Debit</th>
-                <th className="pb-1 text-right font-medium">Credit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {f.proposed_adjustment!.map((l, i) => (
-                <tr key={i} className="border-t border-line-soft">
-                  <td className="py-1.5 text-ink">{l.account}</td>
-                  <td className="py-1.5 text-right tabular-nums">{l.debit ? money(l.debit) : ""}</td>
-                  <td className="py-1.5 text-right tabular-nums">{l.credit ? money(l.credit) : ""}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Section>
-      )}
-      <Section title="Lineage">
-        <KeyValues
-          items={[
-            ["Rule", lineage.rule_id],
-            ["Events", lineage.event_seqs?.length ? lineage.event_seqs.join(", ") : undefined],
-            ["Documents", lineage.document_ids?.length ? <span className="font-mono text-xs">{lineage.document_ids.join(", ")}</span> : undefined],
-            ["Register rows", lineage.register_rows?.length ? lineage.register_rows.join(", ") : undefined],
-            ["Evidence", lineage.evidence_hashes?.length ? `${lineage.evidence_hashes.length} file${lineage.evidence_hashes.length === 1 ? "" : "s"}` : undefined],
-            ...Object.entries(lineage.values ?? {}).map(([k, v]) => [k.replace(/_/g, " "), String(v)] as [string, string]),
-            ...Object.entries(lineage.thresholds ?? {}).map(([k, v]) => [`${k.replace(/_/g, " ")} (threshold)`, String(v)] as [string, string]),
-          ]}
-        />
-      </Section>
-      {(f.standard_refs?.length ?? 0) > 0 && (
-        <Section title="Basis">
-          <div className="flex flex-wrap gap-1.5">
-            {f.standard_refs!.map((r) => (
-              <Chip key={r}>{r}</Chip>
-            ))}
+
+      {/* One line: why it was raised. */}
+      <p className="mb-5 text-[15px] leading-relaxed text-ink">{firstSentence(f.reason ?? f.explanation)}</p>
+
+      {/* The money, and whether it is confirmed or only flagged. */}
+      <div className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line">
+        <div className="bg-paper px-4 py-3">
+          <div className="text-xs font-medium text-ink-2">
+            <Term word="misstatement">{confirmed ? "Confirmed misstatement" : "Potential misstatement"}</Term>
           </div>
-        </Section>
-      )}
-      {f.decided_by && (
-        <Section title="Decision">
-          <KeyValues items={[["By", f.decided_by], ["At", when(f.decided_at)], ["Note", f.decision_note]]} />
-        </Section>
-      )}
-      {manager ? (
-        <Section title="Your decision">
-          <textarea className={inputClass + " mb-3 h-auto min-h-20 py-2"} placeholder="Reason for the decision" value={note} onChange={(e) => setNote(e.target.value)} />
-          <div className="flex gap-2">
-            <Button busy={busy === "confirmed"} onClick={() => decide("confirmed")}>
-              Confirm finding
-            </Button>
-            <Button kind="danger" busy={busy === "rejected"} onClick={() => decide("rejected")}>
-              Reject
-            </Button>
-            <Button kind="ghost" busy={busy === "needs_info"} onClick={() => decide("needs_info")}>
-              Ask for more information
-            </Button>
+          <div className={cx("amount mt-1 text-2xl", confirmed ? "text-pass" : f.amount_impact ? "text-fail" : "text-ink")}>{f.amount_impact ? `₹ ${money(f.amount_impact)}` : "No direct amount"}</div>
+          <div className="mt-0.5 text-xs text-ink-3">{confirmed ? "Confirmed by the manager." : "Flagged by the detector, not yet confirmed."}</div>
+        </div>
+        <div className="bg-paper px-4 py-3">
+          <div className="text-xs font-medium text-ink-2">Effect on period revenue</div>
+          <div className="mt-1 text-sm font-medium text-ink">{f.period_effect && f.period_effect !== "None" ? f.period_effect : "None stated"}</div>
+          <div className="mt-0.5 text-xs text-ink-3">{f.subject?.label ?? f.subject?.id}</div>
+        </div>
+      </div>
+
+      {/* Evidence chain and linked samples. */}
+      <Section title={sampleIds.length ? `Evidence for ${plural(sampleIds.length, "linked sample")}` : "Evidence"}>
+        {!sampleIds.length ? (
+          <p className="text-[13px] text-ink-2">This finding comes from the records themselves, not from a sample, so there is no document chain. Its lineage is under More detail.</p>
+        ) : !linked ? (
+          <ListSkeleton rows={Math.min(3, sampleIds.length)} />
+        ) : (
+          <ul className="space-y-3">
+            {sampleIds.map((sid) => {
+              const ev = linked.evidence.get(sid);
+              const smp = linked.samples.get(sid);
+              const sheet = ev?.sheet ?? smp?.sheet;
+              return (
+                <li key={sid} className="rounded-md border border-line-soft px-3 py-2.5">
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <button
+                      onClick={() => sheet && goTo("samples", `${sheet}:${sid}`)}
+                      disabled={!sheet}
+                      className="text-[13px] font-medium text-brand hover:underline disabled:text-ink-2 disabled:no-underline"
+                      title="Open this sample"
+                    >
+                      {smp?.credit_note_no ?? smp?.invoice_no ?? smp?.subject_id ?? sid}
+                    </button>
+                    <span className="text-xs text-ink-2">
+                      {sheet ? `${sheetName[sheet] ?? sheet} sheet` : ""}
+                      {smp?.taxable_value !== undefined ? `, ₹ ${money(smp.taxable_value)}` : ""}
+                    </span>
+                  </div>
+                  {ev?.documents?.length ? <EvidenceChain docs={ev.documents} test={smp?.tests?.Evidence} /> : <p className="text-xs text-ink-2">No documents requested for this sample.</p>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Section>
+
+      {/* The decision. */}
+      <Section title="Decision">
+        {f.decided_by && (
+          <div className="mb-3">
+            <KeyValues items={[["By", f.decided_by], ["At", when(f.decided_at)], ["Note", f.decision_note]]} />
           </div>
-        </Section>
-      ) : (
-        f.status === "proposed" && <p className="text-[13px] text-ink-2">Only the audit manager can confirm or reject a finding.</p>
+        )}
+        {manager ? (
+          <>
+            <textarea className={inputClass + " mb-3 h-auto min-h-20 py-2"} placeholder="Reason for the decision" value={note} onChange={(e) => setNote(e.target.value)} />
+            <div className="flex flex-wrap gap-2">
+              <Button busy={busy === "confirmed"} onClick={() => decide("confirmed")}>
+                Confirm finding
+              </Button>
+              <Button kind="danger" busy={busy === "rejected"} onClick={() => decide("rejected")}>
+                Reject
+              </Button>
+              <Button kind="ghost" busy={busy === "needs_info"} onClick={() => decide("needs_info")}>
+                Ask for more information
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-2">
+              <Button disabled>Confirm finding</Button>
+              <Button kind="danger" disabled>
+                Reject
+              </Button>
+            </div>
+            <p className="mt-2 text-[13px] text-ink-2">Only the audit manager can confirm or reject a finding. Sign in as the audit manager to decide.</p>
+          </>
+        )}
+      </Section>
+
+      <button onClick={() => setMore((m) => !m)} aria-expanded={more} className="mb-4 text-[13px] font-medium text-brand hover:underline">
+        {more ? "Hide detail" : "More detail: full reasoning, adjusting entry and lineage"}
+      </button>
+      {more && (
+        <div className="view">
+          {f.explanation && f.explanation !== f.reason && (
+            <Section title="Full reasoning">
+              <p className="text-sm leading-relaxed text-ink">{f.explanation}</p>
+            </Section>
+          )}
+          <Section title="What it concerns">
+            <KeyValues
+              items={[
+                ["Subject", f.subject?.label ?? f.subject?.id],
+                ["Detector", `${f.detector_id}${f.subtype ? ", " + f.subtype.replace(/_/g, " ").toLowerCase() : ""}`],
+                ["Raised", f.created_at ? when(f.created_at) : undefined],
+                ["Reference", <span className="font-mono text-xs">{f.finding_id}</span>],
+              ]}
+            />
+          </Section>
+          {(f.proposed_adjustment?.length ?? 0) > 0 && (
+            <Section title="Proposed adjusting entry">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-ink-2">
+                    <th className="pb-1 font-medium">Account</th>
+                    <th className="pb-1 text-right font-medium">Debit</th>
+                    <th className="pb-1 text-right font-medium">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {f.proposed_adjustment!.map((l, i) => (
+                    <tr key={i} className="border-t border-line-soft">
+                      <td className="py-1.5 text-ink">{l.account}</td>
+                      <td className="num py-1.5 text-right">{l.debit ? money(l.debit) : ""}</td>
+                      <td className="num py-1.5 text-right">{l.credit ? money(l.credit) : ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Section>
+          )}
+          <Section title="Lineage">
+            <KeyValues
+              items={[
+                ["Rule", lineage.rule_id],
+                ["Events", lineage.event_seqs?.length ? lineage.event_seqs.join(", ") : undefined],
+                ["Documents", lineage.document_ids?.length ? <span className="font-mono text-xs">{lineage.document_ids.join(", ")}</span> : undefined],
+                ["Register rows", lineage.register_rows?.length ? lineage.register_rows.join(", ") : undefined],
+                ["Evidence", lineage.evidence_hashes?.length ? `${lineage.evidence_hashes.length} file${lineage.evidence_hashes.length === 1 ? "" : "s"}` : undefined],
+                ...Object.entries(lineage.values ?? {}).map(([k, v]) => [k.replace(/_/g, " "), String(v)] as [string, string]),
+                ...Object.entries(lineage.thresholds ?? {}).map(([k, v]) => [`${k.replace(/_/g, " ")} (threshold)`, String(v)] as [string, string]),
+              ]}
+            />
+          </Section>
+          {(f.standard_refs?.length ?? 0) > 0 && (
+            <Section title="Basis">
+              <div className="flex flex-wrap gap-1.5">
+                {f.standard_refs!.map((r) => (
+                  <Chip key={r}>{r}</Chip>
+                ))}
+              </div>
+            </Section>
+          )}
+        </div>
       )}
     </>
   );
 }
 
-export default function Findings({ identity, pulse, focus }: ViewProps) {
+const sevRule: Record<Severity, string> = { High: "before:bg-fail", Medium: "before:bg-wait", Low: "before:bg-ink-3" };
+
+// One finding as a card: the essentials up front, the reasoning one click away.
+function FindingCard({ f, selected, onOpen }: { f: FindingLite; selected: boolean; onOpen: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <article
+      className={cx(
+        "relative flex flex-col overflow-hidden rounded-lg border bg-paper pl-4 transition-colors duration-150 before:absolute before:inset-y-0 before:left-0 before:w-[3px]",
+        sevRule[f.severity],
+        selected ? "border-brand" : "border-line hover:border-ink-3",
+      )}
+    >
+      <button onClick={onOpen} className="flex flex-1 flex-col px-4 pt-3.5 pb-3 text-left focus-visible:outline-none" aria-label={`Open ${f.title}`}>
+        <div className="flex items-start justify-between gap-4">
+          <span className="text-sm leading-snug font-medium text-ink">{f.title}</span>
+          <span className="shrink-0 text-right">
+            <span className={cx("num block text-[15px] font-medium", f.status === "confirmed" ? "text-pass" : "text-ink")}>{f.amount_impact ? inr(f.amount_impact) : "—"}</span>
+            <span className="block text-[11px] text-ink-3">{f.amount_impact ? (f.status === "confirmed" ? "confirmed" : "potential") : "no amount"}</span>
+          </span>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-ink-2">
+          <SeverityBadge severity={f.severity} compact />
+          <span className="inline-flex items-center gap-1.5">
+            <Swatch color={catColor(f.category)} shape="dot" />
+            {category(f.category)}
+          </span>
+          {f.subject?.label && <span className="max-w-48 truncate" title={f.subject.label}>{f.subject.label}</span>}
+          {(f.sample_ids?.length ?? 0) > 0 && <span>{plural(f.sample_ids!.length, "sample")}</span>}
+        </div>
+      </button>
+      <div className="flex items-center justify-between gap-3 border-t border-line-soft px-4 py-2">
+        <Status tone={statusTone(f.status)}>{findingStatus[f.status] ?? f.status}</Status>
+        {f.reason && (
+          <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="text-xs font-medium text-ink-2 transition-colors hover:text-ink">
+            {open ? "Hide reason" : "Why it was raised"}
+          </button>
+        )}
+      </div>
+      {open && f.reason && <p className="view border-t border-line-soft px-4 py-3 text-[13px] leading-relaxed text-ink-2">{f.reason}</p>}
+    </article>
+  );
+}
+
+type Sort = "priority" | "value" | "newest" | "category";
+const sorts: { value: Sort; label: string }[] = [
+  { value: "priority", label: "Priority" },
+  { value: "value", label: "Largest value" },
+  { value: "newest", label: "Newest" },
+  { value: "category", label: "Category" },
+];
+const GROUP_PAGE = 12;
+const sevInk: Record<string, string> = { High: ink.high, Medium: ink.medium, Low: ink.low };
+const inrTick = (v: number) => (v >= 1e7 ? `${v / 1e7}Cr` : v >= 1e5 ? `${v / 1e5}L` : v >= 1e3 ? `${v / 1e3}K` : String(v));
+const selectClass = inputClass.replace("w-full", "w-auto");
+
+export default function Findings({ identity, pulse, focus, goTo }: ViewProps) {
   const [severity, setSeverity] = useState("");
   const [cat, setCat] = useState("");
-  const [selected, setSelected] = useState<string | null>(focus ?? null);
-  const { data, error, loading, reload } = useTool<{ findings: Finding[]; totals?: any }>("get_findings", { severity, category: cat, limit: 500 }, [pulse]);
-  const all = useTool<{ findings: Finding[] }>("get_findings", { limit: 500 }, [pulse]);
+  const [state, setState] = useState("");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<Sort>("priority");
+  const [layout, setLayout] = useState<"cards" | "table">("cards");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [selected, setSelected] = useState<string | null>(null);
+  const { data, error, loading, reload } = useTool<{ findings: FindingLite[]; totals?: { count: number } }>("get_findings", { limit: 500 }, [pulse]);
 
+  // Other views link here with a finding, or with a filter to apply.
   useEffect(() => {
-    if (focus) setSelected(focus);
+    if (!focus) return;
+    if (focus.startsWith("f:")) {
+      const q = new URLSearchParams(focus.slice(2));
+      setSeverity(q.get("severity") ?? "");
+      setCat(q.get("category") ?? "");
+      setState(q.get("status") ?? "");
+    } else setSelected(focus);
   }, [focus]);
 
-  const findings = data?.findings ?? [];
-  const everything = all.data?.findings ?? [];
-  const count = (s: string) => everything.filter((f) => f.severity === s).length;
-  const categories = [...new Set(everything.map((f) => f.category))].sort();
+  const everything = data?.findings ?? [];
+  const total = Number(data?.totals?.count ?? everything.length);
+  const categories = useMemo(() => [...new Set(everything.map((f) => f.category))].sort((a, b) => category(a).localeCompare(category(b))), [everything]);
 
-  const columns: Column<Finding>[] = [
-    { key: "sev", label: "Severity", render: (f) => <Chip tone={toneFor(f.severity)}>{f.severity}</Chip>, width: "96px" },
+  // Filtering, search and sorting all happen here, on the list already loaded.
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = everything.filter(
+      (f) =>
+        (!severity || f.severity === severity) &&
+        (!cat || f.category === cat) &&
+        (!state || f.status === state) &&
+        (!q || [f.title, f.subject?.label, f.subject?.id, f.finding_id, category(f.category), f.reason].some((t) => t?.toLowerCase().includes(q))),
+    );
+    const order: Record<Sort, (a: FindingLite, b: FindingLite) => number> = {
+      priority: byPriority,
+      value: (a, b) => (Number(b.amount_impact) || 0) - (Number(a.amount_impact) || 0),
+      newest: (a, b) => (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+      category: (a, b) => category(a.category).localeCompare(category(b.category)) || byPriority(a, b),
+    };
+    return list.sort(order[sort]);
+  }, [everything, severity, cat, state, query, sort]);
+
+  const live = everything.filter((f) => f.status !== "rejected");
+  const confirmed = everything.filter((f) => f.status === "confirmed");
+  // Totals count each subject once, as on the Overview.
+  const once = (list: FindingLite[]) => sum(dedupe(list).kept);
+  const filtered = !!(severity || cat || state || query);
+  // Areas follow every filter except the area itself, so the chart can switch between them.
+  const areas = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const m = new Map<string, { cat: string; value: number; count: number; high: number; medium: number }>();
+    const pool = dedupe(
+      everything.filter(
+        (f) =>
+          f.status !== "rejected" &&
+          (!severity || f.severity === severity) &&
+          (!state || f.status === state) &&
+          (!q || [f.title, f.subject?.label, f.finding_id, f.reason].some((t) => t?.toLowerCase().includes(q))),
+      ),
+    ).kept;
+    for (const f of pool) {
+      const a = m.get(f.category) ?? { cat: f.category, value: 0, count: 0, high: 0, medium: 0 };
+      a.value += Number(f.amount_impact) || 0;
+      a.count++;
+      if (f.severity === "High") a.high++;
+      if (f.severity === "Medium") a.medium++;
+      m.set(f.category, a);
+    }
+    return [...m.values()].sort((a, b) => b.value - a.value);
+  }, [everything, severity, state, query]);
+  const bigHigh = shown.filter((f) => f.severity === "High" && f.status !== "rejected").sort((a, b) => (Number(b.amount_impact) || 0) - (Number(a.amount_impact) || 0))[0];
+  const riskTakeaway = bigHigh ? `The largest high-severity finding is ${inr(bigHigh.amount_impact)}: ${bigHigh.subject?.label ?? category(bigHigh.category)}.` : undefined;
+  const noAmount = shown.filter((f) => !(Number(f.amount_impact) > 0)).length;
+  const index = selected ? shown.findIndex((f) => f.finding_id === selected) : -1;
+  const step = (d: number) => {
+    if (!shown.length) return;
+    const i = index < 0 ? 0 : (index + d + shown.length) % shown.length;
+    setSelected(shown[i].finding_id);
+  };
+
+  // With a finding open, the arrow keys (or J and K) step through the list in view.
+  useEffect(() => {
+    if (!selected) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, select")) return;
+      if (e.key === "ArrowRight" || e.key === "j") step(1);
+      if (e.key === "ArrowLeft" || e.key === "k") step(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const groups = severities.map((sev) => ({ sev, list: shown.filter((f) => f.severity === sev) })).filter((g) => g.list.length);
+
+  const columns: Column<FindingLite>[] = [
+    { key: "sev", label: "Severity", render: (f) => <SeverityBadge severity={f.severity} compact />, width: "104px" },
     {
       key: "title",
       label: "Finding",
       render: (f) => (
         <div>
           <div className="font-medium">{f.title}</div>
-          <div className="text-xs text-ink-2">{category(f.category)}</div>
+          <div className="text-xs text-ink-2">
+            {category(f.category)}
+            {f.subject?.label ? `, ${f.subject.label}` : ""}
+          </div>
         </div>
       ),
     },
-    { key: "amount", label: "Amount", align: "right", render: (f) => (f.amount_impact ? money(f.amount_impact) : "") },
+    { key: "amount", label: "Amount (₹)", align: "right", render: (f) => (f.amount_impact ? money(f.amount_impact) : "") },
     { key: "samples", label: "Samples", align: "right", render: (f) => f.sample_ids?.length || "" },
-    { key: "status", label: "Status", render: (f) => <Status tone={toneFor(f.status)}>{statusLabel[f.status] ?? f.status}</Status> },
+    { key: "status", label: "Review", render: (f) => <Status tone={statusTone(f.status)}>{findingStatus[f.status] ?? f.status}</Status> },
   ];
+
+  const clear = () => {
+    setSeverity("");
+    setCat("");
+    setState("");
+    setQuery("");
+  };
 
   return (
     <>
-      <Header
-        title="Findings"
-        action={
-          <div className="flex items-center gap-3">
-            <select aria-label="Category" className={inputClass + " w-56"} value={cat} onChange={(e) => setCat(e.target.value)}>
-              <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {category(c)}
-                </option>
-              ))}
-            </select>
-            <Pills
-              value={severity}
-              onChange={setSeverity}
-              options={[
-                { value: "", label: "All", count: everything.length },
-                { value: "High", label: "High", count: count("High") },
-                { value: "Medium", label: "Medium", count: count("Medium") },
-                { value: "Low", label: "Low", count: count("Low") },
-              ]}
+      <ViewHead title="Findings" />
+
+      {everything.length > 0 && (
+        <PageBrief
+          lead={`${inr(once(live))} of potential misstatement across ${plural(live.length, "open finding")}.`}
+          detail={
+            <>
+              Each subject is counted once. {confirmed.length ? `${inr(once(confirmed))} is confirmed by the manager.` : "None is confirmed yet."} Select a severity to show only those findings; select it again to show all.
+            </>
+          }
+          stats={[
+            ...severities.map((sev) => {
+              const list = live.filter((f) => f.severity === sev);
+              return {
+                label: `${sev} severity, ${plural(list.length, "finding")}`,
+                value: inr(once(list)),
+                tone: sev === "High" ? ("bad" as const) : sev === "Medium" ? ("warn" as const) : undefined,
+                active: severity === sev,
+                onClick: () => setSeverity(severity === sev ? "" : sev),
+                hint: `Show only ${sev.toLowerCase()} severity`,
+              };
+            }),
+            {
+              label: "Awaiting the manager's review",
+              value: everything.filter((f) => f.status === "proposed").length,
+              active: state === "proposed",
+              onClick: () => setState(state === "proposed" ? "" : "proposed"),
+              hint: "Show only findings awaiting review",
+            },
+          ]}
+          guide={[
+            { label: "Severe and large", target: "fd-risk" },
+            { label: "Which areas", target: "fd-areas" },
+            { label: "Every finding", target: "fd-list" },
+          ]}
+        />
+      )}
+
+      {/* Charts: where each finding sits by value, and which areas carry the most. */}
+      {everything.length > 0 && (
+        <div className="mb-6 grid gap-5 xl:grid-cols-[1fr_380px]">
+          <div id="fd-risk" className="min-w-0">
+          <Panel title="Which findings are both severe and large?" takeaway={riskTakeaway} meta={<span className="text-xs">Each dot is a finding; value on a log scale</span>}>
+            <RiskMap
+              height={232}
+              format={inrTick}
+              selected={selected}
+              onSelect={setSelected}
+              lanes={severities.map((sev) => ({ name: sev, color: sevInk[sev] }))}
+              points={shown.map((f) => ({
+                key: f.finding_id,
+                x: Number(f.amount_impact) || 0,
+                lane: severities.indexOf(f.severity),
+                color: f.status === "confirmed" ? ink.good : sevInk[f.severity],
+                hollow: f.status === "rejected",
+                size: 4 + Math.min(4, f.sample_ids?.length ?? 0),
+                label: (
+                  <>
+                    <div className="font-medium">{f.title}</div>
+                    <div className="num mt-0.5">{f.amount_impact ? inr(f.amount_impact) : "No direct amount"}</div>
+                    <div className="text-ink-2">
+                      {category(f.category)}, {(findingStatus[f.status] ?? f.status).toLowerCase()}
+                    </div>
+                  </>
+                ),
+              }))}
             />
+            <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink-2">
+              <span>Dot size: samples affected</span>
+              {noAmount > 0 && <span>{plural(noAmount, "finding")} with no direct amount not plotted</span>}
+              <span className="flex items-center gap-1.5">
+                <Swatch color={ink.good} shape="dot" />
+                Confirmed
+              </span>
+              <span className="flex items-center gap-1.5">
+                <i className="inline-block h-2.5 w-2.5 rounded-full border-[1.5px] border-ink-3" />
+                Rejected (hollow)
+              </span>
+            </div>
+          </Panel>
           </div>
-        }
-      />
-      <Card>
-        {loading && !data ? (
-          <Loading />
-        ) : error ? (
+          <div id="fd-areas" className="min-w-0">
+          <Panel title="Which areas carry the most potential misstatement?" takeaway={areas[0] ? `${category(areas[0].cat)} is the largest area at ${inr(areas[0].value)}.` : undefined} meta={cat ? <button onClick={() => setCat("")} className="font-medium text-brand hover:underline">Show all</button> : undefined}>
+            <div className="thin-scroll max-h-[272px] overflow-y-auto pr-1">
+              <Ranked
+                format={inr}
+                selected={cat}
+                onSelect={(c) => setCat(cat === c ? "" : c)}
+                items={areas.map((a) => ({
+                  key: a.cat,
+                  label: category(a.cat),
+                  value: a.value,
+                  color: catColor(a.cat),
+                  tag: a.high ? <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-fail" title={`${a.high} high severity`}><SeverityIcon severity="High" size={10} />{a.high}</span> : undefined,
+                  note: plural(a.count, "finding"),
+                }))}
+              />
+            </div>
+          </Panel>
+          </div>
+        </div>
+      )}
+
+      {/* Toolbar */}
+      <div id="fd-list" />
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <div className="w-full sm:w-72">
+          <SearchBox value={query} onChange={setQuery} label="Search findings" placeholder="Search title, party, reference" />
+        </div>
+        <select aria-label="Category" className={selectClass + " min-w-48"} value={cat} onChange={(e) => setCat(e.target.value)}>
+          <option value="">All categories</option>
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {category(c)}
+            </option>
+          ))}
+        </select>
+        <select aria-label="Review status" className={selectClass} value={state} onChange={(e) => setState(e.target.value)}>
+          <option value="">Any review status</option>
+          {Object.entries(findingStatus).map(([v, l]) => (
+            <option key={v} value={v}>
+              {l}
+            </option>
+          ))}
+        </select>
+        <select aria-label="Sort by" className={selectClass} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+          {sorts.map((s) => (
+            <option key={s.value} value={s.value}>
+              Sort: {s.label}
+            </option>
+          ))}
+        </select>
+        <div className="ml-auto">
+          <Pills value={layout} onChange={setLayout} options={[{ value: "cards", label: "Cards" }, { value: "table", label: "Table" }]} />
+        </div>
+      </div>
+
+      {filtered && (
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-2">
+          <Tally n={shown.length} label={`of ${everything.length} findings`} />
+          <Tally n={inr(sum(shown.filter((f) => f.status !== "rejected")))} label="potential" />
+          <button onClick={clear} className="font-medium text-brand hover:underline">
+            Clear filters
+          </button>
+        </div>
+      )}
+
+      {loading && !data ? (
+        <Card>
+          <ListSkeleton rows={8} />
+        </Card>
+      ) : error ? (
+        <Card>
           <ErrorNote error={error} onRetry={reload} />
-        ) : findings.length === 0 ? (
+        </Card>
+      ) : everything.length === 0 ? (
+        <Card>
           <Empty title="No findings yet" hint="Findings are raised as the audit steps run on the Overview tab." />
-        ) : (
-          <Table columns={columns} rows={findings} rowKey={(f) => f.finding_id} onRow={(f) => setSelected(f.finding_id)} selected={selected ?? undefined} />
-        )}
-      </Card>
-      <Drawer open={!!selected} onClose={() => setSelected(null)} title={findings.find((f) => f.finding_id === selected)?.title ?? everything.find((f) => f.finding_id === selected)?.title ?? "Finding"}>
-        {selected && (
-          <Detail
-            id={selected}
-            manager={identity.role === "audit_manager"}
-            onDecided={() => {
-              reload();
-              all.reload();
-            }}
-          />
-        )}
+        </Card>
+      ) : shown.length === 0 ? (
+        <Card>
+          <Empty title="No findings match" hint="Try a different search or clear the filters." action={<Button kind="ghost" small onClick={clear}>Clear filters</Button>} />
+        </Card>
+      ) : layout === "table" ? (
+        <Card>
+          <Table columns={columns} rows={shown} rowKey={(f) => f.finding_id} onRow={(f) => setSelected(f.finding_id)} selected={selected ?? undefined} marked={(f) => f.severity === "High" && f.status === "proposed"} />
+        </Card>
+      ) : sort === "priority" ? (
+        // Grouped by severity, so the hierarchy is the layout.
+        <div className="space-y-8">
+          {groups.map(({ sev, list }) => {
+            const all = expanded[sev] || list.length <= GROUP_PAGE;
+            return (
+              <section key={sev} aria-label={`${sev} severity`}>
+                <div className="mb-3 flex items-center gap-3">
+                  <span className={cx("h-2 w-2 rounded-full", sevFill[sev])} />
+                  <h2 className="text-sm font-semibold text-ink">{sev} severity</h2>
+                  <span className="text-[13px] text-ink-2">
+                    {plural(list.length, "finding")}, {inr(sum(list.filter((f) => f.status !== "rejected")))}
+                  </span>
+                  <span className="h-px flex-1 bg-line-soft" />
+                </div>
+                <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+                  {(all ? list : list.slice(0, GROUP_PAGE)).map((f) => (
+                    <FindingCard key={f.finding_id} f={f} selected={selected === f.finding_id} onOpen={() => setSelected(f.finding_id)} />
+                  ))}
+                </div>
+                {!all && (
+                  <div className="mt-3">
+                    <Button kind="ghost" small onClick={() => setExpanded((e) => ({ ...e, [sev]: true }))}>
+                      Show all {list.length}
+                    </Button>
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
+          {shown.map((f) => (
+            <FindingCard key={f.finding_id} f={f} selected={selected === f.finding_id} onOpen={() => setSelected(f.finding_id)} />
+          ))}
+        </div>
+      )}
+      {total > everything.length && <p className="mt-4 text-[13px] text-ink-2">Showing the first {everything.length} of {total} findings.</p>}
+
+      <Drawer
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title={everything.find((f) => f.finding_id === selected)?.title ?? "Finding"}
+        footer={
+          index >= 0 && shown.length > 1 ? (
+            <div className="flex items-center justify-between gap-3">
+              <Button kind="ghost" small onClick={() => step(-1)}>
+                Previous
+              </Button>
+              <span className="text-xs text-ink-2">
+                <span className="num">{index + 1}</span> of <span className="num">{shown.length}</span>
+                <span className="ml-2 hidden text-ink-3 sm:inline">Arrow keys move between findings</span>
+              </span>
+              <Button kind="ghost" small onClick={() => step(1)}>
+                Next
+              </Button>
+            </div>
+          ) : undefined
+        }
+      >
+        {selected && <Detail id={selected} manager={identity.role === "audit_manager"} onDecided={reload} goTo={goTo} />}
       </Drawer>
     </>
   );
 }
+

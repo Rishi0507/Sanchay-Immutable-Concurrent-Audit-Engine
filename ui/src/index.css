@@ -19,6 +19,8 @@
   --font-mono: "Geist Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
 
   --color-paper: #14161a;
+  /* The app's backdrop, a step away from paper so panels stand on it. */
+  --color-canvas: #0f1114;
   --color-wash: #1b1e24;
   --color-line: #2c3038;
   --color-line-soft: #22262d;
@@ -48,6 +50,7 @@
 
 :root[data-theme="light"] {
   --color-paper: #fbfaf7;
+  --color-canvas: #eaeff3;
   --color-wash: #f2f0ea;
   --color-line: #dcd9d0;
   --color-line-soft: #e9e6de;
@@ -270,5 +273,190 @@ html.lenis body {
     transform: none;
     opacity: 1;
     transition: none;
+  }
+}
+
+/* Auditor workspace. Bars grow from their start once, figures settle in. */
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.grow-x {
+  transform-origin: left center;
+  animation: grow-x 0.6s cubic-bezier(0.19, 0.9, 0.22, 1) both;
+}
+
+.ring-fill {
+  transition: stroke-dasharray 0.6s cubic-bezier(0.19, 0.9, 0.22, 1);
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.settle > * {
+  animation: settle 0.35s ease-out both;
+}
+
+.settle > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.settle > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.settle > *:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.settle > *:nth-child(n + 5) {
+  animation-delay: 160ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grow-x,
+  .settle > * {
+    animation: none;
+  }
+  .ring-fill {
+    transition: none;
+  }
+}
+
+@keyframes col-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+.col-grow {
+  animation: col-grow 0.55s cubic-bezier(0.19, 0.9, 0.22, 1) both;
+}
+
+.donut-slice {
+  transition:
+    stroke-width 0.15s ease-out,
+    opacity 0.15s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .col-grow {
+    animation: none;
+  }
+  .donut-slice {
+    transition: none;
+  }
+}
+
+/* Auditor figures. Interface numbers in the sans with tabular digits; headline
+   amounts in the serif, set like the totals of a financial statement. */
+.num {
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.005em;
+}
+
+.amount {
+  font-family: var(--font-serif);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
+}
+
+/* Recharts draws focus rings on its wrapper; the chart's own marks carry focus instead. */
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-sector:focus,
+.recharts-rectangle:focus {
+  outline: none;
+}
+
+/* Loading placeholders: a soft sweep, still when motion is reduced. */
+.skeleton {
+  background: linear-gradient(90deg, var(--color-wash) 0%, color-mix(in oklab, var(--color-line) 60%, var(--color-wash)) 50%, var(--color-wash) 100%);
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* The steps rail fills once, step by step, when the Overview opens. */
+@keyframes rail-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.rail-fill {
+  transform-origin: left center;
+  animation: rail-fill 0.5s cubic-bezier(0.19, 0.9, 0.22, 1) both;
+}
+
+/* A selected trading cycle: dashes travel along its edges in the direction of flow. */
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+/* The trail check: each link lights in turn as its hash is recomputed. */
+@keyframes chain-link {
+  0% {
+    background: var(--color-wash);
+  }
+  50% {
+    background: var(--color-pass);
+  }
+  100% {
+    background: color-mix(in oklab, var(--color-pass) 55%, var(--color-wash));
+  }
+}
+
+.chain-link {
+  animation: chain-link 0.5s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton,
+  .rail-fill,
+  .chain-link {
+    animation: none;
+  }
+}
+
+/* A part of the page the summary points to, lit briefly. */
+@keyframes spotlight {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  25%,
+  70% {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-brand) 55%, transparent);
+  }
+}
+
+.spotlight {
+  animation: spotlight 1.7s ease-in-out;
+  border-radius: 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spotlight {
+    animation: none;
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-brand) 55%, transparent);
   }
 }

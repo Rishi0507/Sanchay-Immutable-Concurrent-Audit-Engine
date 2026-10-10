@@ -85,6 +85,102 @@ const auditIdentities: { label: string; does: string; token: string }[] = [
 // A client employee who belongs to no department, used to load the business.
 const unrestrictedToken = "client-demo-token";
 
+// "2025-04-01" to "2026-03-31" reads as "FY 2025-26". A period that is not one
+// April-to-March year keeps its dates.
+function fiscalYear(start: string, end: string) {
+  const s = new Date(start + "T00:00:00");
+  const e = new Date(end + "T00:00:00");
+  if (s.getMonth() === 3 && s.getDate() === 1 && e.getMonth() === 2 && e.getDate() === 31 && e.getFullYear() === s.getFullYear() + 1) {
+    return `FY ${s.getFullYear()}-${String(e.getFullYear()).slice(2)}`;
+  }
+  return `${start} to ${end}`;
+}
+
+// One small line icon per section, for the side navigation.
+function TabIcon({ id }: { id: string }) {
+  const p = { width: 17, height: 17, viewBox: "0 0 20 20", fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+  switch (id) {
+    case "overview":
+      return (
+        <svg {...p}>
+          <rect x="3" y="3" width="6" height="6" rx="1.2" />
+          <rect x="11" y="3" width="6" height="4" rx="1.2" />
+          <rect x="11" y="9" width="6" height="8" rx="1.2" />
+          <rect x="3" y="11" width="6" height="6" rx="1.2" />
+        </svg>
+      );
+    case "register":
+    case "records":
+      return (
+        <svg {...p}>
+          <rect x="3.5" y="3" width="13" height="14" rx="1.5" />
+          <path d="M3.5 7.5h13M3.5 12h13M8 7.5V17" />
+        </svg>
+      );
+    case "samples":
+      return (
+        <svg {...p}>
+          <circle cx="9" cy="9" r="5" />
+          <path d="M13 13l4 4M7 9h4M9 7v4" />
+        </svg>
+      );
+    case "findings":
+      return (
+        <svg {...p}>
+          <path d="M10 3l7.5 13h-15z" />
+          <path d="M10 8.5v3.5M10 14.2v.1" />
+        </svg>
+      );
+    case "graph":
+      return (
+        <svg {...p}>
+          <circle cx="5" cy="10" r="2" />
+          <circle cx="15" cy="5" r="2" />
+          <circle cx="15" cy="15" r="2" />
+          <path d="M6.8 9.1l6.4-3.2M6.8 10.9l6.4 3.2" />
+        </svg>
+      );
+    case "trail":
+      return (
+        <svg {...p}>
+          <path d="M4 5h12M4 10h12M4 15h8" />
+          <circle cx="15.5" cy="15" r="1.5" />
+        </svg>
+      );
+    case "export":
+      return (
+        <svg {...p}>
+          <path d="M10 3v9M6.5 8.5L10 12l3.5-3.5M4 15.5h12" />
+        </svg>
+      );
+    case "upload":
+      return (
+        <svg {...p}>
+          <path d="M10 13V4M6.5 7.5L10 4l3.5 3.5M4 15.5h12" />
+        </svg>
+      );
+    case "requests":
+      return (
+        <svg {...p}>
+          <path d="M4 5.5h12v8H9l-3.5 3v-3H4z" />
+        </svg>
+      );
+    case "access":
+      return (
+        <svg {...p}>
+          <circle cx="10" cy="7" r="3" />
+          <path d="M4 17c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...p}>
+          <path d="M10 4v12M4 10h12" />
+        </svg>
+      );
+  }
+}
+
 // The auditor's tick mark, used as the product mark.
 function Wordmark({ large, onClick }: { large?: boolean; onClick?: () => void }) {
   const mark = (
@@ -340,14 +436,120 @@ export default function App() {
     loadEngagements();
   };
 
+  const engagementSelect =
+    auditing && engagements.length > 0 ? (
+      <select
+        value={engagementId}
+        onChange={(e) => chooseEngagement(e.target.value)}
+        className="h-9 w-full truncate rounded-md border border-line bg-paper px-2 text-[13px] text-ink outline-none transition-colors hover:border-ink-3 focus:border-brand"
+        aria-label="Engagement"
+        title={(() => {
+          const e = engagements.find((x) => x.engagement_id === engagementId);
+          return e ? `Audit period ${e.period_start} to ${e.period_end}` : undefined;
+        })()}
+      >
+        {engagements.map((e) => (
+          <option key={e.engagement_id} value={e.engagement_id} title={`${e.period_start} to ${e.period_end}`}>
+            {fiscalYear(e.period_start, e.period_end)}
+            {engagements.length > 1 && e.opened_at ? ` (${new Date(e.opened_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })})` : ""}
+            {e.signed_off ? " (signed off)" : ""}
+          </option>
+        ))}
+        <option value="">New engagement</option>
+      </select>
+    ) : null;
+
+  const readOnly = auditing ? (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-md border border-line px-2 py-0.5 text-xs font-medium text-ink-2"
+      title="The audit side can read the client's records but cannot change them. Every attempt is recorded in the trail."
+    >
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <rect x="3" y="7" width="10" height="7" rx="1.5" />
+        <path d="M5.5 7V5a2.5 2.5 0 015 0v2" />
+      </svg>
+      Read-only
+    </span>
+  ) : null;
+
+  const signOut = () => {
+    setToken("");
+    setIdentity(null);
+    setEngagements([]);
+    setEngagementsLoaded(false);
+    setScreen("signin");
+  };
+
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-30 border-b border-line bg-paper">
-        <div className="mx-auto flex h-[52px] max-w-[1320px] items-stretch gap-8 px-6">
-          <div className="flex items-center">
-            <Wordmark onClick={() => setScreen("story")} />
+    <div className="flex min-h-full bg-canvas">
+      {/* Sections run down the left on wide screens. */}
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-paper lg:flex">
+        <div className="flex h-14 items-center px-5">
+          <Wordmark onClick={() => setScreen("story")} />
+        </div>
+        {engagementSelect && (
+          <div className="px-4 pb-4">
+            <div className="mb-1.5 text-xs font-medium text-ink-3">Engagement</div>
+            {engagementSelect}
           </div>
-          <nav className="flex min-w-0 flex-1 items-stretch gap-0.5" aria-label="Sections">
+        )}
+        <nav className="thin-scroll flex-1 overflow-y-auto px-3" aria-label="Sections">
+          <ul className="space-y-0.5">
+            {tabs.map((t) => {
+              const current = t.id === active?.id;
+              return (
+                <li key={t.id}>
+                  <button
+                    onClick={() => goTo(t.id)}
+                    aria-current={current ? "page" : undefined}
+                    className={cx(
+                      "relative flex h-9 w-full items-center gap-3 rounded-md px-3 text-left text-sm transition-colors duration-150",
+                      current ? "bg-brand-wash font-semibold text-ink" : "font-medium text-ink-2 hover:bg-wash hover:text-ink",
+                    )}
+                  >
+                    <span className={cx("absolute inset-y-2 left-0 w-[3px] rounded-full bg-brand transition-opacity duration-150", current ? "opacity-100" : "opacity-0")} />
+                    <span className={current ? "text-brand" : "text-ink-3"}>
+                      <TabIcon id={t.id} />
+                    </span>
+                    <span className="flex-1 truncate">{t.label}</span>
+                    {!!badges[t.id] && !current && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-on-brand">{badges[t.id]}</span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+        <div className="space-y-2.5 border-t border-line-soft px-5 py-3 text-[13px]">
+          {readOnly}
+          <div className="min-w-0" title={identity.user}>
+            <div className="truncate font-medium text-ink">{identity.department_name ?? roleLabel[identity.role]}</div>
+            <div className="truncate text-xs text-ink-2">{identity.user}</div>
+          </div>
+          <div className="flex items-center gap-4">
+            <ThemeSwitch />
+            <button onClick={signOut} className="font-medium text-ink-2 transition-colors hover:text-ink">
+              Sign out
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Narrow screens keep a top bar with the sections in a scrolling row. */}
+        <header className="sticky top-0 z-30 border-b border-line bg-paper lg:hidden">
+          <div className="flex h-[52px] items-center gap-3 px-4 text-[13px]">
+            <Wordmark onClick={() => setScreen("story")} />
+            <div className="ml-auto flex min-w-0 items-center gap-3 whitespace-nowrap">
+              {engagementSelect && <div className="w-32">{engagementSelect}</div>}
+              <ThemeSwitch />
+              <button onClick={signOut} className="font-medium text-ink-2 transition-colors hover:text-ink">
+                Sign out
+              </button>
+            </div>
+          </div>
+          <nav className="thin-scroll flex h-11 items-stretch gap-0.5 overflow-x-auto border-t border-line-soft px-2" aria-label="Sections">
             {tabs.map((t) => {
               const current = t.id === active?.id;
               return (
@@ -355,7 +557,7 @@ export default function App() {
                   key={t.id}
                   onClick={() => goTo(t.id)}
                   aria-current={current ? "page" : undefined}
-                  className={cx("relative flex items-center px-3 text-sm transition-colors duration-150", current ? "font-semibold text-ink" : "font-medium text-ink-2 hover:text-ink")}
+                  className={cx("relative flex shrink-0 items-center px-3 text-sm whitespace-nowrap transition-colors duration-150", current ? "font-semibold text-ink" : "font-medium text-ink-2 hover:text-ink")}
                 >
                   {t.label}
                   {!!badges[t.id] && !current && (
@@ -366,51 +568,15 @@ export default function App() {
               );
             })}
           </nav>
-          <div className="flex shrink-0 items-center gap-4 text-[13px] whitespace-nowrap">
-            {auditing && engagements.length > 0 && (
-              <select
-                value={engagementId}
-                onChange={(e) => chooseEngagement(e.target.value)}
-                className="h-8 max-w-60 truncate rounded-md border border-line bg-paper px-2 text-[13px] text-ink outline-none transition-colors hover:border-ink-3 focus:border-brand"
-                aria-label="Engagement"
-              >
-                {engagements.map((e) => (
-                  <option key={e.engagement_id} value={e.engagement_id}>
-                    {e.period_start} to {e.period_end}
-                    {engagements.length > 1 && e.opened_at ? ` (${new Date(e.opened_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })})` : ""}
-                    {e.signed_off ? " (signed off)" : ""}
-                  </option>
-                ))}
-                <option value="">New engagement</option>
-              </select>
-            )}
-            <span className="hidden text-ink-2 lg:inline" title={identity.user}>
-              <span className="font-medium text-ink">{identity.department_name ?? roleLabel[identity.role]}</span>
-              <span className="hidden xl:inline">, {identity.user}</span>
-            </span>
-            <ThemeSwitch />
-            <button
-              onClick={() => {
-                setToken("");
-                setIdentity(null);
-                setEngagements([]);
-                setEngagementsLoaded(false);
-                setScreen("signin");
-              }}
-              className="font-medium text-ink-2 transition-colors hover:text-ink"
-            >
-              Sign out
-            </button>
+        </header>
+        <main className="mx-auto w-full max-w-[1320px] flex-1 px-4 pt-8 pb-16 sm:px-8">
+          <div key={`${active?.id}:${engagementId}`} className="view">
+            <Suspense fallback={null}>
+              {!active || !tools || (auditing && !engagementsLoaded) ? null : active.view({ identity, pulse, goTo, focus, engagementId, onEngagement, tools, can })}
+            </Suspense>
           </div>
-        </div>
-      </header>
-      <main className="mx-auto w-full max-w-[1320px] flex-1 px-6 pt-8 pb-16">
-        <div key={`${active?.id}:${engagementId}`} className="view">
-          <Suspense fallback={null}>
-            {!active || !tools || (auditing && !engagementsLoaded) ? null : active.view({ identity, pulse, goTo, focus, engagementId, onEngagement, tools, can })}
-          </Suspense>
-        </div>
-      </main>
+        </main>
+      </div>
       <Toasts />
     </div>
   );
