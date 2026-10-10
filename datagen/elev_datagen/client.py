@@ -20,8 +20,10 @@ class FixtureClient:
         self.dir = Path(dataset_dir)
         self.ledger = LocalLedger.load(self.dir / "fixture")
         self.files = DirFileStore(self.dir / "files")
-        self.clock = start
-        self.n = 0
+        last = self.ledger.events[-1]["recorded_at"] if self.ledger.events else None
+        last_ist = (dt.datetime.fromisoformat(last.rstrip("Z")) + dt.timedelta(hours=5, minutes=30)) if last else start
+        self.clock = max(start, last_ist)
+        self.n = len(self.ledger.events)
 
     def _tick(self, minutes: int = 3) -> dt.datetime:
         self.clock += dt.timedelta(minutes=minutes)
