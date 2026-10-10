@@ -225,9 +225,16 @@ class AuditRepo:
         """Create tables if they do not exist. On Postgres the migrations in db/ are authoritative."""
         if not self.is_sqlite:
             from sqlalchemy import text
+            from sqlalchemy.exc import DBAPIError
 
-            with self.engine.begin() as c:
-                c.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
+            try:
+                with self.engine.begin() as c:
+                    c.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
+                metadata.create_all(self.engine, checkfirst=True)
+            except DBAPIError:
+                # The engine_audit role may lack CREATE. The migrations in db/ then own the schema.
+                pass
+            return
         metadata.create_all(self.engine)
         if self.is_sqlite:
             self._sqlite_append_only()
@@ -329,6 +336,30 @@ class AuditRepo:
         for r in self.select(sample_tests, order_by=sample_tests.c.id, engagement_id=engagement_id):
             out[r["sample_id"]] = r
         return out
+
+
+def postgres_ddl() -> str:
+    """DDL for the audit schema with append-only triggers (L4), for the migrations in db/."""
+    from sqlalchemy.dialects import postgresql
+    from sqlalchemy.schema import CreateIndex, CreateTable
+
+    dialect = postgresql.dialect()
+    parts = ["CREATE SCHEMA IF NOT EXISTS audit;", "",
+             "CREATE OR REPLACE FUNCTION audit.forbid_change() RETURNS trigger LANGUAGE plpgsql AS $$",
+             "BEGIN RAISE EXCEPTION '% on %.% is not allowed: append-only', TG_OP, TG_TABLE_SCHEMA, TG_TABLE_NAME; END $$;",
+             ""]
+    for t in metadata.sorted_tables:
+        parts.append(str(CreateTable(t).compile(dialect=dialect)).strip() + ";")
+        for ix in t.indexes:
+            parts.append(str(CreateIndex(ix).compile(dialect=dialect)).strip() + ";")
+        parts.append(f"CREATE TRIGGER {t.name}_append_only BEFORE UPDATE OR DELETE ON audit.{t.name} "
+                     f"FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();")
+        parts.append("")
+    parts.append("GRANT USAGE ON SCHEMA audit TO engine_audit, mcp_read;")
+    parts.append("GRANT INSERT, SELECT ON ALL TABLES IN SCHEMA audit TO engine_audit;")
+    parts.append("GRANT USAGE ON ALL SEQUENCES IN SCHEMA audit TO engine_audit;")
+    parts.append("GRANT SELECT ON ALL TABLES IN SCHEMA audit TO mcp_read;")
+    return "\n".join(parts) + "\n"
 
 
 def _autoinc(table: Table) -> bool:
