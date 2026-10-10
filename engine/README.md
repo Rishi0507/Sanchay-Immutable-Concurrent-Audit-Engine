@@ -52,6 +52,7 @@ The endpoints, headers and error format are in `contracts/engine-api/README.md`.
 | `changes.py` | 16.3 | D-15 matching rules and sample reversion |
 | `integrity.py` | 16.2 | Chain recomputation, snapshot hash and Merkle root comparison, D-16 |
 | `outputs/` | 19 | Workpaper (.xlsx), findings memo (.md, .docx) and one-page summary report (.pdf) |
+| `assistant/` | 21 | Questions about an engagement: its records as passages (`passages.py`), search with no model (`search.py`), and the answer with its check on every figure (`service.py`) |
 | `repo.py` | 4.4 | `audit` schema. Every table is insert-only (L4) |
 
 ## Design notes

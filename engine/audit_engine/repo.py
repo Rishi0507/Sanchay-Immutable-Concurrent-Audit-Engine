@@ -13,7 +13,7 @@ import json
 from typing import Any, Iterable
 
 from sqlalchemy import (JSON, BigInteger, Column, Date, Integer, MetaData, String, Table, Text, create_engine, event,
-                        select)
+                        func, select)
 from sqlalchemy.engine import Engine
 
 metadata = MetaData(schema="audit")
@@ -332,6 +332,13 @@ class AuditRepo:
             stmt = stmt.order_by(*(order_by if isinstance(order_by, (list, tuple)) else [order_by]))
         with self.engine.connect() as c:
             return [dict(r._mapping) for r in c.execute(stmt)]
+
+    def count(self, table: Table, **eq) -> int:
+        stmt = select(func.count()).select_from(table)
+        for k, v in eq.items():
+            stmt = stmt.where(table.c[k] == v)
+        with self.engine.connect() as c:
+            return int(c.execute(stmt).scalar() or 0)
 
     def first(self, table: Table, **eq) -> dict | None:
         rows = self.select(table, **eq)

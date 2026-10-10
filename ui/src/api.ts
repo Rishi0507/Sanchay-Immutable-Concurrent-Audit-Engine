@@ -125,7 +125,7 @@ const engagementTools = new Set([
   "tag_related_parties", "run_detectors", "select_sales_tod", "select_cutoff_tod", "select_credit_note_tod",
   "get_samples", "get_evidence_status", "request_evidence", "verify_evidence", "check_post_testing_changes",
   "get_findings", "get_counterparty_graph", "draft_findings_memo", "export_workpaper", "sign_off_engagement",
-  "query_records", "get_sale_chain", "get_ledger_entries", "verify_ledger_integrity",
+  "query_records", "get_sale_chain", "get_ledger_entries", "verify_ledger_integrity", "ask_assistant",
 ]);
 
 export async function callTool<T = any>(name: string, args: Record<string, unknown> = {}): Promise<T> {

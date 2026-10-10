@@ -18,6 +18,7 @@ The full specification is in [docs/PRD.md](docs/PRD.md).
 - [The audit](#the-audit)
 - [Safeguards](#safeguards)
 - [Outputs](#outputs)
+- [The audit assistant](#the-audit-assistant)
 - [User interface](#user-interface)
 - [Tools](#tools)
 - [Run with Docker](#run-with-docker)
@@ -40,6 +41,7 @@ The full specification is in [docs/PRD.md](docs/PRD.md).
 | Audit | Register reconciliation, related-party identification, 16 detectors, three test-of-details sheets, nine evidence checks, and findings that carry their lineage and a proposed adjusting entry. |
 | Safeguards | A sampling seed that nobody chooses, requests for documents that should not exist, detection of client changes after testing begins, and verification of the ledger. |
 | Outputs | The workpaper, the findings memo, a one-page summary report and a tamper-evident audit trail. |
+| Assistant | Questions in English, Hindi or Marathi, answered only from the records of the engagement. Each statement names its source, and a figure that is not in the records is withheld. |
 | Agent operation | Every capability is an MCP tool. The interface calls the same tools. An auditor agent is included. |
 
 ## Architecture
@@ -165,8 +167,8 @@ An identity is a bearer token. Each token maps to one user and one role, and the
 | Role | Token | Tools | Can |
 |---|---|---|---|
 | `client_employee` | `client-demo-token` | 36 | Record business events, upload the register and evidence |
-| `auditor` | `auditor-demo-token` | 32 | Read the snapshot, sample, test, raise findings, export |
-| `audit_manager` | `manager-demo-token` | 34 | Everything an auditor can, plus confirm findings and sign off |
+| `auditor` | `auditor-demo-token` | 34 | Read the snapshot, sample, test, raise findings, export |
+| `audit_manager` | `manager-demo-token` | 36 | Everything an auditor can, plus confirm findings and sign off |
 
 ### An auditor cannot change the business
 
@@ -441,6 +443,36 @@ The summary report shows the findings by severity and by area, the five largest 
 
 A full chain does not make a sale genuine, and the page says so: circular trading has complete paperwork. The grade sits beside the findings and does not replace them. Each output states the ledger hash it rests on, and the same engagement state gives the same file.
 
+## The audit assistant
+
+An auditor or an audit manager can ask about the engagement in plain words, in English, Hindi or Marathi: how many findings are High, why an invoice was flagged, what the control requests showed. In the interface it is a panel that stays over every auditor screen. For an agent it is the tool `ask_assistant`.
+
+```mermaid
+flowchart LR
+    Q[Question] --> S[Search the passages<br/>of this engagement]
+    S -->|nothing answers it| D[Declined<br/>no model call]
+    S --> P[Best passages<br/>numbered as sources]
+    P -->|no model, or allowance spent| R[Answer straight<br/>from the records]
+    P --> M[Model words the answer<br/>from the sources only]
+    M --> C{Every figure<br/>in a source?}
+    C -->|yes| A[Answer with source numbers]
+    C -->|no| W[That sentence is withheld]
+```
+
+| Property | How it is achieved |
+|---|---|
+| Answers come from this audit only | The engine turns the engagement into short passages: one for each finding, sample and related party, the computed figures, and a guide to what each check and safeguard means. A question retrieves at most five of them, and nothing else reaches the model. |
+| The model never counts | Totals, rankings and shares are computed in code, by the functions that fill the screens and the summary report, and are stated in the passages. The model is told to copy figures and to work none out. |
+| No figure is invented | After the model replies, every figure in every sentence is looked up in the sources. A sentence with a figure that no source states is withheld, and the reply says how many were. If nothing is left, the answer is the records themselves. |
+| Every statement can be opened | A sentence carries the number of its source. Clicking it opens that finding, sample or screen. |
+| It declines | A question the records do not speak to gets no answer and no model call. |
+| Three languages, one index | A question in Hindi or Marathi is given the English audit words for its own, so the same passages are searched. With a model, the answer comes back in the language of the question. |
+| It works with no model | Search is BM25 with exact document numbers and correction of misspelt words, held in memory. With `CHAT_MODEL` empty, the best passages are the answer. |
+| Spending is bounded | One model call for a question. A repeated question is answered from memory. `CHAT_DAILY_TOKENS` caps the day, after which answers come straight from the records. |
+| It is on the trail and changes nothing | Each question is an entry in the audit trail with the caller, the time and the hashes of the question and the answer. The tool is not listed for the client. |
+
+The glossary of Hindi and Marathi audit words is in `engine/audit_engine/assistant/search.py`. A question whose words are not in it is declined, as any other question the records do not answer.
+
 ## User interface
 
 The interface is printed like a banknote, because the question it asks of a sale is the one a bank asks of a note: is it genuine? Pages carry guilloche rosettes, a security thread, microtext, a watermark that shows when a panel is held to the light (hovered), serial numbers whose digits grow from left to right, and figures in colour-shift ink that move from one colour to the other with the pointer.
@@ -469,6 +501,7 @@ The workspace asks for an identity. Each identity sees only what its role and de
 | Auditor | Graph | The counterparty graph in two or three dimensions, with the trading cycles. |
 | Auditor | Trail | The audit trail and the result of verifying it. |
 | Auditor | Export | The summary report, the workpaper and the findings memo. |
+| Auditor | Ask | A panel over every auditor screen. It answers questions from the records of the engagement and opens the record behind each statement. |
 | Any | Lens | Audit any register in the browser, as below. |
 
 ### Lens
@@ -495,8 +528,8 @@ The run plays as it happens, with every figure taken from the computation. The G
 | Dispatch | 14 | 7 |
 | Accounts | 20 | 11 |
 | Admin | 15 | 6 |
-| Auditor | 32 | 0 |
-| Audit manager | 34 | 0 |
+| Auditor | 34 | 0 |
+| Audit manager | 36 | 0 |
 
 Auditor tools change no business data. They write only to the `audit` schema, through the engine.
 
@@ -520,6 +553,7 @@ Auditor tools change no business data. They write only to the `audit` schema, th
 | Integrity | `check_post_testing_changes`, `verify_ledger_integrity`, `verify_sampling_seal`, `get_merkle_proof` |
 | Findings and investigation | `get_findings`, `explain_finding`, `get_counterparty_graph`, `query_records`, `get_sale_chain`, `get_ledger_entries` |
 | Outputs | `draft_findings_memo`, `export_workpaper`, `export_summary_report`, `get_audit_trail`, `send_report_email` |
+| Assistant | `ask_assistant` |
 | Other | `get_access_policy` |
 | Audit manager only | `confirm_finding`, `sign_off_engagement` |
 
@@ -669,16 +703,17 @@ The agent never confirms a finding and never signs off. Those tools are withheld
 
 ## Where a model is used
 
-The system runs in full with no model. A model is optional in two places and required only by the agent.
+The system runs in full with no model. A model is optional in three places and required only by the agent.
 
 | Place | Use | Without a model |
 |---|---|---|
 | Evidence reading | Fills or confirms fields read from a document. Its output is validated against a schema, and a disagreement with the pattern rules lowers the confidence of the field. | Pattern rules read the fields. |
 | Memo wording | Rephrases the description of a finding. A rephrasing that changes any number is discarded. | Template text is used. |
+| Audit assistant | Words the answer from the passages that search found. A sentence with a figure that is not in those passages is withheld. | The passages are the answer. |
 | Auditor agent | Chooses which tool to call next. | `--no-model` follows the plan. |
 | Findings, sampling, severity, the summary figures | Never | |
 
-The engine accepts a local Ollama server (`OLLAMA_URL`), which keeps every request inside the deployment, or a hosted service that speaks the chat completions format (`LLM_URL`, `LLM_API_KEY`, `LLM_MODEL`). `LLM_MODEL` is a separate switch from `AGENT_MODEL`: while it is empty, no step in the application calls a model and only the agent spends tokens. Model readings and accepted wording are cached, so repeating a step needs no model.
+The engine accepts a local Ollama server (`OLLAMA_URL`), which keeps every request inside the deployment, or a hosted service that speaks the chat completions format (`LLM_URL`, `LLM_API_KEY`, `LLM_MODEL`). `LLM_MODEL` is a separate switch from `AGENT_MODEL`: while it is empty, no step in the application calls a model and only the agent spends tokens. Model readings and accepted wording are cached, so repeating a step needs no model. `CHAT_MODEL` is a third switch, for the assistant only: while it is empty the assistant answers from the records and spends no tokens.
 
 ### Report emails
 
@@ -720,6 +755,8 @@ Potential findings never reach the client: the only email to the client's manage
 | `LLM_URL`, `LLM_API_KEY` | engine, agent | unset | Optional hosted model that speaks the chat completions format. An address that ends in `/v1` gets `/chat/completions` appended. Any other address is used as given. |
 | `LLM_MODEL` | engine | unset | Model for the engine. For the engine a hosted model takes precedence over the local one. |
 | `AGENT_MODEL` | agent | unset | Model for the auditor agent. `LLM_MODEL` is used when it is unset. |
+| `CHAT_MODEL` | engine | unset | Model that words the assistant's answers, reached through `LLM_URL` and `LLM_API_KEY`. While it is empty the assistant answers from the records. |
+| `CHAT_DAILY_TOKENS` | engine | `100000` | Tokens the assistant may use in a day. Beyond it, answers come from the records. The count restarts with the engine. |
 | `LLM_REASONING_EFFORT`, `LLM_WORKERS` | engine | unset, `2` | Reasoning effort asked of the hosted model, and the number of concurrent requests to it. Hidden reasoning is billed as output, so `minimal` suits document reading. |
 
 ## Tests and measured results
@@ -727,7 +764,7 @@ Potential findings never reach the client: the only email to the client's manage
 ```sh
 cd ledger && dune test                 # posting rules, canonical JSON, hash chain, Merkle proofs, capabilities
 cd mcp && go test ./...                # catalogue, validation, money conversion, departments
-cd engine && uv run pytest             # chain, GSTIN, money, repository, model output handling
+cd engine && uv run pytest             # chain, GSTIN, money, repository, model output handling, the assistant
 cd datagen && uv run pytest            # generator and engine together, on generated data
 python deploy/smoke.py                 # end to end, against running services
 ```
@@ -735,9 +772,9 @@ python deploy/smoke.py                 # end to end, against running services
 | Suite | Covers |
 |---|---|
 | `mcp` | The catalogue and input validation. Every write tool belongs to a department, the departments separate the steps of a sale, and a department never widens another role. |
-| `engine` | Hash chain vectors, GSTIN checksums, money arithmetic, the append-only repository, and how model output is parsed and merged with pattern rules. |
-| `datagen` | Recall of every planted item by detector, no findings on the clean dataset, reproducible sampling, evidence checks, control requests, the sealed seed, the summary report and the API. |
-| `deploy/smoke.py` | 70 checks on a small business: the full sale chain, refusals, idempotency, 40 parallel appends, the snapshot, a change after testing, both chains, the trail and the MCP protocol. Set `PSQL` to a superuser connection to include the tamper test. |
+| `engine` | Hash chain vectors, GSTIN checksums, money arithmetic, the append-only repository, how model output is parsed and merged with pattern rules, and the assistant: what a question finds, what is declined, and the check on every figure a model writes. |
+| `datagen` | Recall of every planted item by detector, no findings on the clean dataset, reproducible sampling, evidence checks, control requests, the sealed seed, the summary report, the assistant's answers against the engagement, and the API. |
+| `deploy/smoke.py` | 73 checks on a small business: the full sale chain, refusals, idempotency, 40 parallel appends, the snapshot, a change after testing, both chains, the trail and the MCP protocol. Set `PSQL` to a superuser connection to include the tamper test. |
 
 The figures below are from one run of the full-year planted dataset on a laptop with 16 GB of memory and no dedicated GPU, with every service running locally and no model.
 

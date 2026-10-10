@@ -17,6 +17,7 @@ import Samples from "./auditor/Samples";
 import Findings from "./auditor/Findings";
 import Trail from "./auditor/Trail";
 import Export from "./auditor/Export";
+import Ask from "./auditor/Ask";
 
 // The heavy parts load only where they are used: the story page with its 3D
 // scene, and the graph library on the Graph tab.
@@ -814,6 +815,7 @@ export default function App() {
         </main>
       </div>
       {palette && <CommandPalette onClose={closePalette} items={commands} findings={auditing && !!engagementId} onFinding={(id) => goTo("findings", id)} />}
+      {auditing && engagementId && can("ask_assistant") && <Ask engagementId={engagementId} goTo={goTo} />}
       <Toasts />
     </div>
   );

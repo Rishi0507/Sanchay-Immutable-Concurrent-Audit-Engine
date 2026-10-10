@@ -19,6 +19,7 @@ from fastapi import Body, FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from . import __version__
+from .assistant import ask
 from .changes import check_post_testing_changes
 from .engine import STEPS, Engine, EngineError
 from .evidence.service import (control_summary, regional_documents, request_evidence, request_status,
@@ -699,6 +700,18 @@ def graph(request: Request, engagement_id: str | None = None):
                       for e in g["edges"]],
             "cycles": [{"finding_id": cyc.get(f"{c['type']}:" + ">".join(c["nodes"])), "path": c["nodes"],
                         "value": c["min_value"], "kind": c["type"]} for c in g["cycles"]]}
+
+
+@app.post("/assistant/ask")
+def post_ask(request: Request, body: dict = Body(default={})):
+    """Answer a question from the records of the engagement. It reads and changes nothing."""
+    ident = who(request)
+    ctx = engine().ctx(body.get("engagement_id"), ident)
+    question = " ".join(str(body.get("question") or "").split())
+    if not question:
+        raise EngineError("VALIDATION_FAILED", "question is required.", "Ask the question in plain words.")
+    previous = " ".join(str(body.get("previous_question") or "").split())
+    return ask(ctx, question[:500], previous[:500] or None)
 
 
 def file_ref(f: dict) -> dict:

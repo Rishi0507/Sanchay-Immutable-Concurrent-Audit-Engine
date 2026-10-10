@@ -108,7 +108,7 @@ var groups = []string{
 	"Parties", "Pricing and promotions", "Sale", "Tax", "Settlement", "Reversal",
 	"Purchases", "General ledger", "Audit support", "Read",
 	"Plan", "Engagement", "Register", "Related parties", "Detectors", "Sampling",
-	"Evidence", "Integrity", "Findings", "Outputs", "Sign-off",
+	"Evidence", "Integrity", "Findings", "Outputs", "Assistant", "Sign-off",
 }
 
 func groupOrder(g string) int {

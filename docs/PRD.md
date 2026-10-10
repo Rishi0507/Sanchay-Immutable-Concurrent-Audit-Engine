@@ -1057,6 +1057,7 @@ A file listing every trail entry of the engagement (AT-1) with the trail head ha
 | UI-5 | Each tab shows at most one primary action button. |
 | UI-6 | The role is chosen at sign-in by token. The tabs shown depend on the role. |
 | UI-7 | The sign-in belongs to the browser tab. An auditor, an audit manager and a client employee can work side by side in one browser, each in a tab. |
+| UI-8 | The assistant is a panel over the auditor screens. A source it names opens that record on the screen behind, and the conversation is kept. |
 
 ### 20.2 Client view
 
@@ -1088,6 +1089,7 @@ A file listing every trail entry of the engagement (AT-1) with the trail head ha
 | Extracting fields from evidence documents (EV-2) | Deciding what is a finding (DT-2) |
 | Regional-language documents (EV-6) | Ledger posting or integrity |
 | Rephrasing finding descriptions in the memo | Any number in any output |
+| Wording the assistant's answers from retrieved records (AI-4 to AI-6) | Counting, adding or ranking in an answer |
 | | Confirming conclusions (FN-2) |
 
 | ID | Requirement | Priority |
@@ -1095,6 +1097,9 @@ A file listing every trail entry of the engagement (AT-1) with the trail head ha
 | AI-1 | With the local model switched off, every detector, sample, workpaper and memo is still produced. | P0 |
 | AI-2 | The model runs locally. No request leaves the deployment. | P0 |
 | AI-3 | Model output is validated against a schema. Invalid output falls back to pattern rules or templates. | P0 |
+| AI-4 | The assistant answers only from passages retrieved from the engagement in view. A question that no passage answers is declined, with no model call. | P1 |
+| AI-5 | Every figure in an answer worded by a model must appear in the retrieved passages. A sentence with any other figure is withheld, and the answer states how many were. | P1 |
+| AI-6 | With no model, or once the daily token allowance is spent, the assistant answers with the passages themselves. Each answer names its sources, and each question is an entry in the audit trail. | P1 |
 
 ---
 

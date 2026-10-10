@@ -68,6 +68,34 @@ class Model:
             log.warning("model call failed (%s %s): %s", self.kind, self.name, _short(e))
             return None
 
+    def chat(self, messages: list[dict], max_tokens: int = 2200) -> tuple[str | None, int]:
+        """The reply to a conversation and the tokens it cost. (None, 0) on any failure.
+
+        A person is waiting for this reply, so a rate limit is not waited out:
+        the caller answers without the model instead.
+        """
+        if self.kind == "ollama":
+            return self.complete("\n\n".join(m["content"] for m in messages)), 0
+        try:
+            headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
+            body = {"model": self.name, "messages": messages}
+            if self.effort:
+                body["reasoning_effort"] = self.effort
+            # Room for hidden reasoning and the reply together. With too little, the reply comes back empty.
+            body["max_tokens" if "deepseek" in self.name else "max_completion_tokens"] = max_tokens
+            r = _http().post(_chat_url(self.url), headers=headers, timeout=self.timeout, json=body)
+            r.raise_for_status()
+            out = r.json()
+            usage = out.get("usage") or {}
+            text = (out["choices"][0]["message"].get("content") or "").strip() or None
+            if not text:
+                log.warning("chat reply was empty (%s, finish reason %s, usage %s)", self.name,
+                            out["choices"][0].get("finish_reason"), usage)
+            return text, int(usage.get("total_tokens") or 0)
+        except Exception as e:  # noqa: BLE001 - the caller answers from the records instead
+            log.warning("chat call failed (%s): %s", self.name, _short(e))
+            return None, 0
+
     def complete_json(self, prompt: str, schema: dict | None = None) -> dict | None:
         """The model's answer parsed as one JSON object, or None."""
         return parse_object(self.complete(prompt, schema))

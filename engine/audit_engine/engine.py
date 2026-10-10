@@ -146,7 +146,9 @@ class Engine:
         self._lock = threading.RLock()
         self._step_locks: dict[tuple[str, str], threading.Lock] = {}
         # Views built from tables that only change when a step completes, kept until the next step.
-        self.views: dict[tuple[str, str], tuple[int, Any]] = {}
+        self.views: dict[tuple[str, str], tuple[Any, Any]] = {}
+        # Tokens the assistant's model has used, by day, held against the daily allowance.
+        self.spent: dict[str, int] = {}
 
     # Snapshots
 

@@ -375,6 +375,12 @@ client_names = {t["name"] for t in rpc("client", "tools/list").get("result", {})
 check("the client lists business tools and no audit tools", "issue_invoice" in client_names and "get_findings" not in client_names)
 manager_names = {t["name"] for t in rpc("manager", "tools/list").get("result", {}).get("tools", [])}
 check("the audit manager also lists confirm_finding", "confirm_finding" in manager_names and "issue_invoice" not in manager_names)
+answer = must("auditor", "ask_assistant", engagement_id=eng_id, question="How many findings are there?")
+check("the assistant answers from the records and names its source",
+      answer["mode"] != "none" and answer["sources"] and answer["checks"]["withheld"] == 0, str(answer)[:300])
+check("the assistant declines what the records do not answer",
+      must("auditor", "ask_assistant", engagement_id=eng_id, question="Who won the cricket world cup?")["mode"] == "none")
+check("the client cannot ask the assistant", code("client", "ask_assistant", question="How many findings are there?") == "PERMISSION_DENIED")
 called = rpc("auditor", "tools/call", {"name": "get_engagement_status", "arguments": {"engagement_id": eng_id}})
 structured = called.get("result", {}).get("structuredContent", {})
 check("a tool call over MCP returns structured content", structured.get("engagement_id") == eng_id, str(called)[:300])

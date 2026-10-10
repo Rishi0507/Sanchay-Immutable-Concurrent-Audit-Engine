@@ -21,6 +21,7 @@ type engineTool struct {
 	roles             []string
 	fields            []catalogue.Field
 	notify            string
+	reads             bool // a POST that changes nothing, so no screen reloads on it
 }
 
 func (e engineTool) build(d *Deps) *Tool {
@@ -30,7 +31,7 @@ func (e engineTool) build(d *Deps) *Tool {
 		Description: e.desc,
 		Roles:       e.roles,
 		Fields:      e.fields,
-		Changes:     e.method != http.MethodGet,
+		Changes:     e.method != http.MethodGet && !e.reads,
 		Notify:      e.notify,
 		Handler: func(ctx context.Context, c *core.Call) (map[string]any, *core.ToolError) {
 			path := e.path
@@ -203,6 +204,15 @@ func auditorEngineTools(d *Deps) []*Tool {
 			name: "export_workpaper", group: "Outputs", method: http.MethodPost, path: "/workpaper", roles: auditRoles,
 			desc:   "Produce the audit workpaper as an .xlsx file with the Sales Register, Sales TOD, Sales Cut-off TOD and Credit Note TOD sheets, plus findings and the parameters needed to reproduce the samples. Returns a file to download.",
 			fields: []catalogue.Field{fEngagement},
+		},
+		{
+			name: "ask_assistant", group: "Assistant", method: http.MethodPost, path: "/assistant/ask", roles: auditRoles, reads: true,
+			desc: "Ask a question about the engagement in plain words, in English, Hindi or Marathi. The answer is built only from the records of the audit: findings, samples, evidence results, related parties and the state of the safeguards. Each statement names the record it comes from, a figure that is not in the records is withheld, and a question the records do not answer is declined. It reads and changes nothing.",
+			fields: []catalogue.Field{
+				fEngagement,
+				reqStr("question", "The question, for example: Why was invoice SPC/25-26/06879 flagged?"),
+				str("previous_question", "The question asked just before this one, so that a follow-up such as \"which of those are High\" is understood."),
+			},
 		},
 		{
 			name: "confirm_finding", group: "Sign-off", method: http.MethodPost, path: "/findings/{finding_id}/decisions", roles: managerOnly,

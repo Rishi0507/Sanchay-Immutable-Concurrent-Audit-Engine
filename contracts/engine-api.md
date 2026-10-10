@@ -53,6 +53,7 @@ The MCP server has already checked that the role may call the tool. The engine u
 | `explain_finding` | `GET /findings/{finding_id}/explain` | none | full finding record, `explanation`, `documents[]` |
 | `confirm_finding` | `POST /findings/{finding_id}/decisions` | `decision` (`confirmed`, `rejected`, `needs_info`), `note` optional | `finding_id`, `status`, `decided_by`, `decided_at` |
 | `export_summary_report` | `POST /summary` | `engagement_id` | `summary` of `{findings, samples, evidence, revenue, safeguards}`, `file` (a one-page PDF), `head_hash`. `evidence.regional_language` counts the documents read in Hindi or Marathi |
+| `ask_assistant` | `POST /assistant/ask` | `engagement_id`, `question`, `previous_question` optional | `answer`, `mode` (`model`, `records`, or `none` when the records do not answer), `sources[]` of `{n, kind, title, text, tab, focus}`, `checks` of `{figures, traced, withheld}`, `note`, `language`, `tokens`, `tokens_today`, `searched`, `repeated`. It writes nothing |
 | `sign_off_engagement` | `POST /engagements/sign-off` | `engagement_id`, `note` optional | `signed_by`, `signed_at`; `VALIDATION_FAILED` listing undecided findings otherwise |
 | `get_counterparty_graph` | `GET /graph` | `engagement_id` | `nodes[]` of `{id, label, kind, related}`, `edges[]` of `{source, target, kind, value, count}`, `cycles[]` of `{finding_id, path[], value}` |
 | `draft_findings_memo` | `POST /memo` | `engagement_id` | `files[]`, `findings`, `total_adjustment`, `head_hash` |

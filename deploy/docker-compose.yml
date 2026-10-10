@@ -59,6 +59,10 @@ services:
       LLM_URL: ${LLM_URL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
+      LLM_REASONING_EFFORT: ${LLM_REASONING_EFFORT:-}
+      # Optional model that words the assistant's answers. Empty: answers come straight from the records.
+      CHAT_MODEL: ${CHAT_MODEL:-}
+      CHAT_DAILY_TOKENS: ${CHAT_DAILY_TOKENS:-100000}
     volumes:
       - files:/data/files
     depends_on:

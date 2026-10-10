@@ -32,6 +32,8 @@ class Settings:
     llm_model: str | None = None
     llm_workers: int = 2
     llm_reasoning_effort: str | None = None
+    chat_model: str | None = None
+    chat_daily_tokens: int = 100_000
     detector_workers: int = 0
     service_token: str | None = None
     company: dict = field(default_factory=dict)
@@ -54,6 +56,8 @@ class Settings:
             llm_model=os.environ.get("LLM_MODEL") or None,
             llm_workers=int(os.environ.get("LLM_WORKERS", "2")),
             llm_reasoning_effort=os.environ.get("LLM_REASONING_EFFORT") or None,
+            chat_model=os.environ.get("CHAT_MODEL") or None,
+            chat_daily_tokens=int(os.environ.get("CHAT_DAILY_TOKENS") or 100_000),
             detector_workers=int(os.environ.get("ENGINE_DETECTOR_WORKERS", "0")),
         )
         company_file = os.environ.get("ENGINE_COMPANY_FILE") or (
@@ -72,4 +76,20 @@ class Settings:
                          self.llm_reasoning_effort)
         if self.ollama_url:
             return Model(self.ollama_url, self.ollama_model)
+        return None
+
+    def assistant_model(self):
+        """The model that words the assistant's answers, or None.
+
+        CHAT_MODEL is its own switch. Setting LLM_URL for the agent, or LLM_MODEL
+        for document reading, does not make the assistant spend tokens.
+        """
+        from .model import Model
+
+        if not self.chat_model:
+            return None
+        if self.llm_url:
+            return Model(self.llm_url, self.chat_model, "chat", self.llm_api_key, 1, self.llm_reasoning_effort, timeout=45.0)
+        if self.ollama_url:
+            return Model(self.ollama_url, self.chat_model)
         return None

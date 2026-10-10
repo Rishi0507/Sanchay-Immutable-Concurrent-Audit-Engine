@@ -11,7 +11,7 @@ func TestOnlyCallsThatChangeSomethingAreReportedAsChanges(t *testing.T) {
 		"get_audit_plan", "get_engagement_status", "list_engagements", "get_register_rows", "get_samples",
 		"get_evidence_status", "get_findings", "explain_finding", "get_counterparty_graph", "get_notifications",
 		"get_audit_trail", "get_access_policy", "list_records", "list_evidence_requests", "query_records",
-		"verify_ledger_integrity", "verify_sampling_seal",
+		"verify_ledger_integrity", "verify_sampling_seal", "ask_assistant",
 	}
 	for _, name := range reads {
 		tool := all[name]
