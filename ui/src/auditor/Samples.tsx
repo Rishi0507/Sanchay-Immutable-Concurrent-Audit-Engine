@@ -1,9 +1,9 @@
 import { Suspense, lazy, useEffect, useMemo, useState } from "react";
-import { callTool, money } from "../api";
+import { callTool, money, readable } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Mark, Pills, Section, Status, Table, cx, toast, toneFor, useAction, useTool } from "../ui";
 import { Columns, CutoffItem, CutoffTimeline, Donut, Ranked, ink } from "./charts";
-import { EmailAction, LedgerRows, ListSkeleton, MoreBar, PageBrief, Panel, SearchBox, Tally, Term, ViewHead, inr, monthKey, monthLabel, monthRange, plural, scaleFor } from "./kit";
+import { EmailAction, day, LedgerRows, ListSkeleton, MoreBar, PageBrief, Panel, SearchBox, Tally, Term, ViewHead, inr, monthKey, monthLabel, monthRange, plural, scaleFor } from "./kit";
 import type { EvidenceDoc } from "./Lamp";
 import { SampleRise } from "./motion";
 
@@ -65,6 +65,12 @@ const outcomes = [
   { value: "Pending evidence", short: "Awaiting evidence", color: ink.muted },
   { value: "Pass", short: "Pass", color: ink.good },
 ];
+
+// The engine names its reasons in codes ("KEY_ITEM (rank 2 by value)"); the
+// panel reads them in words ("Largest by value (rank 2 by value)").
+function plainReason(text?: string): string {
+  return readable(String(text ?? "").replace(/\b[A-Z][A-Z_]{3,}\b/g, (code) => reasonLabel[code] ?? (code.includes("_") ? code.replace(/_/g, " ").toLowerCase() : code)));
+}
 
 function worst(tests?: Record<string, string>): string {
   const values = Object.values(tests ?? {});
@@ -191,7 +197,7 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
   const columns: Column<Sample>[] = [
     { key: "n", label: "#", render: (s) => <span className="text-ink-3 tabular-nums">{s.position}</span>, width: "48px" },
     { key: "doc", label: sheet === "credit_note_tod" ? "Credit note" : "Bill no.", render: (s) => <span className="font-medium">{s.credit_note_no ?? s.invoice_no ?? s.subject_id}</span> },
-    { key: "date", label: "Date", render: (s) => <span className="whitespace-nowrap">{s.date ?? ""}</span> },
+    { key: "date", label: "Date", render: (s) => <span className="whitespace-nowrap">{s.date ? day(s.date) : ""}</span> },
     {
       key: "customer",
       label: "Customer",
@@ -512,7 +518,7 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
               <span className="num ml-auto text-lg font-medium">{selected.taxable_value !== undefined ? `₹ ${money(selected.taxable_value)}` : ""}</span>
             </div>
             <Section title="Why it was selected">
-              <p className="text-sm leading-relaxed text-ink">{selected.reason}</p>
+              <p className="text-sm leading-relaxed text-ink">{plainReason(selected.reason)}</p>
               {(selected.reason_codes?.length ?? 0) > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {selected.reason_codes.map((c) => (
@@ -555,7 +561,7 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
               <KeyValues
                 items={[
                   ["Customer", selected.customer],
-                  ["Date", selected.date],
+                  ["Date", selected.date ? day(selected.date) : undefined],
                   ["Taxable value", selected.taxable_value !== undefined ? money(selected.taxable_value) : undefined],
                   ["Party", selected.related],
                   ...Object.entries(selected.detail ?? {})

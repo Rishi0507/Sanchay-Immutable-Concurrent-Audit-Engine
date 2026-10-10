@@ -4,7 +4,7 @@ import type { ViewProps } from "../App";
 import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Mark, Pills, Section, Status, Table, cx, inputClass, toast, toneFor, useAction, useTool } from "../ui";
 import { Stamp } from "../Stamp";
 import { Ranked, RiskMap, Swatch, ink } from "./charts";
-import { EmailAction, FindingLite, ListSkeleton, MoreBar, PageBrief, dedupe, Panel, SearchBox, Severity, SeverityBadge, SeverityIcon, Tally, Term, ViewHead, byPriority, catColor, category, findingStatus, inr, plural, sevFill, severities, sum } from "./kit";
+import { EmailAction, day, FindingLite, ListSkeleton, MoreBar, PageBrief, dedupe, Panel, SearchBox, Severity, SeverityBadge, SeverityIcon, Tally, Term, ViewHead, byPriority, catColor, category, findingStatus, inr, plural, sevFill, severities, sum } from "./kit";
 import { HoldToLight } from "./motion";
 
 interface Finding extends FindingLite {
@@ -13,7 +13,12 @@ interface Finding extends FindingLite {
   standard_refs?: string[];
   lineage?: Record<string, any>;
   decision_note?: string;
+  // The ledger events the finding rests on, as explain_finding returns them.
+  documents?: { seq: number; event_type: string; reference?: string; business_date?: string; recorded_by?: string; hash?: string }[];
 }
+
+// "InvoiceIssued" reads "Invoice issued".
+const eventName = (t: string) => t.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase()).replace(/ (\w)/g, (m) => m.toLowerCase());
 
 const statusTone = (s: string) => toneFor(s);
 
@@ -193,7 +198,7 @@ function Detail({ id, manager, onDecided, onNext, goTo }: { id: string; manager:
       {/* Evidence chain and linked samples. */}
       <Section title={sampleIds.length ? `Evidence for ${plural(sampleIds.length, "linked sample")}` : "Evidence"}>
         {!sampleIds.length ? (
-          <p className="text-[14px] text-ink-2">This finding comes from the records themselves, not from a sample, so there is no document chain. Its lineage is under More detail.</p>
+          <p className="text-[14px] text-ink-2">This finding comes from the records themselves, not from a sample, so no documents were requested. The records it rests on are below.</p>
         ) : !linked ? (
           <ListSkeleton rows={Math.min(3, sampleIds.length)} />
         ) : (
@@ -225,6 +230,30 @@ function Detail({ id, manager, onDecided, onNext, goTo }: { id: string; manager:
           </ul>
         )}
       </Section>
+
+      {/* The ledger records the finding rests on, oldest first, each with its seal. */}
+      {(f.documents?.length ?? 0) > 0 && (
+        <Section title={`The records behind it (${f.documents!.length})`}>
+          <ol className="relative ml-1.5 space-y-3 border-l-2 border-line pl-5">
+            {f.documents!.slice(0, 12).map((d) => (
+              <li key={d.seq} className="relative">
+                <span className="absolute top-1.5 -left-[27px] h-3 w-3 rounded-full border-2 border-brand bg-paper" aria-hidden />
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[14.5px] font-semibold text-ink">{eventName(d.event_type)}</span>
+                  <span className="num shrink-0 text-[12.5px] text-ink-3">Event {d.seq.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="text-[13.5px] text-ink-2">{[d.reference, d.business_date ? day(d.business_date) : "", d.recorded_by ? `recorded by ${d.recorded_by}` : ""].filter(Boolean).join(", ")}</div>
+                {d.hash && (
+                  <div className="font-mono text-[11.5px] text-ink-3" title={d.hash}>
+                    sealed {d.hash.slice(0, 16)}…
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+          {f.documents!.length > 12 && <p className="mt-2 text-[13px] text-ink-2">The first 12 of {f.documents!.length} are shown. Every one is under More detail.</p>}
+        </Section>
+      )}
 
       {/* The decision. */}
       <div className="relative">
@@ -273,15 +302,15 @@ function Detail({ id, manager, onDecided, onNext, goTo }: { id: string; manager:
             {onNext && <p className="mt-2 text-[13px] text-ink-2">After a decision, the next finding opens by itself.</p>}
           </>
         ) : (
-          <>
-            <div className="flex flex-wrap gap-2">
-              <Button disabled>Confirm finding</Button>
-              <Button kind="danger" disabled>
-                Reject
-              </Button>
-            </div>
-            <p className="mt-2 text-[14px] text-ink-2">Only the audit manager can confirm or reject a finding. Sign in as the audit manager to decide.</p>
-          </>
+          <div className="flex items-start gap-3 rounded-xl border border-line bg-wash px-4 py-3">
+            <span className="mt-0.5 text-wait">
+              <Mark tone={f.status === "confirmed" ? "good" : f.status === "rejected" ? "bad" : "warn"} size={18} />
+            </span>
+            <span className="text-[14px] text-ink-2">
+              <span className="block font-semibold text-ink">{f.status === "proposed" ? "Waiting for the audit manager" : findingStatus[f.status] ?? f.status}</span>
+              Only the audit manager can confirm or reject a finding, so the agent never decides on its own conclusions.
+            </span>
+          </div>
         )}
       </Section>
       </div>
