@@ -1,0 +1,79 @@
+# Detector, sampling and evidence thresholds (DT-6).
+# Every value here is written to the Parameters sheet of the workpaper.
+# Money in paise, ratios in basis points.
+
+[sampling]
+sales_target = 30
+sales_min = 25
+sales_max = 35
+key_items = 5
+related_party_max = 10
+customer_coverage = 10
+min_distinct_customers = 8
+last_days = 10
+score_disclosed_rp = 30
+score_suggested_rp = 35
+score_p95 = 20
+score_last_days = 15
+score_detector_hit = 15
+score_detector_cap = 45
+score_indicator = 5
+cutoff_before = 10
+cutoff_after = 15
+credit_note_after_max = 15
+credit_note_total = 20
+
+[related_parties]
+jaro_winkler_min = 0.92
+legal_suffixes = ["private limited", "pvt ltd", "pvt. ltd.", "pvt. ltd", "private ltd", "limited", "ltd", "ltd.", "llp", "and co", "& co", "co.", "company", "corporation", "corp", "inc", "enterprises", "india"]
+
+[d05]
+eway_bill_threshold = 5000000
+
+[d06]
+# Control date: dispatch date for EX_WORKS, delivery date for DELIVERED.
+
+[d07]
+last_days = 10
+z_min = 3.0
+min_baseline_windows = 10
+min_customer_invoices = 6
+min_window_value = 50000000
+discount_min_uplift_bp = 300
+
+[d11]
+period_end_days = 10
+most_of_invoice_bp = 7500
+
+[d13]
+payment_window_days = 7
+similar_amount_bp = 500
+unpaid_days = 90
+period_end_days = 10
+
+[d14]
+backdate_days = 3
+max_speed_kmph = 60
+
+[d04]
+window_days = 60
+min_edge_ratio_bp = 8000
+max_cycle_length = 6
+
+[indicators]
+round_multiple = 1000000
+benford_mad = 0.015
+benford_min_invoices = 100
+just_below_low = 4500000
+just_below_high = 5000000
+
+[evidence]
+confidence_min = 0.8
+phash_max_distance = 6
+ewb_km_per_day = 200
+max_speed_kmph = 60
+amount_tolerance = 100
+
+[severity]
+high_bp = 100
+medium_bp = 10

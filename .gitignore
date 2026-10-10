@@ -23,3 +23,13 @@ Thumbs.db
 # reference material kept outside the repository
 /Elevate 1.0 PS list.pdf
 /ps4-revenue-audit-approach.md
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+var/
+*.db
+*.db-wal
+*.db-shm

@@ -1,0 +1,119 @@
+{
+  "description": "hash_n = sha256_hex(utf8(prev_hash + canonical_json(content))). merkle_root is the binary root over the three hashes, odd node promoted.",
+  "vectors": [
+    {
+      "event": {
+        "seq": 1,
+        "event_type": "PriceSet",
+        "entity_id": "E1",
+        "aggregate_id": "price:BRK-100",
+        "aggregate_version": 1,
+        "sale_id": null,
+        "payload": {
+          "item": "BRK-100",
+          "rate": 125050,
+          "effective_from": "2025-04-01"
+        },
+        "business_date": "2025-04-01",
+        "recorded_at": "2025-04-01T04:30:00Z",
+        "identity": {
+          "user": "client.ops",
+          "role": "client_employee"
+        },
+        "idempotency_key": "vec-1",
+        "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+        "hash": "d732a5436bc568b56013ccff81e172b966bf543c7a182f2fe4e3f29312cfc8bb"
+      },
+      "canonical_json": "{\"aggregate_id\":\"price:BRK-100\",\"aggregate_version\":1,\"business_date\":\"2025-04-01\",\"entity_id\":\"E1\",\"event_type\":\"PriceSet\",\"idempotency_key\":\"vec-1\",\"identity\":{\"role\":\"client_employee\",\"user\":\"client.ops\"},\"payload\":{\"effective_from\":\"2025-04-01\",\"item\":\"BRK-100\",\"rate\":125050},\"prev_hash\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"recorded_at\":\"2025-04-01T04:30:00Z\",\"sale_id\":null,\"seq\":1}",
+      "hash": "d732a5436bc568b56013ccff81e172b966bf543c7a182f2fe4e3f29312cfc8bb"
+    },
+    {
+      "event": {
+        "seq": 2,
+        "event_type": "CustomerCreated",
+        "entity_id": "E1",
+        "aggregate_id": "C0001",
+        "aggregate_version": 1,
+        "sale_id": null,
+        "payload": {
+          "customer_id": "C0001",
+          "name": "Kaveri Auto Parts कावेरी",
+          "gstin": "27AAPFU0939F1ZV",
+          "pan": "AAPFU0939F",
+          "addresses": [
+            {
+              "kind": "billing",
+              "line1": "Plot 4, MIDC",
+              "city": "Pune",
+              "state_code": "27",
+              "pincode": "411026"
+            }
+          ],
+          "phone": "+919800000001",
+          "email": null,
+          "bank_accounts": [
+            {
+              "account_no": "001122334455",
+              "ifsc": "HDFC0000001"
+            }
+          ],
+          "directors": [],
+          "effective_from": "2025-04-01"
+        },
+        "business_date": "2025-04-01",
+        "recorded_at": "2025-04-01T04:30:00Z",
+        "identity": {
+          "user": "client.ops",
+          "role": "client_employee"
+        },
+        "idempotency_key": "vec-2",
+        "prev_hash": "d732a5436bc568b56013ccff81e172b966bf543c7a182f2fe4e3f29312cfc8bb",
+        "hash": "f4c510c060bda25d08f76807cc067484b7385fd803d5d0e5470a64b2bc311b74"
+      },
+      "canonical_json": "{\"aggregate_id\":\"C0001\",\"aggregate_version\":1,\"business_date\":\"2025-04-01\",\"entity_id\":\"E1\",\"event_type\":\"CustomerCreated\",\"idempotency_key\":\"vec-2\",\"identity\":{\"role\":\"client_employee\",\"user\":\"client.ops\"},\"payload\":{\"addresses\":[{\"city\":\"Pune\",\"kind\":\"billing\",\"line1\":\"Plot 4, MIDC\",\"pincode\":\"411026\",\"state_code\":\"27\"}],\"bank_accounts\":[{\"account_no\":\"001122334455\",\"ifsc\":\"HDFC0000001\"}],\"customer_id\":\"C0001\",\"directors\":[],\"effective_from\":\"2025-04-01\",\"email\":null,\"gstin\":\"27AAPFU0939F1ZV\",\"name\":\"Kaveri Auto Parts कावेरी\",\"pan\":\"AAPFU0939F\",\"phone\":\"+919800000001\"},\"prev_hash\":\"d732a5436bc568b56013ccff81e172b966bf543c7a182f2fe4e3f29312cfc8bb\",\"recorded_at\":\"2025-04-01T04:30:00Z\",\"sale_id\":null,\"seq\":2}",
+      "hash": "f4c510c060bda25d08f76807cc067484b7385fd803d5d0e5470a64b2bc311b74"
+    },
+    {
+      "event": {
+        "seq": 3,
+        "event_type": "JournalPosted",
+        "entity_id": "E1",
+        "aggregate_id": "JV-1",
+        "aggregate_version": 1,
+        "sale_id": "S-1",
+        "payload": {
+          "journal_id": "JV-1",
+          "date": "2026-03-31",
+          "narration": "Test",
+          "lines": [
+            {
+              "account": "1100",
+              "debit": 100,
+              "credit": 0,
+              "ref": null
+            },
+            {
+              "account": "4000",
+              "debit": 0,
+              "credit": 100,
+              "ref": null
+            }
+          ],
+          "approver": null
+        },
+        "business_date": "2025-04-01",
+        "recorded_at": "2025-04-01T04:30:00Z",
+        "identity": {
+          "user": "client.ops",
+          "role": "client_employee"
+        },
+        "idempotency_key": "vec-3",
+        "prev_hash": "f4c510c060bda25d08f76807cc067484b7385fd803d5d0e5470a64b2bc311b74",
+        "hash": "0c7f5b0a79f58e814ff571a23e39d694040ad0afe735835f3769b1a0fd762832"
+      },
+      "canonical_json": "{\"aggregate_id\":\"JV-1\",\"aggregate_version\":1,\"business_date\":\"2025-04-01\",\"entity_id\":\"E1\",\"event_type\":\"JournalPosted\",\"idempotency_key\":\"vec-3\",\"identity\":{\"role\":\"client_employee\",\"user\":\"client.ops\"},\"payload\":{\"approver\":null,\"date\":\"2026-03-31\",\"journal_id\":\"JV-1\",\"lines\":[{\"account\":\"1100\",\"credit\":0,\"debit\":100,\"ref\":null},{\"account\":\"4000\",\"credit\":100,\"debit\":0,\"ref\":null}],\"narration\":\"Test\"},\"prev_hash\":\"f4c510c060bda25d08f76807cc067484b7385fd803d5d0e5470a64b2bc311b74\",\"recorded_at\":\"2025-04-01T04:30:00Z\",\"sale_id\":\"S-1\",\"seq\":3}",
+      "hash": "0c7f5b0a79f58e814ff571a23e39d694040ad0afe735835f3769b1a0fd762832"
+    }
+  ],
+  "merkle_root": "54cd0b1318f2bf3d115b8334c90e234c52c8b8bb443f3fa472b4f9b8a3fe8d06"
+}

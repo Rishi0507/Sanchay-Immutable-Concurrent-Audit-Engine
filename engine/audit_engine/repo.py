@@ -1,0 +1,339 @@
+"""The ``audit`` schema (PRD section 4.4), written only by the engine (rule C-3).
+
+Every table is insert-only because ``UPDATE`` and ``DELETE`` are blocked by
+triggers on every table (L4). Current state is always the latest row for a
+key. The same code runs on Postgres (schema ``audit``) and on SQLite for local
+development and tests (no schema).
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import json
+from typing import Any, Iterable
+
+from sqlalchemy import (JSON, BigInteger, Column, Date, Integer, MetaData, String, Table, Text, create_engine, event,
+                        select)
+from sqlalchemy.engine import Engine
+
+metadata = MetaData(schema="audit")
+
+
+def _now() -> str:
+    return dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+engagements = Table(
+    "engagements", metadata,
+    Column("engagement_id", String(64), primary_key=True),
+    Column("client_name", Text),
+    Column("period_start", Date, nullable=False),
+    Column("period_end", Date, nullable=False),
+    Column("seed", String(128), nullable=False),
+    Column("entity_ids", JSON),
+    Column("snapshot_seq", BigInteger, nullable=False),
+    Column("snapshot_hash", String(64), nullable=False),
+    Column("merkle_root", String(64)),
+    Column("register_upload_seq", BigInteger),
+    Column("rp_upload_seq", BigInteger),
+    Column("opened_by", Text),
+    Column("opened_at", String(32)),
+)
+
+engagement_events = Table(
+    "engagement_events", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("engagement_id", String(64), nullable=False, index=True),
+    Column("kind", String(32), nullable=False),  # step_done, closed
+    Column("step", String(64)),
+    Column("detail", JSON),
+    Column("identity", Text),
+    Column("at", String(32)),
+)
+
+register_imports = Table(
+    "register_imports", metadata,
+    Column("engagement_id", String(64), primary_key=True),
+    Column("file_hash", String(64), nullable=False),
+    Column("file_name", Text),
+    Column("upload_seq", BigInteger),
+    Column("headers", JSON),
+    Column("column_map", JSON),
+    Column("missing_columns", JSON),
+    Column("row_count", Integer),
+    Column("at", String(32)),
+)
+
+register_rows = Table(
+    "register_rows", metadata,
+    Column("engagement_id", String(64), primary_key=True),
+    Column("row_no", Integer, primary_key=True),
+    Column("raw", JSON, nullable=False),
+    Column("parsed", JSON, nullable=False),
+)
+
+register_recon = Table(
+    "register_recon", metadata,
+    Column("engagement_id", String(64), primary_key=True),
+    Column("row_no", Integer, primary_key=True),
+    Column("status", Text, nullable=False),
+    Column("finding_refs", JSON),
+)
+
+rp_tags = Table(
+    "rp_tags", metadata,
+    Column("engagement_id", String(64), primary_key=True),
+    Column("customer_id", String(128), primary_key=True),
+    Column("tag", String(32), nullable=False),
+    Column("detail", JSON),
+)
+
+samples = Table(
+    "samples", metadata,
+    Column("sample_id", String(64), primary_key=True),
+    Column("engagement_id", String(64), nullable=False, index=True),
+    Column("sheet", String(32), nullable=False),
+    Column("position", Integer, nullable=False),
+    Column("subject_type", String(32), nullable=False),
+    Column("subject_id", String(128), nullable=False),
+    Column("reason", Text),
+    Column("reason_codes", JSON),
+    Column("score", Integer),
+    Column("data", JSON),
+)
+
+sample_meta = Table(
+    "sample_meta", metadata,
+    Column("engagement_id", String(64), primary_key=True),
+    Column("sheet", String(32), primary_key=True),
+    Column("detail", JSON),
+)
+
+sample_tests = Table(
+    "sample_tests", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("sample_id", String(64), nullable=False, index=True),
+    Column("engagement_id", String(64), nullable=False, index=True),
+    Column("tests", JSON, nullable=False),
+    Column("flags", JSON),
+    Column("cause", Text),
+    Column("at", String(32)),
+)
+
+evidence_requests = Table(
+    "evidence_requests", metadata,
+    Column("request_id", String(64), primary_key=True),
+    Column("engagement_id", String(64), nullable=False, index=True),
+    Column("sample_id", String(64), nullable=False),
+    Column("document_type", String(32), nullable=False),
+    Column("note", Text),
+    Column("created_by", Text),
+    Column("created_at", String(32)),
+)
+
+evidence_results = Table(
+    "evidence_results", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("engagement_id", String(64), nullable=False, index=True),
+    Column("request_id", String(64), nullable=False),
+    Column("sample_id", String(64), nullable=False),
+    Column("upload_seq", BigInteger, nullable=False),
+    Column("file_hash", String(64), nullable=False),
+    Column("extracted", JSON),
+    Column("checks", JSON),
+    Column("at", String(32)),
+)
+
+extraction_cache = Table(
+    "extraction_cache", metadata,
+    Column("file_hash", String(64), primary_key=True),
+    Column("document_type", String(32), primary_key=True),
+    Column("result", JSON),
+)
+
+findings = Table(
+    "findings", metadata,
+    Column("finding_id", String(32), primary_key=True),
+    Column("engagement_id", String(64), nullable=False, index=True),
+    Column("detector_id", String(8), nullable=False),
+    Column("category", String(40), nullable=False),
+    Column("severity", String(8), nullable=False),
+    Column("record", JSON, nullable=False),
+    Column("created_at", String(32)),
+)
+
+finding_decisions = Table(
+    "finding_decisions", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("finding_id", String(32), nullable=False, index=True),
+    Column("engagement_id", String(64), nullable=False, index=True),
+    Column("decision", String(16), nullable=False),
+    Column("note", Text),
+    Column("identity", Text),
+    Column("role", String(32)),
+    Column("at", String(32)),
+)
+
+change_matches = Table(
+    "change_matches", metadata,
+    Column("engagement_id", String(64), primary_key=True),
+    Column("seq", BigInteger, primary_key=True),
+    Column("detail", JSON),
+)
+
+indicators = Table(
+    "indicators", metadata,
+    Column("engagement_id", String(64), primary_key=True),
+    Column("subject_id", String(128), primary_key=True),
+    Column("detail", JSON),
+)
+
+outputs = Table(
+    "outputs", metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("engagement_id", String(64), nullable=False, index=True),
+    Column("kind", String(16), nullable=False),
+    Column("file_hash", String(64), nullable=False),
+    Column("path", Text),
+    Column("head_hash", String(64)),
+    Column("at", String(32)),
+)
+
+
+class AuditRepo:
+    def __init__(self, url: str):
+        self.url = url
+        self.is_sqlite = url.startswith("sqlite")
+        if self.is_sqlite and url.startswith("sqlite:///") and not url.startswith("sqlite:///:memory:"):
+            from pathlib import Path
+
+            Path(url[len("sqlite:///"):]).parent.mkdir(parents=True, exist_ok=True)
+        kwargs: dict[str, Any] = {}
+        if self.is_sqlite:
+            kwargs["connect_args"] = {"check_same_thread": False}
+        self.engine: Engine = create_engine(url, **kwargs).execution_options(
+            schema_translate_map={"audit": None} if self.is_sqlite else None)
+        if self.is_sqlite:
+            @event.listens_for(self.engine, "connect")
+            def _pragma(conn, _):
+                cur = conn.cursor()
+                cur.execute("PRAGMA journal_mode=WAL")
+                cur.execute("PRAGMA busy_timeout=10000")
+                cur.close()
+
+    def create_all(self) -> None:
+        """Create tables if they do not exist. On Postgres the migrations in db/ are authoritative."""
+        if not self.is_sqlite:
+            from sqlalchemy import text
+
+            with self.engine.begin() as c:
+                c.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
+        metadata.create_all(self.engine)
+        if self.is_sqlite:
+            self._sqlite_append_only()
+
+    def _sqlite_append_only(self) -> None:
+        """Mirror the L4 triggers on SQLite so local tests catch accidental updates."""
+        from sqlalchemy import text
+
+        with self.engine.begin() as c:
+            for t in metadata.sorted_tables:
+                for op in ("UPDATE", "DELETE"):
+                    c.execute(text(
+                        f"CREATE TRIGGER IF NOT EXISTS {t.name}_no_{op.lower()} BEFORE {op} ON {t.name} "
+                        f"BEGIN SELECT RAISE(ABORT, '{t.name} is append-only'); END"))
+
+    # Generic helpers
+
+    def insert(self, table: Table, rows: dict | Iterable[dict], ignore_conflicts: bool = True) -> int:
+        rows = [rows] if isinstance(rows, dict) else list(rows)
+        if not rows:
+            return 0
+        if self.is_sqlite:
+            from sqlalchemy.dialects.sqlite import insert as dialect_insert
+        else:
+            from sqlalchemy.dialects.postgresql import insert as dialect_insert
+        stmt = dialect_insert(table)
+        if ignore_conflicts and table.primary_key.columns and not _autoinc(table):
+            stmt = stmt.on_conflict_do_nothing()
+        inserted = 0
+        with self.engine.begin() as c:
+            for i in range(0, len(rows), 500):
+                res = c.execute(stmt, rows[i:i + 500])
+                inserted += max(res.rowcount or 0, 0)
+        return inserted
+
+    def select(self, table: Table, order_by=None, **eq) -> list[dict]:
+        stmt = select(table)
+        for k, v in eq.items():
+            stmt = stmt.where(table.c[k] == v)
+        if order_by is not None:
+            stmt = stmt.order_by(*(order_by if isinstance(order_by, (list, tuple)) else [order_by]))
+        with self.engine.connect() as c:
+            return [dict(r._mapping) for r in c.execute(stmt)]
+
+    def first(self, table: Table, **eq) -> dict | None:
+        rows = self.select(table, **eq)
+        return rows[0] if rows else None
+
+    # Engagements
+
+    def open_engagements(self) -> list[dict]:
+        closed = {r["engagement_id"] for r in self.select(engagement_events, kind="closed")}
+        return [e for e in self.select(engagements, order_by=engagements.c.opened_at)
+                if e["engagement_id"] not in closed]
+
+    def is_closed(self, engagement_id: str) -> bool:
+        return bool(self.select(engagement_events, engagement_id=engagement_id, kind="closed"))
+
+    def mark_step(self, engagement_id: str, step: str, detail: dict | None = None, identity: str | None = None):
+        self.insert(engagement_events, {"engagement_id": engagement_id, "kind": "step_done", "step": step,
+                                        "detail": detail or {}, "identity": identity, "at": _now()})
+
+    def steps_done(self, engagement_id: str) -> dict[str, dict]:
+        out: dict[str, dict] = {}
+        for r in self.select(engagement_events, order_by=engagement_events.c.id, engagement_id=engagement_id,
+                             kind="step_done"):
+            out[r["step"]] = r
+        return out
+
+    # Findings
+
+    def add_findings(self, records: list[dict]) -> int:
+        rows = [{"finding_id": f["finding_id"], "engagement_id": f["engagement_id"], "detector_id": f["detector_id"],
+                 "category": f["category"], "severity": f["severity"], "record": f, "created_at": f["created_at"]}
+                for f in records]
+        return self.insert(findings, rows)
+
+    def findings(self, engagement_id: str) -> list[dict]:
+        decisions = self.latest_decisions(engagement_id)
+        out = []
+        for r in self.select(findings, order_by=findings.c.finding_id, engagement_id=engagement_id):
+            rec = dict(r["record"])
+            dec = decisions.get(rec["finding_id"])
+            rec["status"] = dec["decision"] if dec else "proposed"
+            rec["decided_by"] = dec["identity"] if dec else None
+            out.append(rec)
+        return out
+
+    def latest_decisions(self, engagement_id: str) -> dict[str, dict]:
+        out: dict[str, dict] = {}
+        for r in self.select(finding_decisions, order_by=finding_decisions.c.id, engagement_id=engagement_id):
+            out[r["finding_id"]] = r
+        return out
+
+    # Samples
+
+    def latest_tests(self, engagement_id: str) -> dict[str, dict]:
+        out: dict[str, dict] = {}
+        for r in self.select(sample_tests, order_by=sample_tests.c.id, engagement_id=engagement_id):
+            out[r["sample_id"]] = r
+        return out
+
+
+def _autoinc(table: Table) -> bool:
+    return any(c.autoincrement is True for c in table.primary_key.columns)
+
+
+def dumps(v: Any) -> str:
+    return json.dumps(v, sort_keys=True, default=str)
