@@ -62,25 +62,25 @@ def http(method, url, body=None, headers=None):
         return e.code, e.read(), dict(e.headers)
 
 
-def tool(who, name, **kwargs):
+def tool(who, tool_name, /, **kwargs):
     """Calls a tool. Returns (result, error); exactly one is None."""
-    status, raw, _ = http("POST", f"{args.base}/api/tools/{name}", kwargs, {"Authorization": f"Bearer {TOKENS[who]}"})
+    status, raw, _ = http("POST", f"{args.base}/api/tools/{tool_name}", kwargs, {"Authorization": f"Bearer {TOKENS[who]}"})
     body = json.loads(raw)
     if body.get("ok"):
         return body["result"], None
     return None, body.get("error", {"code": f"HTTP_{status}"})
 
 
-def must(who, name, **kwargs):
-    result, err = tool(who, name, **kwargs)
+def must(who, tool_name, /, **kwargs):
+    result, err = tool(who, tool_name, **kwargs)
     if err:
-        print(f"  FAIL  {name} was expected to succeed: {err}")
+        print(f"  FAIL  {tool_name} was expected to succeed: {err}")
         sys.exit(1)
     return result
 
 
-def code(who, name, **kwargs):
-    _, err = tool(who, name, **kwargs)
+def code(who, tool_name, /, **kwargs):
+    _, err = tool(who, tool_name, **kwargs)
     return err["code"] if err else "OK"
 
 
@@ -184,7 +184,8 @@ check("both versions of the customer are kept", len(history["history"]) == 2 and
 rev = must("client", "reverse_document", document_id=after["invoice_id"], reason="Raised in error", date="2025-04-03", idempotency_key=key("rev1"))
 reversed_record = must("client", "get_record", id=after["invoice_id"])
 mirror = [p for h in reversed_record["history"] if h["event"] == "DocumentReversed" for p in h.get("postings", [])]
-check("a reversal posts mirror lines and keeps the original", reversed_record["reversed"] and len(mirror) == 2 and len(reversed_record["history"]) == 2)
+check("a reversal posts mirror lines and keeps the original", reversed_record["reversed"] and len(mirror) == 3 and len(reversed_record["history"]) == 2
+      and sum(p["debit"] for p in mirror) == sum(p["credit"] for p in mirror) == 236000)
 check("reversing twice is refused",
       code("client", "reverse_document", document_id=after["invoice_id"], reason="again", date="2025-04-04", idempotency_key=key("rev2")) == "INVALID_TRANSITION")
 
@@ -324,7 +325,11 @@ if psql:
     print("Tamper detection")
 
     def sql(statement):
-        subprocess.run(shlex.split(psql) + ["-q", "-c", statement], check=True, capture_output=True)
+        # Options go before the connection string; psql on Windows ignores
+        # options that follow a positional argument.
+        parts = shlex.split(psql)
+        subprocess.run(parts[:1] + ["-q", "-v", "ON_ERROR_STOP=1", "-c", statement] + parts[1:],
+                       check=True, capture_output=True, stdin=subprocess.DEVNULL, timeout=60)
 
     target = inv["seq"]
     sql("ALTER TABLE business.events DISABLE TRIGGER append_only_row")

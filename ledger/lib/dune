@@ -1,0 +1,3 @@
+(library
+ (name ledger)
+ (libraries eio eio.unix cohttp-eio http uri yojson digestif postgresql unix threads.posix))

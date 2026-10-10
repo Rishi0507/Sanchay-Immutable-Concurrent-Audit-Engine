@@ -1,0 +1,17 @@
+(lang dune 3.10)
+
+(name ledger)
+
+(generate_opam_files true)
+
+(package
+ (name ledger)
+ (synopsis "Append-only, hash-chained double-entry ledger core")
+ (depends
+  (ocaml (>= 5.1))
+  dune
+  eio_main
+  cohttp-eio
+  yojson
+  digestif
+  postgresql))
