@@ -148,6 +148,7 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
             if ex.get("phash"):
                 phashes.append((ex["phash"], r["sample_id"], r["file_hash"]))
 
+    sample_by_id = {x["sample_id"]: x for x in all_samples}
     for s in targets:
         sid = s["sample_id"]
         reqs = by_sample.get(sid, [])
@@ -188,6 +189,8 @@ def verify_evidence(ctx, sample_id: str | None = None) -> dict:
                 for ph, other_sid, fh in phashes:
                     if other_sid != sid and (me - imagehash.hex_to_hash(ph)) <= th["phash_max_distance"]:
                         others.add(other_sid)
+            mine = _subject_key(s)
+            others = {o for o in others if _subject_key(sample_by_id.get(o)) != mine}
             if others:
                 fail("E-3", doc, f"{doc.replace('_', ' ')} file is also used as evidence for {', '.join(sorted(others))}.")
             # E-7: made to order.
@@ -261,6 +264,13 @@ _CHECK_NAMES = {"E-1": "DISAGREES_WITH_RECORD", "E-2": "DOCUMENTS_DISAGREE", "E-
 
 def _now() -> str:
     return dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _subject_key(s: dict | None) -> str | None:
+    """Two samples of the same transaction (for example Sales TOD and Cut-off TOD) may share documents."""
+    if not s:
+        return None
+    return (s["data"] or {}).get("aggregate_id") or f"{s['subject_type']}:{s['subject_id']}"
 
 
 def _sor_for(ctx, s: dict) -> dict | None:
