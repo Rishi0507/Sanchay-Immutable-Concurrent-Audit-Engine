@@ -16,6 +16,7 @@ The full specification is in [docs/PRD.md](docs/PRD.md).
 | `deploy/` | Docker Compose and the end-to-end check | YAML, Python | Built |
 | `engine/` | Audit engine: reconciliation, sampling, detectors, outputs | Python | Built |
 | `datagen/` | Synthetic data and self-test | Python | Built |
+| `agent/` | Auditor agent: a model that runs the audit through the MCP tools | Python | Built |
 
 The engine service runs the audit engine in `engine/`. The stand-in in `mcp/cmd/mockengine` is kept as a development aid.
 
@@ -90,6 +91,31 @@ For a client that speaks MCP over standard input and output:
 cd mcp && go run ./cmd/server --stdio --token auditor-demo-token
 ```
 
+## Run the auditor agent
+
+`agent/audit_agent.py` is a small MCP client. It holds an auditor token, reads the tool list from the server, and lets a hosted model choose the calls until the audit plan is complete. It uses the Python standard library only.
+
+The model is reached with plain text: the tools are described in the prompt and the model answers with the calls it wants as JSON. This works with gateways that do not pass tool definitions through. Requests are paced and kept under 44 KB, and a rate-limit answer is waited out.
+
+Set `LLM_URL`, `LLM_API_KEY` and `AGENT_MODEL` in `deploy/.env` (copy `deploy/.env.example`). Git ignores that file. The agent reads the values from the file when the environment does not set them. `LLM_MODEL` is a separate switch for the engine: while it is empty, no step in the application calls the model, and only the agent spends tokens.
+
+```sh
+python agent/audit_agent.py --client-cmd "cd datagen && uv run python -m elev_datagen respond --dataset ../var/seed --plant"
+```
+
+| Option | Meaning |
+|---|---|
+| `--client-cmd` | Command that answers the evidence requests as the client. It runs when the agent waits for evidence. |
+| `--seed` | Sampling seed. Each seed opens its own engagement, so a run does not disturb an earlier one. |
+| `--token-budget` | The run stops when the model has used this many tokens. Default 120,000. A run on the demo data used about 41,000. |
+| `--model` | Model for the agent. Default `AGENT_MODEL`, then `LLM_MODEL`. |
+| `--pace` | Seconds between requests to the model. Default 5. |
+| `--effort` | Reasoning effort asked of the model. Default `low`. |
+| `--no-model` | Follows the plan with no model. It checks the connection and the tools and is not an agent. |
+| `--transcript` | Writes every message to a JSON Lines file. |
+
+The agent never confirms a finding and never signs off. Those tools are withheld from the model, and the server refuses them for the auditor role in any case.
+
 ## Tool conventions
 
 | Topic | Rule |
@@ -103,7 +129,7 @@ cd mcp && go run ./cmd/server --stdio --token auditor-demo-token
 
 ## Run without Docker
 
-Requirements: Postgres 16, Go 1.27, Node 22, and OCaml 5.2 with opam.
+Requirements: Postgres 16, Go 1.27, Node 22, Python 3.12 with uv, and OCaml 5.2 with opam.
 
 ```sh
 # 1. Database
@@ -115,9 +141,10 @@ cd ledger
 opam install . --deps-only
 DATABASE_URL=postgres://ledger_rw:ledger_rw@localhost:5432/audit dune exec ledger
 
-# 3. Stand-in engine and MCP server
-cd mcp
-DATABASE_URL=postgres://engine_audit:engine_audit@localhost:5432/audit go run ./cmd/mockengine
+# 3. Audit engine and MCP server
+cd engine
+DATABASE_URL=postgres://engine_audit:engine_audit@localhost:5432/audit FILES_DIR=../mcp/data/files LEDGER_URL=http://localhost:7001 uv run python -m audit_engine.api
+cd ../mcp
 DATABASE_URL=postgres://mcp_read:mcp_read@localhost:5432/audit go run ./cmd/server
 
 # 4. User interface
@@ -140,6 +167,9 @@ cd ui && npm install && npm run dev
 | `OBJECT_STORE` | mcp | `dir` | `dir` for a directory, `s3` for MinIO or another S3-compatible store |
 | `FILES_DIR` | mcp, engine | `./data/files` | Directory for the `dir` store |
 | `MCP_STATEFUL` | mcp | `false` | Set `true` to keep MCP sessions between requests |
+| `OLLAMA_URL`, `OLLAMA_MODEL` | engine | unset, `llama3.2:3b` | Optional local model for evidence extraction and memo wording |
+| `LLM_URL`, `LLM_API_KEY`, `LLM_MODEL` | engine, agent | unset | Optional hosted model that speaks the chat completions format. For the engine it takes precedence over the local model. The agent requires it. An address that ends in `/v1` gets `/chat/completions` appended. Any other address is used as given. |
+| `LLM_REASONING_EFFORT`, `LLM_WORKERS` | engine | unset, `2` | Reasoning effort asked of the hosted model, and the number of concurrent requests to it. Hidden reasoning is billed as output, so `minimal` suits document reading. |
 
 ## Tests
 
