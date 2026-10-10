@@ -954,3 +954,68 @@ html[data-uv="on"] body {
 .doc > div:first-of-type {
   padding-right: 44px;
 }
+
+/* Samples step up out of the year, one after another. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.6);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.04);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.55s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+/* A band of violet light sweeps across the page as the lamp is switched. */
+@keyframes uv-sweep {
+  from {
+    transform: translateX(-40%);
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(140%);
+    opacity: 0;
+  }
+}
+
+.uv-sweep::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  background: linear-gradient(90deg, transparent, rgba(150, 70, 255, 0.28) 35%, rgba(200, 160, 255, 0.55) 50%, rgba(150, 70, 255, 0.28) 65%, transparent);
+  filter: blur(6px);
+  animation: uv-sweep 0.85s cubic-bezier(0.5, 0, 0.3, 1) forwards;
+}
+
+/* A new link of the chain slides in from the right. */
+@keyframes chain-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+.chain-in {
+  animation: chain-in 0.45s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-in,
+  .chain-in,
+  .uv-sweep::before {
+    animation: none;
+  }
+}

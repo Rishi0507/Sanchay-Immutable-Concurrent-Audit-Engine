@@ -6,6 +6,7 @@ import { CSSProperties, KeyboardEvent as RKeyboardEvent, ReactNode, useEffect, u
 import { callTool, money } from "../api";
 import { Button, Mark, cx, toast, useAction } from "../ui";
 import { NoteBand } from "../print";
+import { Figure } from "../Figure";
 
 export type Severity = "High" | "Medium" | "Low";
 export const severities: Severity[] = ["High", "Medium", "Low"];
@@ -163,7 +164,9 @@ export function Kpi({
           </svg>
         )}
       </div>
-      <div className={cx("amount mt-1.5 text-[36px] leading-10", tone && toneClass[tone])}>{value}</div>
+      <div className={cx("amount mt-1.5 text-[36px] leading-10", tone && toneClass[tone])}>
+        <Figure value={value} />
+      </div>
       {note && <div className="mt-1 text-[14px] leading-snug text-ink-2">{note}</div>}
       {children && <div className="mt-3">{children}</div>}
     </>
@@ -646,7 +649,9 @@ export function PageBrief({ lead, detail, stats, guide }: { lead: ReactNode; det
             const edge = s.tone === "bad" ? "before:bg-fail" : s.tone === "good" ? "before:bg-pass" : s.tone === "warn" ? "before:bg-highlight" : s.tone === "accent" ? "before:bg-brand" : "before:bg-line";
             const inner = (
               <>
-                <span className={cx("amount block text-[28px] leading-8", s.tone ? briefTone[s.tone] : "text-ink")}>{s.value}</span>
+                <span className={cx("amount block text-[28px] leading-8", s.tone ? briefTone[s.tone] : "text-ink")}>
+                  <Figure value={s.value} />
+                </span>
                 <span className="mt-1 block text-[14px] leading-snug font-medium text-ink-2">{s.label}</span>
               </>
             );

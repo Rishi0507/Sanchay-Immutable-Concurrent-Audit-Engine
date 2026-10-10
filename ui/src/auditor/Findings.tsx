@@ -5,6 +5,7 @@ import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Mark, 
 import { Stamp } from "../Stamp";
 import { Ranked, RiskMap, Swatch, ink } from "./charts";
 import { EmailAction, FindingLite, ListSkeleton, MoreBar, PageBrief, dedupe, Panel, SearchBox, Severity, SeverityBadge, SeverityIcon, Tally, Term, ViewHead, byPriority, catColor, category, findingStatus, inr, plural, sevFill, severities, sum } from "./kit";
+import { HoldToLight } from "./motion";
 
 interface Finding extends FindingLite {
   explanation?: string;
@@ -541,15 +542,18 @@ export default function Findings({ identity, pulse, focus, goTo, can }: ViewProp
       <ViewHead
         title="Findings"
         action={
-          can("send_report_email") ? (
-            <EmailAction
-              kind="findings_review"
-              label="Email the manager"
-              audience="the audit manager"
-              what="the count of findings awaiting review, by severity, with the largest high-severity findings"
-              disabledReason={everything.some((f) => f.status === "proposed" || f.status === "needs_info") ? undefined : "No findings are awaiting review"}
-            />
-          ) : undefined
+          <>
+            <HoldToLight />
+            {can("send_report_email") && (
+              <EmailAction
+                kind="findings_review"
+                label="Email the manager"
+                audience="the audit manager"
+                what="the count of findings awaiting review, by severity, with the largest high-severity findings"
+                disabledReason={everything.some((f) => f.status === "proposed" || f.status === "needs_info") ? undefined : "No findings are awaiting review"}
+              />
+            )}
+          </>
         }
       />
 

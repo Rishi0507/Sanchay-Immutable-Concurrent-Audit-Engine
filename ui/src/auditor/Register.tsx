@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ViewProps } from "../App";
 import { Button, Card, Chip, Empty, ErrorNote, Mark, Pills, Status, cx, useTool } from "../ui";
 import { Calendar, Columns, DayCell, Donut, Pareto, Swatch, ink } from "./charts";
 import { ChartSkeleton, FieldGrid, LedgerRows, MoreBar, PageBrief, Panel, RegisterRow, spotlight, SearchBox, Term, ViewHead, dateKey, day, inr, monthKey, monthLabel, monthRange, num, plural, registerFields, scaleFor, useRegisterAll } from "./kit";
+import { RegisterWall } from "./motion";
 
 const statuses = [
   { value: "MATCHED", label: "Agrees with the books", color: "color-mix(in oklab, var(--color-brand) 42%, transparent)" },
@@ -22,6 +23,10 @@ const reconLabel: Record<string, string> = {
   REVERSED_IN_SYSTEM: "Reversed in system",
 };
 
+const relatedTint = "color-mix(in oklab, var(--color-rp) 60%, transparent)";
+
+const notAgreeing = (r: RegisterRow) => !!r.recon_status && r.recon_status !== "MATCHED";
+
 const bucket = (r: RegisterRow) => (!r.recon_status ? "" : statuses.some((s) => s.value === r.recon_status) ? r.recon_status : "OTHER");
 const PAGE = 100;
 
@@ -34,6 +39,8 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
   const [limit, setLimit] = useState(PAGE);
   const [onlyBad, setOnlyBad] = useState(true);
   const [rowView, setRowView] = useState<"ledger" | "table">("ledger");
+  // The row opened in the list, by row number: from the list itself or from the wall.
+  const [openRow, setOpenRow] = useState<string | null>(null);
   const reg = useRegisterAll(!!engagementId, pulse);
   const engagement = useTool<any>(engagementId ? "get_engagement_status" : null, {}, [pulse]);
   const f = registerFields(reg.columns);
@@ -171,6 +178,41 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
   const attentionValue = f.value ? attention.reduce((t, r) => t + num(r.raw[f.value!]), 0) : 0;
   const filtered = !!(status || month || dayPick || customer || query);
   const relatedCustomers = charts.customers.filter(([, e]) => e.related).length;
+  // The wall: one square per row, coloured by how it reconciled, faint when filtered out.
+  const wallColor = useCallback((r: RegisterRow) => {
+    const b = bucket(r);
+    if (b && b !== "MATCHED") return statuses.find((x) => x.value === b)?.color ?? ink.high;
+    return r.rp_tag === "Related Party" ? relatedTint : statuses[0].color;
+  }, []);
+  const wallOn = useMemo(
+    () => (r: RegisterRow) => matchesStatus(r) && matchesMonth(r) && matchesCustomer(r) && matchesQuery(r),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [status, month, dayPick, customer, query, reg.rows],
+  );
+  const wallLabel = useCallback(
+    (r: RegisterRow) => {
+      const date = f.date ? dateKey(r.raw[f.date]) : null;
+      return {
+        title: f.bill ? String(r.raw[f.bill] ?? `Row ${r.row_no}`) : `Row ${r.row_no}`,
+        meta: [date ? day(date) : "", f.customer ? String(r.raw[f.customer] ?? "") : ""].filter(Boolean).join(", "),
+        value: f.value ? num(r.raw[f.value]) : undefined,
+        status: r.recon_status ? reconLabel[r.recon_status] ?? r.recon_status : "Not reconciled",
+      };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [reg.columns],
+  );
+  // Selecting a square finds its row in the list below and opens it.
+  const pickRow = (r: RegisterRow) => {
+    setStatus("");
+    setMonth("");
+    setDayPick("");
+    setCustomer("");
+    setQuery(f.bill ? String(r.raw[f.bill] ?? r.row_no) : String(r.row_no));
+    setRowView("ledger");
+    setOpenRow(String(r.row_no));
+    spotlight("rg-rows");
+  };
   const clear = () => {
     setStatus("");
     setMonth("");
@@ -221,6 +263,32 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
         </Card>
       ) : (
         <>
+          {/* Chapter 01 on the front page: the register as a wall of sales. */}
+          <Panel
+            id="rg-wall"
+            className="mb-5"
+            title="Every row of the register"
+            takeaway={`Each square is one of the ${all.toLocaleString("en-IN")} rows, in the order the client listed them. ${attention.length ? `The ${plural(attention.length, "row")} that do not agree stand out in colour.` : "Every one agrees with the books."} Select a square to open its row.`}
+          >
+            <RegisterWall rows={reg.rows} colorOf={wallColor} highlight={filtered ? wallOn : undefined} label={wallLabel} emphasis={notAgreeing} onPick={pickRow} />
+            <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-[13px] text-ink-2">
+              {statuses.map((st) => {
+                const count = reg.rows.filter((r) => bucket(r) === st.value).length;
+                return count ? (
+                  <span key={st.value} className="inline-flex items-center gap-1.5">
+                    <Swatch color={st.color} />
+                    {st.label}
+                    <span className="num font-semibold text-ink">{count.toLocaleString("en-IN")}</span>
+                  </span>
+                ) : null;
+              })}
+              <span className="inline-flex items-center gap-1.5">
+                <Swatch color={relatedTint} />
+                Agrees, sold to a related party
+              </span>
+            </div>
+          </Panel>
+
           <div id="rg-months" className="mb-5 grid gap-5 lg:grid-cols-[1.5fr_1fr]">
             <Panel
               title={onlyBad ? "In which months do rows not agree with the books?" : "How was the register's value spread across the year?"}
@@ -353,7 +421,7 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
                 )}
                 <span className="text-[14px] text-ink-2">
                   {plural(visible.length, "row")}
-                  {filtered ? ` of ${all}` : ""}
+                  {filtered ? ` of ${all.toLocaleString("en-IN")}` : ""}
                 </span>
                 {filtered && (
                   <button onClick={clear} className="text-[14px] font-medium text-brand hover:underline">
@@ -372,6 +440,8 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
                   <>
                     <div className="thin-scroll max-h-[640px] overflow-auto">
                       <LedgerRows
+                        open={openRow}
+                        onToggle={setOpenRow}
                         items={visible.slice(0, limit).map((r) => {
                           const b = bucket(r);
                           const st = statuses.find((x) => x.value === b);

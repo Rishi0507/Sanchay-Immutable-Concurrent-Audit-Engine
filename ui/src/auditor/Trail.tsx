@@ -4,6 +4,7 @@ import type { ViewProps } from "../App";
 import { Button, Card, Column, Empty, ErrorNote, Mark, Pills, Status, Table, cx, useAction, useTool } from "../ui";
 import { Columns, ink } from "./charts";
 import { FieldGrid, LedgerRows, ListSkeleton, MoreBar, PageBrief, Panel, SearchBox, ViewHead, plural, spotlight } from "./kit";
+import { ChainStrip } from "./motion";
 
 interface Entry {
   trail_seq: number;
@@ -42,6 +43,22 @@ export default function Trail({ pulse }: ViewProps) {
   // activity by other users, not on every render.
   const first = useTool<{ entries: Entry[]; next_cursor: string | null; verification: any }>("get_audit_trail", { limit: 500 }, [pulse]);
   const { busy, run } = useAction();
+  // The newest entries in order, for the chain strip.
+  const links = useMemo(
+    () =>
+      [...(first.data?.entries ?? [])]
+        .sort((a, b) => a.trail_seq - b.trail_seq)
+        .slice(-10)
+        .map((e) => ({
+          seq: e.trail_seq,
+          hash: e.hash,
+          prev: e.prev_hash,
+          title: e.tool.replace(/_/g, " "),
+          who: `${roleLabel[e.role] ?? e.role}, ${new Date(e.ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`,
+          ok: e.status === "ok",
+        })),
+    [first.data],
+  );
 
   useEffect(() => {
     setRows(first.data?.entries ?? []);
@@ -202,6 +219,21 @@ export default function Trail({ pulse }: ViewProps) {
             { label: "Every entry", target: "tr-rows" },
           ]}
         />
+      )}
+
+      {/* Chapter 05 on the front page: sealed, so no one can change it. */}
+      {links.length > 1 && (
+        <Panel
+          id="tr-chain"
+          className="mb-5"
+          title="The latest links of the chain"
+          takeaway="Each entry names the hash of the one before it. The browser checks every link shown here, and a new entry slides in at the right as it happens."
+          flush
+        >
+          <div className="px-5 pt-4 pb-3">
+            <ChainStrip links={links} />
+          </div>
+        </Panel>
       )}
 
       {/* Chain integrity first: it is what makes the rest trustworthy. */}

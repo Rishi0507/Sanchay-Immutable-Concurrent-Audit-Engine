@@ -4,6 +4,7 @@ import type { ViewProps } from "../App";
 import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Mark, Pills, Section, Status, Table, cx, toast, toneFor, useAction, useTool } from "../ui";
 import { Columns, CutoffItem, CutoffTimeline, Donut, Ranked, ink } from "./charts";
 import { EmailAction, LedgerRows, ListSkeleton, MoreBar, PageBrief, Panel, SearchBox, Tally, Term, ViewHead, inr, monthKey, monthLabel, monthRange, plural, scaleFor } from "./kit";
+import { SampleRise } from "./motion";
 
 type Sheet = "sales_tod" | "cutoff_tod" | "credit_note_tod";
 
@@ -307,6 +308,33 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
           );
         })}
       </div>
+
+      {/* Chapter 02 on the front page: the samples step out of the year. */}
+      {samples.length > 0 && (
+        <Panel
+          id="sm-draw"
+          className="mb-5"
+          title={`${plural(samples.length, "sample")}, stepping out of the ${sheet === "cutoff_tod" ? "year end" : "year"}`}
+          takeaway="Each note is one sample, at its date and as high as its value, with its result written on it. Select a note to open the sample."
+        >
+          <SampleRise
+            items={samples.map((x) => {
+              const o = worst(x.tests);
+              return {
+                key: x.sample_id,
+                date: x.date,
+                value: Number(x.taxable_value) || 0,
+                label: x.credit_note_no ?? x.invoice_no ?? x.subject_id,
+                note: [x.customer, reasonLabel[x.reason_codes?.[0]] ?? x.reason, o ? outcomes.find((c) => c.value === o)?.short : ""].filter(Boolean).join(", "),
+                tone: o === "Pass" ? "good" : o === "Exception" || o === "Changed after testing" ? "bad" : "warn",
+                color: outcomes.find((c) => c.value === o)?.color ?? ink.muted,
+              };
+            })}
+            periodEnd={status.data?.period_end}
+            onPick={(k) => setSelected(samples.find((x) => x.sample_id === k) ?? null)}
+          />
+        </Panel>
+      )}
 
       {samples.length > 0 && <MoreBar group="sm" title="More analysis" items="Test results as a chart, when the sampled sales were booked, and why each one was picked." />}
       {samples.length > 0 && (

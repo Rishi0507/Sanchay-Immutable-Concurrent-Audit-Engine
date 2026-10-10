@@ -4,6 +4,7 @@ import type { ViewProps } from "../App";
 import { Button, Card, ErrorNote, Field, KeyValues, Mark, Pills, Status, cx, inputClass, toast, useAction, useTool } from "../ui";
 import { Bridge, BridgeStep, ColumnDatum, Columns, Swatch, ink } from "./charts";
 import { ChartSkeleton, FindingLite, MoreBar, dedupe, ListSkeleton, Panel, ReviewProgress, Ring, SeverityBadge, Skeleton, Term, ViewHead, byPriority, catColor, category, family, day, inr, monthKey, monthLabel, monthRange, num, plural, registerFields, scaleFor, sum, useRegisterAll } from "./kit";
+import { Figure } from "../Figure";
 
 interface Step {
   step: string;
@@ -497,7 +498,7 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement, iden
             <span className="relative inline-block">
               {exposure > 0 && <PenCircle />}
               <span className={cx("display relative block text-[64px] leading-[0.95] sm:text-[88px]", exposure > 0 ? "text-fail" : "text-ink")} style={{ fontVariationSettings: '"wdth" 76', fontWeight: 720 }}>
-                {inr(s.signed_off ? view.confirmedValue : exposure)}
+                <Figure value={inr(s.signed_off ? view.confirmedValue : exposure)} />
               </span>
             </span>
             <span className="mb-2 text-[20px] leading-snug font-semibold text-ink">
@@ -607,7 +608,9 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement, iden
             </span>
             <span className="min-w-0">
               <span className="block text-[14px] font-semibold text-ink-2">{c.label}</span>
-              <span className={cx("amount mt-0.5 block text-[38px] leading-[1.05]", c.bad ? "text-fail" : "text-ink")}>{c.value}</span>
+              <span className={cx("amount mt-0.5 block text-[38px] leading-[1.05]", c.bad ? "text-fail" : "text-ink")}>
+                <Figure value={c.value} />
+              </span>
               <span className={cx("mt-1 block text-[13.5px] leading-snug", c.bad ? "font-semibold text-fail" : "text-ink-2")}>{c.note}</span>
             </span>
           </button>
