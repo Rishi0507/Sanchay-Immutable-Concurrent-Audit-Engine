@@ -1,16 +1,16 @@
-// The counterparty graph in three dimensions.
+// The counterparty graph as a trade board.
 //
-// The company sits at the centre as the core. Every counterparty is placed on
-// an orbit: the more it trades with the company, the closer and larger it is.
-// Customers sit above the equator, vendors below, mixed clusters on it. Goods
-// and money travel along the arcs as particles, so the flow can be read at a
-// glance. A selected trading cycle is lit as a closed loop and the camera
-// turns to face it; everything else falls back.
+// Read it left to right: vendors supply the company on the left, the company
+// sits in the middle, customers buy on the right. Each counterparty is a
+// column whose height is its trade with the company. Parties that both buy
+// and sell, where circular trading lives, stand in their own row in front.
+// Only the parties that matter are drawn: the largest vendors and customers,
+// every related party and every member of a cycle. The rest are summed into
+// one column per side, so the picture stays readable.
 //
 // Layout is deterministic: the same graph always draws the same way.
 
 import { Canvas, ThreeEvent, useFrame, useThree } from "@react-three/fiber";
-import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { money } from "../api";
@@ -22,123 +22,208 @@ export interface GraphData {
   cycles: { finding_id?: string; path: string[]; value: number }[];
 }
 
-interface Placed {
+type Side = "vendor" | "customer" | "both" | "company" | "entity";
+
+interface Column {
   id: string;
   label: string;
-  kind: string;
+  side: Side;
   related: boolean;
+  inCycle: boolean;
+  others: number; // how many parties a summary column stands for, 0 for a single party
   pos: THREE.Vector3;
-  size: number;
+  height: number;
   volume: number;
   goodsIn: number;
   goodsOut: number;
   moneyIn: number;
   moneyOut: number;
-  inCycle: boolean;
 }
 
-interface Arc {
+interface Flow {
   from: number;
   to: number;
-  kind: string;
+  kind: "goods" | "money";
   value: number;
-  curve: THREE.QuadraticBezierCurve3;
+  curve: THREE.CatmullRomCurve3;
+  width: number;
 }
 
-const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+const TOP_VENDORS = 5;
+const TOP_CUSTOMERS = 6;
+const NAMED_PER_SIDE = 3;
 const isCompany = (k: string) => k === "company" || k === "entity";
 
-function palette(dark: boolean) {
-  return {
-    company: new THREE.Color(token("brand")),
-    customer: new THREE.Color(token("wait")),
-    vendor: new THREE.Color(token("warm")),
-    related: new THREE.Color(token("rp")),
-    goods: new THREE.Color(dark ? token("ink-2") : token("ink-3")),
-    money: new THREE.Color(token("pass")),
-    cycle: new THREE.Color(token("fail")),
-    line: new THREE.Color(token("line")),
-    ink: token("ink"),
-    dark,
-  };
+function sideOf(kind: string): Side {
+  if (kind === "company") return "company";
+  if (kind === "entity") return "entity";
+  if (kind === "vendor") return "vendor";
+  if (kind === "customer") return "customer";
+  return "both";
 }
 
-function layout(data: GraphData) {
-  const volume = new Map<string, number>();
+// Back-row labels alternate between two heights so neighbours do not overlap.
+function labelLift(c: Column): number {
+  return c.side === "both" && Math.abs(Math.round(c.pos.x / 3.3)) % 2 === 1 ? 1.5 : 0;
+}
+
+export function compact(v: number): string {
+  const a = Math.abs(v);
+  if (a >= 1e7) return `₹ ${(v / 1e7).toFixed(a >= 1e9 ? 0 : 1)} Cr`;
+  if (a >= 1e5) return `₹ ${(v / 1e5).toFixed(1)} L`;
+  return `₹ ${money(v)}`;
+}
+
+function build(data: GraphData) {
   const flows = new Map<string, { gi: number; go: number; mi: number; mo: number }>();
-  const flow = (id: string) => {
+  const f = (id: string) => {
     if (!flows.has(id)) flows.set(id, { gi: 0, go: 0, mi: 0, mo: 0 });
     return flows.get(id)!;
   };
   for (const e of data.edges) {
-    volume.set(e.source, (volume.get(e.source) ?? 0) + e.value);
-    volume.set(e.target, (volume.get(e.target) ?? 0) + e.value);
     if (e.kind === "money") {
-      flow(e.source).mo += e.value;
-      flow(e.target).mi += e.value;
+      f(e.source).mo += e.value;
+      f(e.target).mi += e.value;
     } else {
-      flow(e.source).go += e.value;
-      flow(e.target).gi += e.value;
+      f(e.source).go += e.value;
+      f(e.target).gi += e.value;
     }
   }
-  const cycleNodes = new Set(data.cycles.flatMap((c) => c.path));
-  // Volumes span several orders of magnitude, so place by log volume between the smallest and largest partner.
-  const logs = data.nodes.filter((n) => !isCompany(n.kind)).map((n) => Math.log10(1 + (volume.get(n.id) ?? 0)));
-  const logMin = Math.min(...logs, 0);
-  const logMax = Math.max(...logs, logMin + 1);
-  const companies = data.nodes.filter((n) => isCompany(n.kind));
-  const others = data.nodes
-    .filter((n) => !isCompany(n.kind))
-    .sort((a, b) => (volume.get(b.id) ?? 0) - (volume.get(a.id) ?? 0) || a.id.localeCompare(b.id));
-
-  const placed: Placed[] = [];
-  const base = (n: GraphData["nodes"][number], pos: THREE.Vector3, size: number): Placed => {
-    const f = flows.get(n.id) ?? { gi: 0, go: 0, mi: 0, mo: 0 };
-    return {
-      id: n.id, label: n.label, kind: n.kind, related: !!n.related, pos, size, volume: volume.get(n.id) ?? 0,
-      goodsIn: f.gi, goodsOut: f.go, moneyIn: f.mi, moneyOut: f.mo, inCycle: cycleNodes.has(n.id),
-    };
+  const vol = (id: string) => {
+    const x = flows.get(id);
+    return x ? x.gi + x.go + x.mi + x.mo : 0;
   };
-  companies.forEach((n, i) => {
-    const pos = i === 0 ? new THREE.Vector3() : new THREE.Vector3(Math.cos(i * 2.1) * 3.2, (i % 2 ? 1 : -1) * 1.1, Math.sin(i * 2.1) * 3.2);
-    placed.push(base(n, pos, i === 0 ? 1.15 : 0.7));
-  });
-  const counts = { up: 0, down: 0, mid: 0 };
-  others.forEach((n) => {
-    const v = volume.get(n.id) ?? 0;
-    const w = (Math.log10(1 + v) - logMin) / (logMax - logMin); // 0..1
-    const lane = n.kind === "customer" ? "up" : n.kind === "vendor" ? "down" : "mid";
-    const i = counts[lane]++;
-    const radius = 5.5 + Math.pow(1 - w, 0.8) * 15 + (i % 4) * 0.45;
-    let y: number;
-    if (lane === "up") y = 0.12 + 0.78 * ((i * 0.6180339) % 1);
-    else if (lane === "down") y = -(0.12 + 0.78 * ((i * 0.6180339) % 1));
-    else y = ((i * 0.6180339) % 1) * 0.36 - 0.18;
-    const theta = i * GOLDEN + (lane === "down" ? 1.3 : lane === "mid" ? 2.4 : 0);
-    const ring = Math.sqrt(1 - y * y);
-    const pos = new THREE.Vector3(Math.cos(theta) * ring, y * 0.8, Math.sin(theta) * ring).multiplyScalar(radius);
-    placed.push(base(n, pos, 0.09 + 0.26 * w * w));
-  });
-  const index = new Map(placed.map((p, i) => [p.id, i]));
-  const arcs: Arc[] = [];
-  for (const e of data.edges) {
-    const a = index.get(e.source);
-    const b = index.get(e.target);
-    if (a === undefined || b === undefined || a === b) continue;
-    const pa = placed[a].pos;
-    const pb = placed[b].pos;
-    const mid = pa.clone().add(pb).multiplyScalar(0.5);
-    const lift = pa.distanceTo(pb) * 0.22;
-    const out = mid.lengthSq() > 0.01 ? mid.clone().normalize() : new THREE.Vector3(0, 1, 0);
-    // Goods and money between the same pair bow to opposite sides, so both stay visible.
-    const side = new THREE.Vector3().subVectors(pb, pa).cross(out).normalize().multiplyScalar(e.kind === "money" ? lift * 0.55 : -lift * 0.55);
-    const ctrl = mid.add(out.multiplyScalar(lift)).add(side);
-    arcs.push({ from: a, to: b, kind: e.kind, value: e.value, curve: new THREE.QuadraticBezierCurve3(pa.clone(), ctrl, pb.clone()) });
+  const cycleIds = new Set(data.cycles.flatMap((c) => c.path));
+  const byVol = (a: { id: string }, b: { id: string }) => vol(b.id) - vol(a.id) || a.id.localeCompare(b.id);
+
+  // Choose what to draw.
+  const keep = new Set<string>();
+  const grouped = new Map<string, string>(); // party id -> summary column id
+  const groups: Record<"vendor" | "customer" | "both", string[]> = { vendor: [], customer: [], both: [] };
+  for (const side of ["vendor", "customer"] as const) {
+    const list = data.nodes.filter((n) => sideOf(n.kind) === side).sort(byVol);
+    const top = side === "vendor" ? TOP_VENDORS : TOP_CUSTOMERS;
+    list.forEach((n, i) => {
+      if (i < top || n.related || cycleIds.has(n.id)) keep.add(n.id);
+      else {
+        grouped.set(n.id, `others:${side}`);
+        groups[side].push(n.id);
+      }
+    });
   }
-  return { placed, index, arcs };
+  data.nodes.forEach((n) => {
+    const s = sideOf(n.kind);
+    if (s === "company" || s === "entity") keep.add(n.id);
+    if (s === "both") {
+      if (n.related || cycleIds.has(n.id)) keep.add(n.id);
+      else {
+        grouped.set(n.id, "others:both");
+        groups.both.push(n.id);
+      }
+    }
+  });
+
+  const columns: Column[] = [];
+  const index = new Map<string, number>();
+  const add = (c: Omit<Column, "pos" | "height">) => {
+    index.set(c.id, columns.length);
+    columns.push({ ...c, pos: new THREE.Vector3(), height: 0 });
+  };
+  for (const n of data.nodes.filter((x) => keep.has(x.id))) {
+    const fl = flows.get(n.id) ?? { gi: 0, go: 0, mi: 0, mo: 0 };
+    add({ id: n.id, label: n.label, side: sideOf(n.kind), related: !!n.related, inCycle: cycleIds.has(n.id), others: 0,
+      volume: vol(n.id), goodsIn: fl.gi, goodsOut: fl.go, moneyIn: fl.mi, moneyOut: fl.mo });
+  }
+  for (const side of ["vendor", "customer", "both"] as const) {
+    const ids = groups[side];
+    if (!ids.length) continue;
+    const sum = { gi: 0, go: 0, mi: 0, mo: 0 };
+    ids.forEach((id) => {
+      const x = flows.get(id);
+      if (x) (Object.keys(sum) as (keyof typeof sum)[]).forEach((k) => (sum[k] += x[k]));
+    });
+    add({ id: `others:${side}`, label: side === "both" ? `${ids.length} others that buy and sell` : `${ids.length} other ${side}s`, side, related: false, inCycle: false, others: ids.length,
+      volume: sum.gi + sum.go + sum.mi + sum.mo, goodsIn: sum.gi, goodsOut: sum.go, moneyIn: sum.mi, moneyOut: sum.mo });
+  }
+
+  // Heights: log scale between the smallest and largest party drawn.
+  const parties = columns.filter((c) => !isCompany(c.side));
+  const logs = parties.map((c) => Math.log10(1 + c.volume));
+  const lo = Math.min(...logs, 0);
+  const hi = Math.max(...logs, lo + 1);
+  parties.forEach((c) => {
+    c.height = 0.5 + 4.2 * ((Math.log10(1 + c.volume) - lo) / (hi - lo));
+  });
+
+  // Positions: vendors on an arc to the left, customers to the right, both-sided parties in front.
+  const place = (list: Column[], dir: -1 | 1) => {
+    const ordered = list.filter((c) => !c.others).sort((a, b) => b.volume - a.volume || a.id.localeCompare(b.id));
+    const summary = list.find((c) => c.others);
+    const all = summary ? [...ordered, summary] : ordered;
+    const span = Math.min(1.5, 0.24 * Math.max(1, all.length - 1));
+    all.forEach((c, i) => {
+      const t = all.length === 1 ? 0 : i / (all.length - 1);
+      const a = -span / 2 + t * span;
+      const r = 11.5;
+      c.pos.set(dir * Math.cos(a) * r, 0, -Math.sin(a) * r * 1.05);
+    });
+  };
+  place(columns.filter((c) => c.side === "vendor"), -1);
+  place(columns.filter((c) => c.side === "customer"), 1);
+  const both = columns.filter((c) => c.side === "both").sort((a, b) => b.volume - a.volume || a.id.localeCompare(b.id));
+  both.forEach((c, i) => c.pos.set((i - (both.length - 1) / 2) * 3.3, 0, -6.6));
+  const comps = columns.filter((c) => isCompany(c.side));
+  comps.forEach((c, i) => {
+    c.height = i === 0 ? 1.6 : 1.1;
+    c.pos.set(i === 0 ? 0 : (i % 2 ? 1 : -1) * 3.4 * Math.ceil(i / 2), 0, i === 0 ? 0 : 3.6);
+  });
+
+  // Flows between drawn columns, summed when parties were grouped.
+  const sums = new Map<string, { from: number; to: number; kind: "goods" | "money"; value: number }>();
+  for (const e of data.edges) {
+    const s = index.get(keep.has(e.source) ? e.source : grouped.get(e.source) ?? "");
+    const t = index.get(keep.has(e.target) ? e.target : grouped.get(e.target) ?? "");
+    if (s === undefined || t === undefined || s === t) continue;
+    const kind = e.kind === "money" ? "money" : "goods";
+    const key = `${s}>${t}>${kind}`;
+    const cur = sums.get(key) ?? { from: s, to: t, kind, value: 0 };
+    cur.value += e.value;
+    sums.set(key, cur);
+  }
+  const maxV = Math.max(1, ...[...sums.values()].map((x) => x.value));
+  const flowList: Flow[] = [...sums.values()].map((x) => {
+    const a = columns[x.from].pos;
+    const b = columns[x.to].pos;
+    // Goods arcs run high, money arcs run low, so the two directions never sit on top of each other.
+    const lift = x.kind === "goods" ? 1.9 : 0.55;
+    const side = new THREE.Vector3(b.z - a.z, 0, a.x - b.x).normalize().multiplyScalar(x.kind === "goods" ? 0.35 : -0.35);
+    const mid = a.clone().add(b).multiplyScalar(0.5).add(side);
+    mid.y = lift + a.distanceTo(b) * (x.kind === "goods" ? 0.09 : 0.03);
+    const start = a.clone().setY(x.kind === "goods" ? 0.35 : 0.12);
+    const end = b.clone().setY(x.kind === "goods" ? 0.35 : 0.12);
+    return { ...x, curve: new THREE.CatmullRomCurve3([start, mid, end]), width: 0.025 + 0.075 * Math.sqrt(x.value / maxV) };
+  });
+  return { columns, index, flows: flowList, grouped };
 }
 
-// Orbit camera written by hand: drag to turn, wheel to zoom, idle turns slowly.
+function palette(dark: boolean) {
+  return {
+    dark,
+    paper: new THREE.Color(token("paper")),
+    wash: new THREE.Color(token("wash")),
+    line: new THREE.Color(token("line")),
+    ink: new THREE.Color(token("ink")),
+    ink3: new THREE.Color(token("ink-3")),
+    company: new THREE.Color(token("brand")),
+    customer: new THREE.Color(token("wait")),
+    vendor: new THREE.Color(token("warm")),
+    both: new THREE.Color(token("rp")),
+    goods: new THREE.Color(dark ? token("ink-2") : token("ink-3")),
+    money: new THREE.Color(token("pass")),
+    cycle: new THREE.Color(token("fail")),
+  };
+}
+
 interface CamState {
   theta: number;
   phi: number;
@@ -146,336 +231,173 @@ interface CamState {
   target: THREE.Vector3;
   goalTarget: THREE.Vector3;
   goalDist: number;
-  dragging: boolean;
-  lastInput: number;
 }
 
-function Rig({ cam, reduced }: { cam: React.MutableRefObject<CamState>; reduced: boolean }) {
+const HOME = { theta: 0, phi: 0.62, dist: 34 };
+const HOME_TARGET: [number, number, number] = [0, 1.2, -2.2];
+
+function Rig({ cam }: { cam: React.MutableRefObject<CamState> }) {
   const { camera } = useThree();
   useFrame((_, dt) => {
     const c = cam.current;
-    const idle = performance.now() / 1000 - c.lastInput > 2.5;
-    if (!c.dragging && idle && !reduced) c.theta += dt * 0.06;
-    const k = 1 - Math.pow(0.02, dt);
+    const k = 1 - Math.pow(0.03, dt);
     c.target.lerp(c.goalTarget, k);
     c.dist += (c.goalDist - c.dist) * k;
     const sp = Math.sin(c.phi);
-    camera.position.set(
-      c.target.x + c.dist * sp * Math.sin(c.theta),
-      c.target.y + c.dist * Math.cos(c.phi),
-      c.target.z + c.dist * sp * Math.cos(c.theta),
-    );
+    camera.position.set(c.target.x + c.dist * sp * Math.sin(c.theta), c.target.y + c.dist * Math.cos(c.phi), c.target.z + c.dist * sp * Math.cos(c.theta));
     camera.lookAt(c.target);
   });
   return null;
 }
 
-function Stars({ dark }: { dark: boolean }) {
-  const geo = useMemo(() => {
-    const n = 900;
-    const pos = new Float32Array(n * 3);
-    let s = 7;
-    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-    for (let i = 0; i < n; i++) {
-      const u = rnd() * 2 - 1;
-      const t = rnd() * Math.PI * 2;
-      const r = 55 + rnd() * 45;
-      const q = Math.sqrt(1 - u * u);
-      pos.set([Math.cos(t) * q * r, u * r, Math.sin(t) * q * r], i * 3);
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+function Board({ pal }: { pal: ReturnType<typeof palette> }) {
+  const grid = useMemo(() => {
+    const g = new THREE.GridHelper(44, 22, pal.line, pal.line);
+    const m = g.material as THREE.Material;
+    m.transparent = true;
+    m.opacity = pal.dark ? 0.35 : 0.6;
     return g;
-  }, []);
-  const ref = useRef<THREE.Points>(null);
-  useFrame((_, dt) => {
-    if (ref.current) ref.current.rotation.y += dt * 0.004;
-  });
+  }, [pal]);
   return (
-    <points ref={ref} geometry={geo}>
-      <pointsMaterial size={0.16} sizeAttenuation color={dark ? "#cfd6e4" : "#9aa0ab"} transparent opacity={dark ? 0.55 : 0.35} depthWrite={false} />
-    </points>
-  );
-}
-
-function OrbitGuides({ color }: { color: THREE.Color }) {
-  const rings = [6, 10.5, 15, 20];
-  return (
-    <group rotation={[Math.PI / 2, 0, 0]}>
-      {rings.map((r) => (
-        <mesh key={r}>
-          <ringGeometry args={[r - 0.012, r + 0.012, 160]} />
-          <meshBasicMaterial color={color} transparent opacity={0.35} side={THREE.DoubleSide} depthWrite={false} />
-        </mesh>
-      ))}
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
+        <planeGeometry args={[44, 30]} />
+        <meshStandardMaterial color={pal.wash} roughness={1} />
+      </mesh>
+      <primitive object={grid} position={[0, 0, 0]} scale={[1, 1, 30 / 44]} />
     </group>
   );
 }
 
-function Core({ pos, size, color, reduced }: { pos: THREE.Vector3; size: number; color: THREE.Color; reduced: boolean }) {
-  const shell = useRef<THREE.Mesh>(null);
-  const halo = useRef<THREE.Mesh>(null);
-  useFrame((state, dt) => {
-    if (reduced) return;
-    if (shell.current) {
-      shell.current.rotation.y += dt * 0.25;
-      shell.current.rotation.x += dt * 0.11;
-    }
-    if (halo.current) {
-      const s = 1 + Math.sin(state.clock.elapsedTime * 1.6) * 0.06;
-      halo.current.scale.setScalar(s);
-    }
-  });
-  const glow = color.clone().multiplyScalar(2.6);
-  return (
-    <group position={pos}>
-      <mesh>
-        <sphereGeometry args={[size * 0.62, 48, 48]} />
-        <meshBasicMaterial color={glow} toneMapped={false} />
-      </mesh>
-      <mesh ref={shell}>
-        <icosahedronGeometry args={[size, 1]} />
-        <meshBasicMaterial color={color.clone().multiplyScalar(1.4)} wireframe transparent opacity={0.55} toneMapped={false} />
-      </mesh>
-      <mesh ref={halo}>
-        <sphereGeometry args={[size * 1.55, 32, 32]} />
-        <meshBasicMaterial color={color} transparent opacity={0.07} depthWrite={false} />
-      </mesh>
-    </group>
-  );
-}
-
-function Nodes({
-  placed, pal, focus, hovered, onHover, onPick, intro,
+function ColumnMesh({
+  c, i, pal, state, onHover, onPick,
 }: {
-  placed: Placed[];
+  c: Column;
+  i: number;
   pal: ReturnType<typeof palette>;
-  focus: Set<string> | null;
-  hovered: number | null;
+  state: "normal" | "hot" | "dim";
   onHover: (i: number | null) => void;
   onPick: (i: number) => void;
-  intro: React.MutableRefObject<number>;
 }) {
-  const list = placed.filter((p) => !isCompany(p.kind));
-  const ref = useRef<THREE.InstancedMesh>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  const offset = placed.length - list.length;
-
-  useEffect(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    list.forEach((p, i) => {
-      const c = (p.kind === "customer" ? pal.customer : p.kind === "vendor" ? pal.vendor : pal.related).clone();
-      const dim = focus && !focus.has(p.id);
-      if (focus && focus.has(p.id)) c.copy(pal.cycle).multiplyScalar(2.2);
-      else if (dim) c.multiplyScalar(pal.dark ? 0.05 : 0.35).lerp(pal.line, pal.dark ? 0.15 : 0.6);
-      else c.multiplyScalar(pal.dark ? 1.35 : 1);
-      mesh.setColorAt(i, c);
-    });
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [list, pal, focus]);
-
-  useFrame((state) => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    const t = intro.current;
-    const e = 1 - Math.pow(1 - t, 3);
-    list.forEach((p, i) => {
-      const pulse = p.inCycle && !focus ? 1 + Math.sin(state.clock.elapsedTime * 2.4 + i) * 0.12 : 1;
-      const grow = hovered === i + offset ? 1.6 : focus ? (focus.has(p.id) ? 1.7 : 0.7) : 1;
-      dummy.position.copy(p.pos).multiplyScalar(e);
-      dummy.scale.setScalar(p.size * pulse * grow * Math.max(0.05, e));
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-    });
-    mesh.instanceMatrix.needsUpdate = true;
+  const ref = useRef<THREE.Mesh>(null);
+  const shown = useRef(0);
+  const base =
+    c.side === "company" || c.side === "entity" ? pal.company : c.side === "vendor" ? pal.vendor : c.side === "customer" ? pal.customer : pal.both;
+  const color = useMemo(() => {
+    if (state === "hot") return pal.cycle.clone();
+    if (c.others) return pal.ink3.clone();
+    const col = base.clone();
+    if (state === "dim") col.lerp(pal.wash, 0.78);
+    return col;
+  }, [state, base, pal, c.others]);
+  const w = isCompany(c.side) ? (c.side === "company" ? 2.6 : 1.8) : c.others ? 1.1 : 0.9;
+  useFrame((_, dt) => {
+    // Columns rise once when the view opens.
+    shown.current = Math.min(1, shown.current + dt * 1.4);
+    const e = 1 - Math.pow(1 - shown.current, 3);
+    if (ref.current) {
+      ref.current.scale.y = Math.max(0.001, e);
+      ref.current.position.y = (c.height * e) / 2;
+    }
   });
-
   return (
-    <instancedMesh
-      ref={ref}
-      args={[undefined, undefined, list.length]}
-      onPointerMove={(ev: ThreeEvent<PointerEvent>) => {
-        ev.stopPropagation();
-        if (ev.instanceId !== undefined) onHover(ev.instanceId + offset);
-      }}
-      onPointerOut={() => onHover(null)}
-      onClick={(ev: ThreeEvent<MouseEvent>) => {
-        ev.stopPropagation();
-        if (ev.instanceId !== undefined) onPick(ev.instanceId + offset);
-      }}
-    >
-      <sphereGeometry args={[1, 32, 32]} />
-      <meshStandardMaterial roughness={0.32} metalness={0.15} toneMapped={false} />
-    </instancedMesh>
+    <group position={[c.pos.x, 0, c.pos.z]}>
+      <mesh
+        ref={ref}
+        castShadow
+        onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+          e.stopPropagation();
+          onHover(i);
+        }}
+        onPointerOut={() => onHover(null)}
+        onClick={(e: ThreeEvent<MouseEvent>) => {
+          e.stopPropagation();
+          onPick(i);
+        }}
+      >
+        <boxGeometry args={[w, c.height, w]} />
+        <meshStandardMaterial color={color} roughness={0.55} metalness={isCompany(c.side) ? 0.35 : 0.05} transparent opacity={state === "dim" ? 0.55 : 1} />
+      </mesh>
+      {c.related && (
+        <mesh position={[0, 0.012, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[w * 0.82, w * 0.98, 48]} />
+          <meshBasicMaterial color={pal.both} transparent opacity={state === "dim" ? 0.25 : 0.9} />
+        </mesh>
+      )}
+    </group>
   );
 }
 
-function RelatedRings({ placed, color, intro, dimmed }: { placed: Placed[]; color: THREE.Color; intro: React.MutableRefObject<number>; dimmed: boolean }) {
-  const list = placed.filter((p) => p.related && !isCompany(p.kind));
-  const ref = useRef<THREE.InstancedMesh>(null);
-  const dummy = useMemo(() => new THREE.Object3D(), []);
-  useFrame((state) => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    const e = 1 - Math.pow(1 - intro.current, 3);
-    list.forEach((p, i) => {
-      dummy.position.copy(p.pos).multiplyScalar(e);
-      dummy.rotation.set(state.clock.elapsedTime * 0.7 + i, state.clock.elapsedTime * 0.4, 0);
-      dummy.scale.setScalar((p.size + 0.12) * 1.6 * Math.max(0.05, e));
-      dummy.updateMatrix();
-      mesh.setMatrixAt(i, dummy.matrix);
-    });
-    mesh.instanceMatrix.needsUpdate = true;
-  });
-  if (!list.length) return null;
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, list.length]} raycast={() => null}>
-      <torusGeometry args={[1, 0.035, 8, 64]} />
-      <meshBasicMaterial color={color.clone().multiplyScalar(dimmed ? 0.12 : 1.8)} toneMapped={false} transparent opacity={dimmed ? 0.5 : 1} />
-    </instancedMesh>
-  );
-}
-
-function Arcs({ arcs, pal, focusEdges, intro }: { arcs: Arc[]; pal: ReturnType<typeof palette>; focusEdges: Set<number> | null; intro: React.MutableRefObject<number> }) {
-  const SEG = 28;
-  const geo = useMemo(() => {
-    const pos = new Float32Array(arcs.length * SEG * 2 * 3);
-    const col = new Float32Array(arcs.length * SEG * 2 * 3);
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
-    g.setAttribute("color", new THREE.BufferAttribute(col, 3));
-    return g;
-  }, [arcs]);
-
-  useEffect(() => {
-    const col = geo.getAttribute("color") as THREE.BufferAttribute;
-    arcs.forEach((a, i) => {
-      const base = (a.kind === "money" ? pal.money : pal.goods).clone();
-      const strength = focusEdges ? (focusEdges.has(i) ? 0 : pal.dark ? 0.045 : 0.12) : pal.dark ? 0.32 : 0.45;
-      for (let s = 0; s < SEG * 2; s++) {
-        const fade = 0.55 + 0.45 * Math.sin((Math.floor(s / 2) / SEG) * Math.PI);
-        const c = pal.dark ? base.clone().multiplyScalar(strength * fade) : base.clone().lerp(new THREE.Color("#ffffff"), 1 - strength * fade);
-        col.setXYZ(i * SEG * 2 + s, c.r, c.g, c.b);
-      }
-    });
-    col.needsUpdate = true;
-  }, [arcs, geo, pal, focusEdges]);
-
-  const settled = useRef(false);
-  useEffect(() => {
-    settled.current = false;
-  }, [arcs]);
-  useFrame(() => {
-    const pos = geo.getAttribute("position") as THREE.BufferAttribute;
-    const e = 1 - Math.pow(1 - intro.current, 3);
-    if (e >= 1 && settled.current) return;
-    const p = new THREE.Vector3();
-    arcs.forEach((a, i) => {
-      for (let s = 0; s < SEG; s++) {
-        a.curve.getPoint(s / SEG, p).multiplyScalar(e);
-        pos.setXYZ(i * SEG * 2 + s * 2, p.x, p.y, p.z);
-        a.curve.getPoint((s + 1) / SEG, p).multiplyScalar(e);
-        pos.setXYZ(i * SEG * 2 + s * 2 + 1, p.x, p.y, p.z);
-      }
-    });
-    pos.needsUpdate = true;
-    if (e >= 1) settled.current = true;
-  });
-
-  return (
-    <lineSegments geometry={geo} raycast={() => null}>
-      <lineBasicMaterial vertexColors transparent opacity={1} blending={pal.dark ? THREE.AdditiveBlending : THREE.NormalBlending} depthWrite={false} />
-    </lineSegments>
-  );
-}
-
-// Particles travelling along the arcs. Their number on an arc grows with the value it carries.
-function Flow({ arcs, pal, focusEdges, reduced, intro }: { arcs: Arc[]; pal: ReturnType<typeof palette>; focusEdges: Set<number> | null; reduced: boolean; intro: React.MutableRefObject<number> }) {
-  const particles = useMemo(() => {
-    const maxV = Math.max(1, ...arcs.map((a) => a.value));
-    const out: { arc: number; t: number; speed: number }[] = [];
-    arcs.forEach((a, i) => {
-      const n = 1 + Math.round(3 * Math.log10(1 + (a.value / maxV) * 9));
-      for (let k = 0; k < n; k++) out.push({ arc: i, t: k / n + (i * 0.137) % 1, speed: 0.07 + ((i * 7 + k * 3) % 10) * 0.006 });
-    });
-    return out.slice(0, 2400);
-  }, [arcs]);
+function Flows({ flows, pal, hot, reduced }: { flows: Flow[]; pal: ReturnType<typeof palette>; hot: Set<number> | null; reduced: boolean }) {
+  const tubes = useMemo(() => flows.map((f) => new THREE.TubeGeometry(f.curve, 48, f.width, 8, false)), [flows]);
+  useEffect(() => () => tubes.forEach((t) => t.dispose()), [tubes]);
+  // A few markers per flow travel in its direction. They are slow and small; their job is to show direction.
+  const markers = useMemo(() => flows.flatMap((_, i) => [0, 0.5].map((o) => ({ flow: i, t: (o + i * 0.137) % 1 }))), [flows]);
   const ref = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const p = useMemo(() => new THREE.Vector3(), []);
-
   useEffect(() => {
     const mesh = ref.current;
     if (!mesh) return;
-    particles.forEach((q, i) => {
-      const a = arcs[q.arc];
-      const lit = focusEdges?.has(q.arc);
-      const c = lit ? pal.cycle.clone().multiplyScalar(3) : (a.kind === "money" ? pal.money : pal.goods).clone().multiplyScalar(focusEdges ? 0.25 : pal.dark ? 1.6 : 1);
+    markers.forEach((m, i) => {
+      const f = flows[m.flow];
+      const c = hot ? (hot.has(m.flow) ? pal.cycle : pal.wash) : f.kind === "money" ? pal.money : pal.goods;
       mesh.setColorAt(i, c);
     });
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [particles, arcs, pal, focusEdges]);
-
+  }, [markers, flows, pal, hot]);
   useFrame((_, dt) => {
     const mesh = ref.current;
-    if (!mesh || intro.current < 1) return;
-    const speedUp = reduced ? 0.25 : 1;
-    particles.forEach((q, i) => {
-      const lit = focusEdges?.has(q.arc);
-      q.t = (q.t + dt * q.speed * speedUp * (lit ? 2.6 : 1)) % 1;
-      arcs[q.arc].curve.getPoint(q.t, p);
+    if (!mesh) return;
+    markers.forEach((m, i) => {
+      const lit = hot?.has(m.flow);
+      if (!reduced) m.t = (m.t + dt * (lit ? 0.32 : 0.14)) % 1;
+      flows[m.flow].curve.getPoint(m.t, p);
       dummy.position.copy(p);
-      dummy.scale.setScalar(lit ? 0.13 : focusEdges ? 0.04 : 0.065);
+      dummy.scale.setScalar(hot && !lit ? 0.001 : flows[m.flow].width * 2.2 + 0.05);
       dummy.updateMatrix();
       mesh.setMatrixAt(i, dummy.matrix);
     });
     mesh.instanceMatrix.needsUpdate = true;
   });
-
-  return (
-    <instancedMesh ref={ref} args={[undefined, undefined, particles.length]} raycast={() => null}>
-      <sphereGeometry args={[1, 8, 8]} />
-      <meshBasicMaterial toneMapped={false} />
-    </instancedMesh>
-  );
-}
-
-// The selected cycle as glowing tubes, so the loop reads as one closed shape.
-function CycleLoop({ arcs, edges, color }: { arcs: Arc[]; edges: number[]; color: THREE.Color }) {
-  const tubes = useMemo(() => edges.map((i) => new THREE.TubeGeometry(arcs[i].curve, 64, 0.085, 10, false)), [arcs, edges]);
-  const ref = useRef<THREE.MeshBasicMaterial>(null);
-  useFrame((state) => {
-    if (ref.current) ref.current.opacity = 0.75 + Math.sin(state.clock.elapsedTime * 3) * 0.2;
-  });
-  useEffect(() => () => tubes.forEach((t) => t.dispose()), [tubes]);
   return (
     <group>
-      {tubes.map((g, i) => (
-        <mesh key={i} geometry={g} raycast={() => null}>
-          <meshBasicMaterial ref={i === 0 ? ref : undefined} color={color.clone().multiplyScalar(2.4)} transparent opacity={0.9} toneMapped={false} />
-        </mesh>
-      ))}
+      {flows.map((f, i) => {
+        const lit = hot?.has(i);
+        const color = hot ? (lit ? pal.cycle : pal.line) : f.kind === "money" ? pal.money : pal.goods;
+        return (
+          <mesh key={i} geometry={tubes[i]} raycast={() => null}>
+            <meshStandardMaterial color={color} roughness={0.6} transparent opacity={hot ? (lit ? 0.95 : 0.12) : 0.55} />
+          </mesh>
+        );
+      })}
+      <instancedMesh ref={ref} args={[undefined, undefined, markers.length]} raycast={() => null}>
+        <sphereGeometry args={[1, 12, 12]} />
+        <meshStandardMaterial roughness={0.4} />
+      </instancedMesh>
     </group>
   );
 }
 
 // Labels are DOM elements placed every frame from the 3D positions, so text stays crisp.
-function LabelProjector({ placed, ids, nodes }: { placed: Placed[]; ids: number[]; nodes: React.MutableRefObject<(HTMLDivElement | null)[]> }) {
+function Labels({ columns, nodes, extra, extraEls }: {
+  columns: Column[];
+  nodes: React.MutableRefObject<(HTMLDivElement | null)[]>;
+  extra: THREE.Vector3[];
+  extraEls: React.MutableRefObject<(HTMLDivElement | null)[]>;
+}) {
   const { camera, size } = useThree();
   const v = useMemo(() => new THREE.Vector3(), []);
+  const at = useMemo(() => new THREE.Vector3(), []);
+  const put = (el: HTMLDivElement | null, p: THREE.Vector3) => {
+    if (!el) return;
+    v.copy(p).project(camera);
+    el.style.visibility = v.z < 1 ? "visible" : "hidden";
+    el.style.transform = `translate(-50%, -100%) translate(${((v.x + 1) / 2) * size.width}px, ${((1 - v.y) / 2) * size.height}px)`;
+  };
   useFrame(() => {
-    ids.forEach((pi, k) => {
-      const el = nodes.current[k];
-      if (!el) return;
-      const p = placed[pi];
-      v.copy(p.pos);
-      v.y += p.size + 0.35;
-      v.project(camera);
-      const visible = v.z < 1 && Math.abs(v.x) < 1.1 && Math.abs(v.y) < 1.1;
-      el.style.opacity = visible ? "1" : "0";
-      el.style.transform = `translate(-50%, -100%) translate(${((v.x + 1) / 2) * size.width}px, ${((1 - v.y) / 2) * size.height}px)`;
-    });
+    columns.forEach((c, i) => put(nodes.current[i], at.set(c.pos.x, c.height + 0.35 + labelLift(c), c.pos.z)));
+    extra.forEach((p, i) => put(extraEls.current[i], p));
   });
   return null;
 }
@@ -484,169 +406,153 @@ export default function Graph3D({ data, active, onPickCycle }: { data: GraphData
   const dark = document.documentElement.dataset.theme !== "light";
   const pal = useMemo(() => palette(dark), [dark]);
   const reduced = useMemo(() => prefersReducedMotion(), []);
-  const { placed, index, arcs } = useMemo(() => layout(data), [data]);
+  const { columns, index, flows, grouped } = useMemo(() => build(data), [data]);
   const [hovered, setHovered] = useState<number | null>(null);
   const [picked, setPicked] = useState<number | null>(null);
-  const intro = useRef(reduced ? 1 : 0);
-  const cam = useRef<CamState>({
-    theta: 0.6, phi: 1.12, dist: 30, target: new THREE.Vector3(), goalTarget: new THREE.Vector3(), goalDist: 30, dragging: false, lastInput: -10,
-  });
+  const cam = useRef<CamState>({ ...HOME, target: new THREE.Vector3(...HOME_TARGET), goalTarget: new THREE.Vector3(...HOME_TARGET), goalDist: HOME.dist });
   const drag = useRef<{ x: number; y: number } | null>(null);
 
   const cycle = active !== null ? data.cycles[active] : null;
-  const focus = useMemo(() => (cycle ? new Set(cycle.path) : null), [cycle]);
-  const cycleEdges = useMemo(() => {
-    if (!cycle) return [];
-    const out: number[] = [];
+  const colOf = (id: string) => index.get(id) ?? index.get(grouped.get(id) ?? "");
+  const hotCols = useMemo(() => {
+    if (!cycle) return null;
+    return new Set(cycle.path.map(colOf).filter((x): x is number => x !== undefined));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cycle, index, grouped]);
+  const hotFlows = useMemo(() => {
+    if (!cycle) return null;
+    const out = new Set<number>();
     for (let i = 0; i < cycle.path.length; i++) {
-      const a = index.get(cycle.path[i]);
-      const b = index.get(cycle.path[(i + 1) % cycle.path.length]);
-      const found = arcs.findIndex((x) => x.from === a && x.to === b);
-      if (found >= 0) out.push(found);
+      const a = colOf(cycle.path[i]);
+      const b = colOf(cycle.path[(i + 1) % cycle.path.length]);
+      flows.forEach((f, k) => f.from === a && f.to === b && out.add(k));
     }
     return out;
-  }, [cycle, arcs, index]);
-  const focusEdges = useMemo(() => (cycle ? new Set(cycleEdges) : null), [cycle, cycleEdges]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cycle, flows, index, grouped]);
 
-  // Fly to the selected cycle, or back to the whole graph.
   useEffect(() => {
     const c = cam.current;
-    if (cycle) {
-      const pts = cycle.path.map((id) => placed[index.get(id) ?? 0].pos);
-      const centre = pts.reduce((s, p) => s.add(p), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, pts.length));
-      const spread = Math.max(4, ...pts.map((p) => p.distanceTo(centre)));
-      c.goalTarget.copy(centre);
-      c.goalDist = spread * 3.6 + 13;
+    if (hotCols && hotCols.size) {
+      const pts = [...hotCols].map((i) => columns[i].pos);
+      const centre = pts.reduce((s, p) => s.add(p), new THREE.Vector3()).multiplyScalar(1 / pts.length);
+      const spread = Math.max(3, ...pts.map((p) => p.distanceTo(centre)));
+      c.goalTarget.copy(centre).setY(0.8);
+      c.goalDist = Math.min(30, spread * 2.6 + 12);
     } else if (picked !== null) {
-      c.goalTarget.copy(placed[picked].pos);
-      c.goalDist = 12;
+      c.goalTarget.copy(columns[picked].pos).setY(1);
+      c.goalDist = 18;
     } else {
-      c.goalTarget.set(0, 0, 0);
-      c.goalDist = 30;
+      c.goalTarget.set(...HOME_TARGET);
+      c.goalDist = HOME.dist;
     }
-  }, [cycle, picked, placed, index]);
+  }, [hotCols, picked, columns]);
 
-  // Which nodes carry a label: the company, the largest partners, the cycle and the hovered node.
-  const labelIds = useMemo(() => {
-    const ids = new Set<number>();
-    placed.forEach((p, i) => isCompany(p.kind) && ids.add(i));
-    if (focus) placed.forEach((p, i) => focus.has(p.id) && ids.add(i));
-    else
-      placed
-        .map((p, i) => [p.volume, i] as const)
-        .filter(([, i]) => !isCompany(placed[i].kind))
-        .sort((a, b) => b[0] - a[0])
-        .slice(0, 6)
-        .forEach(([, i]) => ids.add(i));
-    if (hovered !== null) ids.add(hovered);
-    if (picked !== null) ids.add(picked);
-    return [...ids];
-  }, [placed, focus, hovered, picked]);
   const labelEls = useRef<(HTMLDivElement | null)[]>([]);
-
-  const info = picked !== null ? placed[picked] : hovered !== null ? placed[hovered] : null;
-  const totals = useMemo(() => ({
-    goods: data.edges.filter((e) => e.kind !== "money").reduce((s, e) => s + e.value, 0),
-    money: data.edges.filter((e) => e.kind === "money").reduce((s, e) => s + e.value, 0),
-  }), [data]);
+  const sideEls = useRef<(HTMLDivElement | null)[]>([]);
+  const sideAnchors = useMemo(() => [new THREE.Vector3(-11.5, 0, 6.2), new THREE.Vector3(11.5, 0, 6.2), new THREE.Vector3(0, 0, -9.0)], []);
+  const hasBoth = columns.some((c) => c.side === "both");
+  const info = picked !== null ? columns[picked] : hovered !== null ? columns[hovered] : null;
+  const named = useMemo(() => {
+    const out = new Set<number>();
+    for (const side of ["vendor", "customer"] as const) {
+      columns
+        .map((c, i) => [c, i] as const)
+        .filter(([c]) => c.side === side && !c.others)
+        .sort((a, b) => b[0].volume - a[0].volume)
+        .slice(0, NAMED_PER_SIDE)
+        .forEach(([, i]) => out.add(i));
+    }
+    columns.forEach((c, i) => c.side !== "both" && (isCompany(c.side) || c.others || c.inCycle || c.related) && out.add(i));
+    return out;
+  }, [columns]);
+  const stateOf = (i: number): "normal" | "hot" | "dim" => (hotCols ? (hotCols.has(i) ? "hot" : "dim") : "normal");
+  const chip = dark ? "rgba(20,22,26,0.82)" : "rgba(255,255,255,0.9)";
 
   return (
     <div
-      className="relative h-[66vh] w-full select-none overflow-hidden"
-      style={{ background: dark ? "radial-gradient(ellipse at 50% 40%, #1d2230 0%, #101217 55%, #0b0c10 100%)" : "radial-gradient(ellipse at 50% 40%, #ffffff 0%, #f4f2ec 60%, #ebe8df 100%)", cursor: hovered !== null ? "pointer" : drag.current ? "grabbing" : "grab" }}
+      className="relative h-[66vh] w-full select-none overflow-hidden bg-paper"
+      style={{ cursor: hovered !== null ? "pointer" : drag.current ? "grabbing" : "grab" }}
       onPointerDown={(e) => {
         drag.current = { x: e.clientX, y: e.clientY };
-        cam.current.dragging = true;
-        (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
       }}
       onPointerMove={(e) => {
         if (!drag.current) return;
         const c = cam.current;
-        c.theta -= (e.clientX - drag.current.x) * 0.006;
-        c.phi = Math.min(2.9, Math.max(0.25, c.phi - (e.clientY - drag.current.y) * 0.006));
+        c.theta = Math.max(-0.9, Math.min(0.9, c.theta - (e.clientX - drag.current.x) * 0.005));
+        c.phi = Math.max(0.45, Math.min(1.35, c.phi - (e.clientY - drag.current.y) * 0.005));
         drag.current = { x: e.clientX, y: e.clientY };
-        c.lastInput = performance.now() / 1000;
       }}
-      onPointerUp={() => {
-        drag.current = null;
-        cam.current.dragging = false;
-        cam.current.lastInput = performance.now() / 1000;
-      }}
+      onPointerUp={() => (drag.current = null)}
+      onPointerLeave={() => (drag.current = null)}
       onWheel={(e) => {
         const c = cam.current;
-        c.goalDist = Math.min(70, Math.max(6, c.goalDist * (1 + Math.sign(e.deltaY) * 0.1)));
-        c.lastInput = performance.now() / 1000;
+        c.goalDist = Math.min(44, Math.max(10, c.goalDist * (1 + Math.sign(e.deltaY) * 0.08)));
       }}
     >
       <Canvas
-        camera={{ fov: 42, near: 0.1, far: 400, position: [0, 12, 34] }}
+        shadows
+        camera={{ fov: 38, near: 0.1, far: 200, position: [0, 18, 24] }}
         dpr={[1, 2]}
-        gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+        gl={{ antialias: true, alpha: true }}
         onPointerMissed={() => {
           setPicked(null);
           if (active !== null) onPickCycle(null);
         }}
       >
-        <IntroClock intro={intro} />
-        <ambientLight intensity={dark ? 0.55 : 0.9} />
-        <pointLight position={[0, 0, 0]} intensity={dark ? 220 : 120} distance={60} decay={1.6} color={pal.company} />
-        <directionalLight position={[12, 20, 14]} intensity={dark ? 1.1 : 1.6} />
-        <Rig cam={cam} reduced={reduced} />
-        <Stars dark={dark} />
-        <OrbitGuides color={pal.line} />
-        {placed.filter((p) => isCompany(p.kind)).map((p) => (
-          <Core key={p.id} pos={p.pos} size={p.size} color={pal.company} reduced={reduced} />
+        <Rig cam={cam} />
+        <ambientLight intensity={dark ? 0.75 : 1.1} />
+        <directionalLight position={[8, 18, 10]} intensity={dark ? 1.6 : 1.9} castShadow shadow-mapSize={[2048, 2048]}
+          shadow-camera-left={-22} shadow-camera-right={22} shadow-camera-top={16} shadow-camera-bottom={-16} shadow-bias={-0.0004} />
+        <Board pal={pal} />
+        {columns.map((c, i) => (
+          <ColumnMesh key={c.id} c={c} i={i} pal={pal} state={stateOf(i)} onHover={setHovered} onPick={setPicked} />
         ))}
-        <Arcs arcs={arcs} pal={pal} focusEdges={focusEdges} intro={intro} />
-        <Flow arcs={arcs} pal={pal} focusEdges={focusEdges} reduced={reduced} intro={intro} />
-        {cycle && <CycleLoop arcs={arcs} edges={cycleEdges} color={pal.cycle} />}
-        <Nodes placed={placed} pal={pal} focus={focus} hovered={hovered} onHover={setHovered} onPick={setPicked} intro={intro} />
-        <RelatedRings placed={placed} color={pal.related} intro={intro} dimmed={!!focus} />
-        <LabelProjector placed={placed} ids={labelIds} nodes={labelEls} />
-        <EffectComposer multisampling={0}>
-          <Bloom mipmapBlur intensity={dark ? 0.9 : 0.35} luminanceThreshold={1.0} luminanceSmoothing={0.25} />
-          <Vignette eskil={false} offset={0.25} darkness={dark ? 0.55 : 0.2} />
-        </EffectComposer>
+        <Flows flows={flows} pal={pal} hot={hotFlows} reduced={reduced} />
+        <Labels columns={columns} nodes={labelEls} extra={sideAnchors} extraEls={sideEls} />
       </Canvas>
 
       <div className="pointer-events-none absolute inset-0">
-        {labelIds.map((pi, k) => {
-          const p = placed[pi];
-          const hot = focus?.has(p.id);
+        {columns.map((c, i) => {
+          const st = stateOf(i);
+          const show = hotCols ? st === "hot" : named.has(i) || hovered === i || picked === i;
           return (
             <div
-              key={p.id}
-              ref={(el) => (labelEls.current[k] = el)}
-              className="absolute left-0 top-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] font-medium transition-opacity"
-              style={{ background: dark ? "rgba(16,18,23,0.72)" : "rgba(255,255,255,0.85)", color: hot ? token("fail") : isCompany(p.kind) ? token("brand") : pal.ink, backdropFilter: "blur(4px)", border: `1px solid ${token("line")}` }}
+              key={c.id}
+              ref={(el) => (labelEls.current[i] = el)}
+              className="absolute left-0 top-0 whitespace-nowrap rounded border border-line px-1.5 py-0.5 text-center leading-tight transition-opacity duration-300"
+              style={{ background: chip, opacity: show ? 1 : 0 }}
             >
-              {p.label.length > 34 ? p.label.slice(0, 33) + "…" : p.label}
+              <div className={`text-[11px] font-medium ${st === "hot" ? "text-fail" : isCompany(c.side) ? "text-brand" : "text-ink"}`}>
+                {(() => {
+                  const max = c.side === "both" && !c.others ? 16 : 22;
+                  return c.label.length > max ? c.label.slice(0, max - 1) + "…" : c.label;
+                })()}
+              </div>
+              {!isCompany(c.side) && <div className="text-[10px] tabular-nums text-ink-3">{compact(c.volume)}</div>}
             </div>
           );
         })}
-      </div>
-
-      {/* Totals, top left */}
-      <div className="pointer-events-none absolute left-4 top-4 flex gap-5 text-xs">
-        {[
-          ["Counterparties", String(placed.filter((p) => !isCompany(p.kind)).length)],
-          ["Goods", `₹ ${money(totals.goods)}`],
-          ["Money", `₹ ${money(totals.money)}`],
-          ["Cycles", String(data.cycles.length)],
-        ].map(([k, v]) => (
-          <div key={k}>
-            <div className="text-ink-3 uppercase tracking-wider text-[10px]">{k}</div>
-            <div className={k === "Cycles" && data.cycles.length ? "font-semibold tabular-nums text-fail" : "font-semibold tabular-nums text-ink"}>{v}</div>
+        {["Vendors · supply", "Customers · sales", "Both buy and sell"].map((t, i) => (
+          <div key={t} ref={(el) => (sideEls.current[i] = el)}
+            className="absolute left-0 top-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3"
+            style={{ display: i === 2 && !hasBoth ? "none" : undefined }}>
+            {t}
           </div>
         ))}
       </div>
 
-      {/* Hovered or picked node */}
+      <div className="pointer-events-none absolute bottom-9 right-4 flex flex-wrap justify-end gap-4 text-[11px] text-ink-2">
+        <span className="flex items-center gap-1.5"><i className="h-0.5 w-5 rounded bg-ink-3" />Goods (high arc)</span>
+        <span className="flex items-center gap-1.5"><i className="h-0.5 w-5 rounded bg-pass" />Money (low arc)</span>
+        <span>Column height is trade value</span>
+      </div>
+
       {info && (
-        <div className="pointer-events-none absolute bottom-4 left-4 w-72 rounded-md border border-line p-3 text-xs shadow-lg" style={{ background: dark ? "rgba(20,22,26,0.88)" : "rgba(255,255,255,0.92)", backdropFilter: "blur(6px)" }}>
+        <div className="pointer-events-none absolute bottom-4 left-4 w-72 rounded-md border border-line bg-paper p-3 text-xs shadow-lg">
           <div className="mb-1 text-sm font-semibold text-ink">{info.label}</div>
-          <div className="mb-2 flex gap-2 text-ink-2">
-            <span className="capitalize">{info.kind}</span>
+          <div className="mb-2 flex flex-wrap gap-2 text-ink-2">
+            <span>{info.others ? "Summed column" : info.side === "both" ? "Buys and sells" : info.side}</span>
             {info.related && <span className="text-rp">Related party</span>}
             {info.inCycle && <span className="text-fail">In a trading cycle</span>}
           </div>
@@ -659,14 +565,7 @@ export default function Graph3D({ data, active, onPickCycle }: { data: GraphData
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-4 right-4 text-[11px] text-ink-3">Drag to turn · scroll to zoom · click a node</div>
+      <div className="pointer-events-none absolute bottom-4 right-4 text-[11px] text-ink-3">Drag to tilt · scroll to zoom · click a column</div>
     </div>
   );
-}
-
-function IntroClock({ intro }: { intro: React.MutableRefObject<number> }) {
-  useFrame((_, dt) => {
-    if (intro.current < 1) intro.current = Math.min(1, intro.current + dt / 1.6);
-  });
-  return null;
 }
