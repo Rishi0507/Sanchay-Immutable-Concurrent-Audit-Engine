@@ -23,6 +23,7 @@ from . import names
 
 FY_START = dt.date(2025, 4, 1)
 FY_END = dt.date(2026, 3, 31)
+MASTER_DATE = FY_START - dt.timedelta(days=30)  # masters exist before the first enquiry
 DATA_END = dt.date(2026, 7, 10)
 UPLOAD_AT = dt.datetime(2026, 7, 10, 18, 0)
 IST = dt.timedelta(hours=5, minutes=30)
@@ -62,7 +63,7 @@ class Party:
     terms: str = "EX_WORKS"
     pay_days: int = 40
     regular: bool = True
-    created: dt.date = FY_START
+    created: dt.date = MASTER_DATE
     entity: str = "E1"
     items: list[str] = field(default_factory=list)
     order_value: int = 0  # paise
@@ -256,7 +257,7 @@ class World:
     def make_party(self, kind: str, name: str, state: str, city: str, distance: int, segment: str = "industrial",
                    regular: bool = True, pan: str | None = None, gstin: str | None = None, bank: dict | None = None,
                    phone: str | None = None, address: dict | None = None, directors: list[dict] | None = None,
-                   email: str | None = None, entity: str = "E1", created: dt.date = FY_START) -> Party:
+                   email: str | None = None, entity: str = "E1", created: dt.date = MASTER_DATE) -> Party:
         pan = pan or self.pan("C" if "Ltd" in name or "Limited" in name else "F", name[0])
         slug = "".join(ch for ch in name.lower() if ch.isalnum())[:18]
         pid = f"{'C' if kind == 'customer' else 'V'}{len(self.customers if kind == 'customer' else self.vendors) + 1:04d}"

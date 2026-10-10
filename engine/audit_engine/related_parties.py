@@ -142,7 +142,7 @@ def build_records(ctx) -> dict[str, Rec]:
         if na:
             r.addresses[na] = when
         recs[r.key] = r
-    entities = dict((ctx.engine.settings.company.get("entities") or {}))
+    entities = dict((ctx.snap.company_profile.get("entities") or {}))
     for eid in set(snap.company_gstins) | set(snap.company_bank_accounts) | set(ctx.entities or []):
         entities.setdefault(eid, {})
     for eid, prof in sorted(entities.items()):

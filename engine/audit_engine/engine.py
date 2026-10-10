@@ -154,12 +154,37 @@ class Engine:
                 self._snapshots.move_to_end(seq)
                 return self._snapshots[seq]
         snap = Snapshot(self.business.events(upto_seq=seq), self.business.postings(upto_seq=seq), seq,
-                        company=self.settings.company)
+                        company=self.company_profile())
         with self._lock:
             self._snapshots[seq] = snap
             while len(self._snapshots) > 3:
                 self._snapshots.popitem(last=False)
         return snap
+
+    def company_profile(self) -> dict:
+        """Company and group entity identifiers. From ENGINE_COMPANY_FILE, or the newest company.toml in the file store."""
+        if self.settings.company:
+            return self.settings.company
+        root = getattr(self.files, "root", None)
+        if root is None:
+            return {}
+        import json
+        import tomllib
+
+        best = None
+        for meta in root.glob("*/*.json"):
+            try:
+                m = json.loads(meta.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if m.get("file_name") == "company.toml" and (best is None or meta.stat().st_mtime > best[0]):
+                best = (meta.stat().st_mtime, m["file_hash"])
+        if best:
+            try:
+                return tomllib.loads(self.files.get(best[1]).decode("utf-8"))
+            except Exception:
+                return {}
+        return {}
 
     # Engagements
 
@@ -235,7 +260,7 @@ class Engine:
         return self._engagement_view(self.repo.first(engagements, engagement_id=eid))
 
     def _client_name(self, entity_id: str) -> str:
-        prof = (self.settings.company.get("entities") or {}).get(entity_id) or {}
+        prof = (self.company_profile().get("entities") or {}).get(entity_id) or {}
         return prof.get("name") or entity_id
 
     @staticmethod

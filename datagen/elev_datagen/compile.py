@@ -9,7 +9,7 @@ from collections import defaultdict
 
 from audit_engine.money import apply_bp, div_round
 
-from .world import (CLIENT, COMPANY_STATE, DATA_END, FY_END, FY_START, UPLOAD_AT, Sale, World, at, iso, utc)
+from .world import (CLIENT, COMPANY_STATE, DATA_END, FY_END, FY_START, MASTER_DATE, UPLOAD_AT, Sale, World, at, iso, utc)
 
 CHANNELS = ["Email", "Phone", "Sales visit", "Customer portal"]
 
@@ -97,16 +97,16 @@ class Compiler:
 
     def compile_masters(self) -> None:
         w = self.w
-        base = at(FY_START, 7, 0)
+        base = at(MASTER_DATE, 7, 0)
         for i, o in enumerate(w.officers):
             if o.get("_recorded"):
                 continue
             t = base + dt.timedelta(seconds=i)
-            self.emit(t, "CompanyOfficerRecorded", o["officer_id"], _clean(o), FY_START)
+            self.emit(t, "CompanyOfficerRecorded", o["officer_id"], _clean(o), MASTER_DATE)
         for i, p in enumerate(w.prices):
             ef = dt.date.fromisoformat(p["effective_from"])
-            t = at(max(FY_START, ef - dt.timedelta(days=3)), 7, 30) + dt.timedelta(seconds=i)
-            self.emit(t, "PriceSet", f"price:{p['item']}", dict(p), max(FY_START, ef - dt.timedelta(days=3)))
+            t = at(max(MASTER_DATE, ef - dt.timedelta(days=3)), 7, 30) + dt.timedelta(seconds=i)
+            self.emit(t, "PriceSet", f"price:{p['item']}", dict(p), max(MASTER_DATE, ef - dt.timedelta(days=3)))
         for pr in w.promotions:
             created = pr["_created"]
             self.emit(at(created, 9, 0), "PromotionCreated", pr["scheme_id"], _clean(pr), created)

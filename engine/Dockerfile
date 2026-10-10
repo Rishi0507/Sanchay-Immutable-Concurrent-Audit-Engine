@@ -13,13 +13,8 @@ COPY audit_engine ./audit_engine
 COPY sql ./sql
 RUN uv sync --frozen --no-dev
 
+# Configuration comes from the deployment: DATABASE_URL, FILES_DIR, LEDGER_URL and SERVICE_TOKEN.
 ENV ENGINE_PORT=7002 \
-    ENGINE_AUDIT_DB=postgresql+psycopg://engine_audit:engine_audit@db:5432/elev05 \
-    ENGINE_BUSINESS_SOURCE=postgresql+psycopg://engine_audit:engine_audit@db:5432/elev05 \
-    ENGINE_FILES=minio://minio:minio123@minio:9000/files \
-    ENGINE_OUTPUT_DIR=/data/outputs \
-    LEDGER_URL=http://ledger:7001 \
-    OLLAMA_URL=http://ollama:11434 \
     TESSERACT_CMD=/usr/bin/tesseract
 
 EXPOSE 7002

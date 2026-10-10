@@ -1,10 +1,13 @@
 # One-command bring-up (PRD DP-1):
 #   docker compose -f deploy/docker-compose.yml up --build
 #
-# Services: db, ledger (OCaml), mcp (Go), engine, ui.
-# The engine service currently runs the stand-in from mcp/cmd/mockengine.
-# When the audit engine in engine/ is ready, point the engine service at it:
-# replace its build section with "context: ../engine".
+# Services: db, ledger (OCaml), mcp (Go), engine (Python), ui.
+#
+# Loading the synthetic business with its historical record times needs the
+# seeding clock, which is off unless started with SIM_CLOCK=1:
+#   SIM_CLOCK=1 docker compose -f deploy/docker-compose.yml up --build -d
+#   cd datagen && uv run python -m elev_datagen generate --dataset planted --scale 0.15 #     --out ../var/seed --mcp-url http://localhost:8080
+# Restart without SIM_CLOCK afterwards, so that no client can set record times.
 #
 # Files are stored by SHA-256 on the shared "files" volume. To use MinIO
 # instead, start with "--profile minio" and set OBJECT_STORE=s3 on mcp.
@@ -34,6 +37,7 @@ services:
     environment:
       DATABASE_URL: postgres://ledger_rw:ledger_rw@db:5432/audit
       SERVICE_TOKEN: ${SERVICE_TOKEN:-dev-service-token}
+      LEDGER_SIM_CLOCK: ${SIM_CLOCK:-0}
     depends_on:
       db:
         condition: service_healthy
@@ -41,15 +45,16 @@ services:
 
   engine:
     build:
-      context: ..
-      dockerfile: mcp/Dockerfile
-      target: mockengine
+      context: ../engine
     environment:
       DATABASE_URL: postgres://engine_audit:engine_audit@db:5432/audit
       LEDGER_URL: http://ledger:7001
       SERVICE_TOKEN: ${SERVICE_TOKEN:-dev-service-token}
       FILES_DIR: /data/files
       ENGINE_ADDR: :7002
+      ENGINE_OUTPUT_DIR: /data/outputs
+      # Set OLLAMA_URL to a local model to add model-based evidence extraction (optional).
+      OLLAMA_URL: ${OLLAMA_URL:-}
     volumes:
       - files:/data/files
     depends_on:
@@ -73,6 +78,7 @@ services:
       DEFAULT_ENTITY: ${DEFAULT_ENTITY:-E1}
       OBJECT_STORE: dir
       FILES_DIR: /data/files
+      SIM_CLOCK: ${SIM_CLOCK:-0}
     volumes:
       - files:/data/files
     ports:

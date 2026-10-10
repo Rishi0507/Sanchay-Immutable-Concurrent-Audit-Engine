@@ -213,6 +213,9 @@ SHARED_SIGN_OFF_SQL = (
 
 class AuditRepo:
     def __init__(self, url: str):
+        from .store.business import sql_url
+
+        url = sql_url(url)
         self.url = url
         self.is_sqlite = url.startswith("sqlite")
         if self.is_sqlite and url.startswith("sqlite:///") and not url.startswith("sqlite:///:memory:"):
@@ -241,14 +244,31 @@ class AuditRepo:
             try:
                 with self.engine.begin() as c:
                     c.execute(text("CREATE SCHEMA IF NOT EXISTS audit"))
-                metadata.create_all(self.engine, checkfirst=True)
             except DBAPIError:
-                # The engine_audit role may lack CREATE. The migrations in db/ then own the schema.
-                pass
+                pass  # The schema exists already; the engine role may not create schemas.
+            try:
+                metadata.create_all(self.engine, checkfirst=True)
+                self._postgres_append_only()
+            except DBAPIError:
+                pass  # No CREATE on the schema: the migrations in db/ own the tables.
             return
         metadata.create_all(self.engine)
         if self.is_sqlite:
             self._sqlite_append_only()
+
+    def _postgres_append_only(self) -> None:
+        """L4 for the engine's own tables: UPDATE and DELETE raise, as on every other table."""
+        from sqlalchemy import text
+
+        with self.engine.begin() as c:
+            c.execute(text(
+                "CREATE OR REPLACE FUNCTION audit.eng_forbid_change() RETURNS trigger LANGUAGE plpgsql AS $$ "
+                "BEGIN RAISE EXCEPTION '% on %.% is not allowed: append-only', TG_OP, TG_TABLE_SCHEMA, TG_TABLE_NAME; END $$"))
+            for t in metadata.sorted_tables:
+                exists = c.execute(text("SELECT 1 FROM pg_trigger WHERE tgname = :n"), {"n": f"{t.name}_append_only"}).first()
+                if not exists:
+                    c.execute(text(f"CREATE TRIGGER {t.name}_append_only BEFORE UPDATE OR DELETE ON audit.{t.name} "
+                                   f"FOR EACH ROW EXECUTE FUNCTION audit.eng_forbid_change()"))
 
     def _sqlite_append_only(self) -> None:
         """Mirror the L4 triggers on SQLite so local tests catch accidental updates."""
