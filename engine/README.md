@@ -45,13 +45,13 @@ The endpoints, headers and error format are in `contracts/engine-api/README.md`.
 | `related_parties.py` | 11 | Signals, links, union-find clusters, bottleneck dates from anchors, D-02 and D-03 |
 | `detectors/` | 13 | D-04 to D-09, D-11 to D-14, indicators, parallel runner |
 | `graph.py` | 13.4 | Counterparty graph, Tarjan components, Johnson cycles up to length 6 |
-| `sampling.py` | 12 | Sales, cut-off and credit note TODs, seeded RNG, reasons, evidence requests |
+| `sampling.py` | 12, 14.4 | Sales, cut-off and credit note TODs, seeded RNG, reasons, evidence requests, control requests |
 | `evidence/` | 14 | Text and OCR extraction, pattern rules and optional local model, checks E-1 to E-8, D-10 |
 | `model.py` | 21 | The optional model: local Ollama or a hosted chat completions service |
 | `findings.py`, `findings_service.py` | 15 | Stable finding IDs, severity, template reasons, decisions, sign-off |
 | `changes.py` | 16.3 | D-15 matching rules and sample reversion |
 | `integrity.py` | 16.2 | Chain recomputation, snapshot hash and Merkle root comparison, D-16 |
-| `outputs/` | 19 | Workpaper (.xlsx) and findings memo (.md, .docx) |
+| `outputs/` | 19 | Workpaper (.xlsx), findings memo (.md, .docx) and one-page summary report (.pdf) |
 | `repo.py` | 4.4 | `audit` schema. Every table is insert-only (L4) |
 
 ## Design notes
@@ -60,6 +60,8 @@ The endpoints, headers and error format are in `contracts/engine-api/README.md`.
 |---|---|
 | Determinism | No model call, no wall-clock value and no unordered iteration feeds a sample, a finding or a workpaper cell. Two runs give byte-identical workpapers. |
 | Append-only audit schema | Current state is the latest row for a key: decisions (FN-3), sample test results (CH-2), steps done. |
+| Sealed seed (12.5) | The seed is `SHA256(secret | snapshot_hash)` cut to 16 hex characters. The secret is drawn when the register arrives and only its hash leaves the engine until an engagement opens. The same upload and snapshot give the same engagement, so the seed cannot be drawn again. |
+| Control requests (14.4) | Up to three requests per engagement for a document that should not exist. They are stored apart from the ordinary requests, so nothing the client reads marks them. A file in answer is check E-9. |
 | Finding IDs | `F-` and 16 hex characters of SHA-256 over engagement, category, subtype and subject. Re-running a step adds nothing (DT-4). |
 | Evidence reuse (E-3) | Exact file hash and normalised text hash across samples of different transactions. Perceptual hash for raster scans. Samples of the same invoice in two TODs may share documents. |
 | Evidence confidence (EV-4) | Text PDFs 0.95, OCR 0.85, disagreement between model and patterns 0.6. A required field below 0.8 gives `Needs human review`. |

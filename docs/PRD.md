@@ -143,6 +143,17 @@ The product lets an AI agent run a statutory revenue audit of a mid-size manufac
 
 An identity is a bearer token that maps to exactly one role and one user name. The server reads the role from the token. A role is never accepted from tool arguments.
 
+A `client_employee` identity may also belong to one department. The department narrows what that identity can change, so that duties inside the client are separated: no single department can take an order, ship it, bill it and collect on it. Reading stays open to every department, apart from the trial balance and the register export. An identity with no department is not restricted.
+
+| Department | Owns |
+|---|---|
+| Sales | Customers, prices, promotions, enquiries, sales orders |
+| Dispatch | Dispatches, e-way bills, lorry receipts, deliveries, sales returns, goods receipts, transport evidence |
+| Accounts | Invoices, GSTR-1, receipts, bank statements, credit notes, reversals, purchase invoices, payments, journals, the register upload, evidence |
+| Admin | Vendors, company officers, the related-party list, the register upload, evidence |
+
+The MCP server enforces departments at the tool layer, for the interface and for agents alike. A refused call returns `PERMISSION_DENIED` and names the owning department, and `get_access_policy` returns the whole split. The ledger core records the user name of every event, so each step of a sale carries the person who performed it.
+
 ### 4.2 Permission matrix
 
 | Capability | `client_employee` | `auditor` | `audit_manager` |
@@ -722,6 +733,19 @@ Each test result is `Pass`, `Exception` or `Pending evidence`.
 | CN-2 | Fill up to a total of 20 with in-period credit notes, by monetary-unit sampling weighted to related parties and to the last month of the period. | P0 |
 | CN-3 | For each item, show original invoice, reason, approver, sales return inward date, time from invoice to credit note, and conclusion. | P0 |
 
+### 12.5 Sealed seed
+
+A seed that someone picks can be picked again. An auditor, or an agent acting as one, could open engagements until the samples happen to miss the problem invoices. The seed is therefore fixed by a secret that neither side chooses and neither side can change.
+
+| ID | Requirement | Priority |
+|---|---|---|
+| SS-1 | When the client uploads the sales register, the engine draws a secret of 32 random bytes and stores it against that upload. `upload_sales_register` returns `sampling_commitment`, the SHA-256 of the secret. The client holds the commitment before the auditor has read the register. | P0 |
+| SS-2 | `open_engagement` with no `seed` derives it: the first 16 hexadecimal characters of `SHA256(secret | snapshot_hash)`. | P0 |
+| SS-3 | The same register upload and snapshot always give the same seed and the same engagement. Opening again returns the engagement that exists. It does not draw again. | P0 |
+| SS-4 | `verify_sampling_seal` is available to every role. Before an engagement opens it returns the commitment only. After, it returns the secret, the seed and the result of recomputing both hashes. | P0 |
+| SS-5 | A `seed` passed to `open_engagement` is still accepted, for reproducing an earlier run. The engagement is then reported as `chosen`, in the status and by `verify_sampling_seal`. | P0 |
+| SS-6 | If no seal exists when the engagement opens, one is made then and reported as `sealed at opening`. It still prevents a second draw, but the client did not hold the commitment first. | P1 |
+
 ---
 
 ## 13. Detectors
@@ -788,7 +812,7 @@ A cycle is reported when its edges fall within a 60-day window and the smallest 
 ### 14.1 Flow
 
 1. Sample selection creates an evidence request for each sample: invoice copy, e-way bill and LR copy for Sales TOD and Cut-off TOD, and credit note copy and return document for Credit Note TOD.
-2. The client uploads files through `upload_evidence`. Each file is stored by its SHA-256 hash and recorded as an `EvidenceUploaded` event.
+2. The client answers each request through `upload_evidence`, with the file or with a statement that no such document exists (section 14.4). Each file is stored by its SHA-256 hash, and each answer is recorded as an `EvidenceUploaded` event.
 3. `verify_evidence` runs the checks below and updates the sample test results (section 12.2).
 
 ### 14.2 Extraction
@@ -815,7 +839,23 @@ A cycle is reported when its edges fall within a 60-day window and the smallest 
 | E-7 | PDF metadata shows creation after the evidence request, or an editing tool as producer. | Document made to order |
 | E-8 | The evidence was replaced after it had been verified. | Post-testing change, also reported by D-15 |
 
+| E-9 | A document was supplied although the system of record holds none for the transaction. | Document made for the request |
+
 Each failed check is a finding of category `EVIDENCE_SUSPECT` (D-10) linked to the sample.
+
+### 14.4 Control requests
+
+The checks above test whether a document looks genuine. A control request tests the client instead: the auditor asks for a document that should not exist. An honest client answers that there is none. A client that supplies one made it for the request, which shows how far the rest of its evidence can be relied on. SA 240 asks for an element of unpredictability in audit procedures.
+
+| ID | Requirement | Priority |
+|---|---|---|
+| CR-1 | Sample selection adds up to three control requests per engagement among the ordinary evidence requests (`control_requests_max`). | P0 |
+| CR-2 | The first kind is an e-way bill for a sampled invoice whose consignment value does not exceed the threshold and for which no e-way bill is recorded. The second is a credit note against a sampled invoice that has none. The first kind is preferred. The rest are drawn with the seeded generator. | P0 |
+| CR-3 | A control request is worded like every other request. Nothing returned to the client marks it. | P0 |
+| CR-4 | The client answers any request with `upload_evidence`: a file, or `not_available` with a note. The answer is an `EvidenceUploaded` event in the business chain. | P0 |
+| CR-5 | `not_available` on a control request passes the control. A file on a control request is check E-9 and a High finding. | P0 |
+| CR-6 | `not_available` on an ordinary request marks the sample's Evidence test as `Exception`. No finding is added: the missing record is already a finding of the detector that covers it. | P0 |
+| CR-7 | The engagement status and `verify_evidence` report the control requests sent, declined, supplied and pending. | P0 |
 
 ---
 
@@ -986,6 +1026,18 @@ Every number in the memo comes from the findings table. The local model may reph
 ### 19.3 Tamper-evident audit trail
 
 A file listing every trail entry of the engagement (AT-1) with the trail head hash and the verification result. A reviewer can recompute the chain from the file.
+
+### 19.4 Summary report
+
+`export_summary_report` produces one page for the engagement partner, as a PDF, and returns the same figures as data. It is not a step of the plan and can be produced at any point.
+
+| ID | Requirement | Priority |
+|---|---|---|
+| SR-1 | The page shows findings by severity and by area, the five largest findings by amount, the proposed adjustment to revenue, the samples by sheet and by result, and the documents requested, received, answered as not available and still awaited. | P1 |
+| SR-2 | The page grades the revenue of the period by the record behind each invoice: ordered, shipped, delivered and paid; delivered and not yet paid; some movement; order only; nothing. It states that a full chain does not make a sale genuine. | P1 |
+| SR-3 | The page states the safeguards: how the sampling seed came about (section 12.5), how the control requests were answered (section 14.4), whether the ledger verifies, and whether the client changed anything that touches a sample. | P1 |
+| SR-4 | The page states how many findings await the audit manager's decision, and the snapshot hash and ledger head hash it rests on. | P1 |
+| SR-5 | No figure comes from a model. The same engagement state gives the same bytes. | P1 |
 
 ---
 

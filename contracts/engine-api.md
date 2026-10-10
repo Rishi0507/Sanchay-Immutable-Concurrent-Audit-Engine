@@ -32,7 +32,9 @@ The MCP server has already checked that the role may call the tool. The engine u
 | `get_audit_plan` | `GET /plan` | `engagement_id` optional | `steps[]` of `{step, tool, purpose, status}` where status is `done`, `ready` or `blocked`; `next_tool` |
 | `open_engagement` | `POST /engagements` | `period_start`, `period_end`, `seed` optional, `entity_ids` optional | `engagement_id`, `period_start`, `period_end`, `seed`, `snapshot_seq`, `snapshot_hash`, `merkle_root` |
 | `list_engagements` | `GET /engagements` | none | `engagements[]` |
-| `get_engagement_status` | `GET /engagements/status` | `engagement_id` | engagement fields, `steps[]`, `next_tool`, `counts` of `{findings_by_severity, samples_by_sheet, evidence_pending}`, `signed_off` |
+| (called by `upload_sales_register`) | `POST /sampling/seal` | `upload_seq` | `register_upload_seq`, `commitment`, `sealed_when`, `sealed_at`. Sealing twice returns the first seal. Never returns the secret. |
+| `verify_sampling_seal` | `GET /sampling/seal` | `engagement_id` optional (the latest register upload when omitted) | `commitment`, `sealed_when`, `status` of `sealed`, `verified`, `sealed at opening`, `chosen` or `failed`; once an engagement is open also `secret`, `seed`, `snapshot_hash`, `checks` |
+| `get_engagement_status` | `GET /engagements/status` | `engagement_id` | engagement fields, `seed_source` of `sealed` or `chosen`, `steps[]`, `next_tool`, `counts` of `{findings_by_severity, samples_by_sheet, evidence_pending, control_requests of {sent, declined, supplied, pending}}`, `signed_off` |
 | `import_register` | `POST /register/import` | `engagement_id` | `rows`, `columns[]`, `unrecognised_columns[]`, `missing_columns[]`, `file_hash` |
 | `reconcile_register` | `POST /register/reconcile` | `engagement_id` | `summary` by subtype, `findings_created`, `auto_ran[]` |
 | `get_register_rows` | `GET /register/rows` | `engagement_id`, `recon_status` optional, `rp_tag` optional, `limit`, `cursor` | `columns[]`, `rows[]` of `{row_no, raw, rp_tag, suggested_rp, recon_status, finding_ids}`, `next_cursor` |
@@ -45,11 +47,12 @@ The MCP server has already checked that the role may call the tool. The engine u
 | `get_evidence_status` | `GET /evidence/status` | `engagement_id` | `samples[]` of `{sample_id, sheet, documents[] of {document_type, status, file_hash}}`, `pending`, `received`, `verified` |
 | `list_evidence_requests` | `GET /evidence/requests` | `status` optional (`pending`, `received`), `limit`, `cursor` | `requests[]` of `{request_id, sample_id, sheet, document_type, subject of {invoice_no, date, customer, amount}, status, note}`, `next_cursor` |
 | `request_evidence` | `POST /evidence/requests` | `engagement_id`, `sample_ids[]`, `document_types[]`, `note` optional | `requests_created` |
-| `verify_evidence` | `POST /evidence/verify` | `engagement_id`, `sample_id` optional (all samples when omitted) | `results[]` of `{sample_id, tests of {test: result}, checks[] of {check_id, result, detail}}`, `findings_created` |
+| `verify_evidence` | `POST /evidence/verify` | `engagement_id`, `sample_id` optional (all samples when omitted) | `results[]` of `{sample_id, tests of {test: result}, checks[] of {check_id, result, detail}}`, `findings_created`, `control_requests` of `{sent, declined, supplied, pending}` |
 | `check_post_testing_changes` | `POST /changes/check` | `engagement_id` | `changes[]` of `{seq, event_type, identity_user, recorded_at, sample_ids[], finding_ids[]}`, `findings_created`, `head_seq` |
 | `get_findings` | `GET /findings` | `engagement_id`, `category`, `severity`, `status`, `sample_id` all optional, `limit`, `cursor` | `findings[]` (compact: no lineage), `next_cursor`, `totals` |
 | `explain_finding` | `GET /findings/{finding_id}/explain` | none | full finding record, `explanation`, `documents[]` |
 | `confirm_finding` | `POST /findings/{finding_id}/decisions` | `decision` (`confirmed`, `rejected`, `needs_info`), `note` optional | `finding_id`, `status`, `decided_by`, `decided_at` |
+| `export_summary_report` | `POST /summary` | `engagement_id` | `summary` of `{findings, samples, evidence, revenue, safeguards}`, `file` (a one-page PDF), `head_hash` |
 | `sign_off_engagement` | `POST /engagements/sign-off` | `engagement_id`, `note` optional | `signed_by`, `signed_at`; `VALIDATION_FAILED` listing undecided findings otherwise |
 | `get_counterparty_graph` | `GET /graph` | `engagement_id` | `nodes[]` of `{id, label, kind, related}`, `edges[]` of `{source, target, kind, value, count}`, `cycles[]` of `{finding_id, path[], value}` |
 | `draft_findings_memo` | `POST /memo` | `engagement_id` | `files[]`, `findings`, `total_adjustment`, `head_hash` |
