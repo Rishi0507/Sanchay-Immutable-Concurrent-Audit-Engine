@@ -6,7 +6,7 @@ import { ChartSkeleton, FieldGrid, LedgerRows, MoreBar, PageBrief, Panel, Regist
 import { RegisterWall } from "./motion";
 
 const statuses = [
-  { value: "MATCHED", label: "Agrees with the books", color: "color-mix(in oklab, var(--color-brand) 42%, transparent)" },
+  { value: "MATCHED", label: "Agrees with the books", color: "var(--color-agree)" },
   { value: "FIELD_DIFFERENCE", label: "Differs from the books", color: ink.high },
   { value: "NOT_IN_SYSTEM", label: "No invoice behind it", color: ink.warm },
   { value: "DUPLICATE_ROW", label: "Duplicated row", color: ink.medium },

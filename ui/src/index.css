@@ -65,6 +65,9 @@
   --color-shift-b: #2b5fb8;
   --color-guilloche: #8e9a92;
 
+  /* What agrees with the books: quiet in daylight, dimmer still under the lamp. */
+  --color-agree: color-mix(in oklab, var(--color-brand) 42%, transparent);
+
   /* Six kinds of problem, validated for colour-blind separation on paper. */
   --color-fam-1: #2a78d6;
   --color-fam-2: #c98500;
@@ -212,6 +215,7 @@
 
 /* The UV lamp: dark violet, and what the tests caught fluoresces. */
 :root[data-uv="on"] {
+  --color-agree: color-mix(in oklab, var(--color-ink-3) 45%, transparent);
   --color-paper: #140a33;
   --color-canvas: #0b0420;
   --color-wash: #1d1045;

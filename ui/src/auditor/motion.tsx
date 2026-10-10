@@ -5,7 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button, Mark, Tone, cx } from "../ui";
-import { prefersReducedMotion, useUv } from "../theme";
+import { prefersReducedMotion, usePalette, useUv } from "../theme";
 import { RegisterRow, inr } from "./kit";
 
 // ---------------------------------------------------------------- Colours for a canvas
@@ -14,7 +14,9 @@ import { RegisterRow, inr } from "./kit";
 // throwaway element and a one-pixel canvas.
 const resolved = new Map<string, string>();
 function solid(css: string): string {
-  const hit = resolved.get(css);
+  // The same variable is a different colour in another ink, or under the lamp.
+  const key = `${document.documentElement.dataset.palette}|${document.documentElement.dataset.uv ?? ""}|${css}`;
+  const hit = resolved.get(key);
   if (hit) return hit;
   const el = document.createElement("span");
   el.style.color = css;
@@ -28,7 +30,7 @@ function solid(css: string): string {
   g.fillRect(0, 0, 1, 1);
   const [r, gg, b, a] = g.getImageData(0, 0, 1, 1).data;
   const out = `rgba(${r},${gg},${b},${(a / 255).toFixed(3)})`;
-  resolved.set(css, out);
+  resolved.set(key, out);
   return out;
 }
 
@@ -61,6 +63,9 @@ export function RegisterWall({
   const [hover, setHover] = useState<{ i: number; x: number; y: number } | null>(null);
   const built = useRef(false);
   const n = rows.length;
+  // Redraw in the new colours when the ink or the lamp changes.
+  const [palette] = usePalette();
+  const [uv] = useUv();
   // Square size chosen so the wall is about 230 pixels tall at this width.
   const geo = useMemo(() => {
     const gap = 1.5;
@@ -129,7 +134,7 @@ export function RegisterWall({
     };
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [rows, colorOf, highlight, emphasis, width, geo, n]);
+  }, [rows, colorOf, highlight, emphasis, width, geo, n, palette, uv]);
 
   const at = (x: number, y: number) => {
     const step = geo.cell + geo.gap;

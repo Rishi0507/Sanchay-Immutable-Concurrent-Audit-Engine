@@ -326,7 +326,7 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement, iden
         parts: (onlyBad
           ? []
           : [
-              { key: "clean", label: "Agrees with the books", value: b.clean, color: "color-mix(in oklab, var(--color-brand) 40%, transparent)" },
+              { key: "clean", label: "Agrees with the books", value: b.clean, color: "var(--color-agree)" },
               { key: "rp", label: "Related party", value: b.rp, color: ink.rp },
             ]
         ).concat([{ key: "bad", label: "Not agreeing", value: b.bad, color: ink.high }]),
