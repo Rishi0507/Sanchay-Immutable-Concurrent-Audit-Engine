@@ -1,0 +1,25 @@
+# build output
+_build/
+*.install
+node_modules/
+dist/
+bin/
+*.exe
+*.test
+*.out
+
+# local state
+.env
+.local/
+data/
+*.log
+
+# editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# reference material kept outside the repository
+/Elevate 1.0 PS list.pdf
+/ps4-revenue-audit-approach.md

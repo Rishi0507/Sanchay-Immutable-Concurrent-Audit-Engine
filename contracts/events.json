@@ -1,0 +1,633 @@
+{
+  "version": 1,
+  "money_unit": "paise",
+  "accounts": [
+    {"code": "1000", "name": "Bank", "type": "asset"},
+    {"code": "1100", "name": "Trade Receivables", "type": "asset"},
+    {"code": "1300", "name": "GST Input Credit", "type": "asset"},
+    {"code": "2000", "name": "Trade Payables", "type": "liability"},
+    {"code": "2100", "name": "CGST Output", "type": "liability"},
+    {"code": "2101", "name": "SGST Output", "type": "liability"},
+    {"code": "2102", "name": "IGST Output", "type": "liability"},
+    {"code": "2200", "name": "TCS Payable", "type": "liability"},
+    {"code": "4000", "name": "Sales Revenue", "type": "income"},
+    {"code": "4100", "name": "Sales Returns and Credit Notes", "type": "income_contra"},
+    {"code": "4200", "name": "Freight, Packing and Insurance Recovered", "type": "income"},
+    {"code": "4900", "name": "Round-off", "type": "income"},
+    {"code": "5000", "name": "Purchases", "type": "expense"},
+    {"code": "9000", "name": "Suspense", "type": "other"}
+  ],
+  "shared": {
+    "address": [
+      {"name": "line", "type": "string", "description": "Street address."},
+      {"name": "city", "type": "string"},
+      {"name": "state", "type": "string"},
+      {"name": "pincode", "type": "string"}
+    ],
+    "bank_account": [
+      {"name": "account_no", "type": "string", "required": true},
+      {"name": "ifsc", "type": "string"},
+      {"name": "holder", "type": "string", "description": "Name of the account holder."}
+    ],
+    "director": [
+      {"name": "name", "type": "string", "required": true},
+      {"name": "pan", "type": "string"},
+      {"name": "din", "type": "string", "description": "Director identification number."}
+    ],
+    "item": [
+      {"name": "item_code", "type": "string", "required": true},
+      {"name": "description", "type": "string"},
+      {"name": "hsn", "type": "string"},
+      {"name": "qty", "type": "number", "required": true},
+      {"name": "rate", "type": "money", "description": "Rate per unit."},
+      {"name": "discount_percent", "type": "number"}
+    ]
+  },
+  "events": [
+    {
+      "type": "CustomerCreated",
+      "tool": "create_customer",
+      "aggregate": "customer",
+      "prefix": "cus",
+      "mode": "create",
+      "sale": "none",
+      "posts": false,
+      "business_date": "effective_from",
+      "description": "Create a customer master record. Call this before any enquiry, order or invoice for a new customer. Next: record_enquiry or create_sales_order.",
+      "fields": [
+        {"name": "name", "type": "string", "required": true, "description": "Legal name of the customer."},
+        {"name": "gstin", "type": "string", "description": "15 character GSTIN."},
+        {"name": "pan", "type": "string", "description": "10 character PAN."},
+        {"name": "state_code", "type": "string", "description": "Two digit GST state code."},
+        {"name": "addresses", "type": "array", "shared": "address"},
+        {"name": "phone", "type": "string"},
+        {"name": "email", "type": "string"},
+        {"name": "bank_accounts", "type": "array", "shared": "bank_account"},
+        {"name": "directors", "type": "array", "shared": "director"},
+        {"name": "effective_from", "type": "date", "required": true, "description": "Date from which these details apply."}
+      ]
+    },
+    {
+      "type": "CustomerUpdated",
+      "tool": "update_customer",
+      "aggregate": "customer",
+      "prefix": "cus",
+      "mode": "update",
+      "sale": "none",
+      "posts": false,
+      "business_date": "effective_from",
+      "description": "Record a new effective-dated version of a customer. Only the fields supplied change. The earlier version stays in history.",
+      "fields": [
+        {"name": "name", "type": "string"},
+        {"name": "gstin", "type": "string"},
+        {"name": "pan", "type": "string"},
+        {"name": "state_code", "type": "string"},
+        {"name": "addresses", "type": "array", "shared": "address"},
+        {"name": "phone", "type": "string"},
+        {"name": "email", "type": "string"},
+        {"name": "bank_accounts", "type": "array", "shared": "bank_account"},
+        {"name": "directors", "type": "array", "shared": "director"},
+        {"name": "effective_from", "type": "date", "required": true, "description": "Date from which the change applies."}
+      ]
+    },
+    {
+      "type": "VendorCreated",
+      "tool": "create_vendor",
+      "aggregate": "vendor",
+      "prefix": "ven",
+      "mode": "create",
+      "sale": "none",
+      "posts": false,
+      "business_date": "effective_from",
+      "description": "Create a vendor master record. Call this before recording a purchase invoice for a new vendor.",
+      "fields": [
+        {"name": "name", "type": "string", "required": true, "description": "Legal name of the vendor."},
+        {"name": "gstin", "type": "string"},
+        {"name": "pan", "type": "string"},
+        {"name": "state_code", "type": "string"},
+        {"name": "addresses", "type": "array", "shared": "address"},
+        {"name": "phone", "type": "string"},
+        {"name": "email", "type": "string"},
+        {"name": "bank_accounts", "type": "array", "shared": "bank_account"},
+        {"name": "directors", "type": "array", "shared": "director"},
+        {"name": "effective_from", "type": "date", "required": true}
+      ]
+    },
+    {
+      "type": "VendorUpdated",
+      "tool": "update_vendor",
+      "aggregate": "vendor",
+      "prefix": "ven",
+      "mode": "update",
+      "sale": "none",
+      "posts": false,
+      "business_date": "effective_from",
+      "description": "Record a new effective-dated version of a vendor. Only the fields supplied change.",
+      "fields": [
+        {"name": "name", "type": "string"},
+        {"name": "gstin", "type": "string"},
+        {"name": "pan", "type": "string"},
+        {"name": "state_code", "type": "string"},
+        {"name": "addresses", "type": "array", "shared": "address"},
+        {"name": "phone", "type": "string"},
+        {"name": "email", "type": "string"},
+        {"name": "bank_accounts", "type": "array", "shared": "bank_account"},
+        {"name": "directors", "type": "array", "shared": "director"},
+        {"name": "effective_from", "type": "date", "required": true}
+      ]
+    },
+    {
+      "type": "CompanyOfficerRecorded",
+      "tool": "record_company_officer",
+      "aggregate": "officer",
+      "prefix": "off",
+      "mode": "create",
+      "sale": "none",
+      "posts": false,
+      "business_date": "effective_from",
+      "description": "Record a director or key managerial person of the company itself, with the dates the role applies.",
+      "fields": [
+        {"name": "name", "type": "string", "required": true},
+        {"name": "pan", "type": "string"},
+        {"name": "din", "type": "string"},
+        {"name": "role", "type": "string", "required": true, "description": "For example Director, CFO, Company Secretary."},
+        {"name": "phone", "type": "string"},
+        {"name": "email", "type": "string"},
+        {"name": "address", "type": "string"},
+        {"name": "bank_accounts", "type": "array", "shared": "bank_account"},
+        {"name": "effective_from", "type": "date", "required": true},
+        {"name": "effective_to", "type": "date"}
+      ]
+    },
+    {
+      "type": "PriceSet",
+      "tool": "set_price",
+      "aggregate": "price",
+      "prefix": "prc",
+      "mode": "create",
+      "sale": "none",
+      "posts": false,
+      "business_date": "effective_from",
+      "description": "Set the price list rate of an item from a date.",
+      "fields": [
+        {"name": "item_code", "type": "string", "required": true},
+        {"name": "description", "type": "string"},
+        {"name": "hsn", "type": "string"},
+        {"name": "rate", "type": "money", "required": true, "description": "List rate per unit."},
+        {"name": "effective_from", "type": "date", "required": true}
+      ]
+    },
+    {
+      "type": "PromotionCreated",
+      "tool": "create_promotion",
+      "aggregate": "promotion",
+      "prefix": "prm",
+      "mode": "create",
+      "sale": "none",
+      "posts": false,
+      "business_date": "valid_from",
+      "description": "Create a discount scheme with its rate, validity dates, eligible customers and approver.",
+      "fields": [
+        {"name": "scheme_id", "type": "string", "required": true, "description": "Scheme reference quoted on orders and invoices."},
+        {"name": "description", "type": "string"},
+        {"name": "discount_percent", "type": "number", "required": true},
+        {"name": "valid_from", "type": "date", "required": true},
+        {"name": "valid_to", "type": "date", "required": true},
+        {"name": "eligible_customer_ids", "type": "ref_list", "ref": "customer", "description": "Leave empty when every customer is eligible."},
+        {"name": "approver", "type": "string", "required": true}
+      ]
+    },
+    {
+      "type": "EnquiryRecorded",
+      "tool": "record_enquiry",
+      "aggregate": "enquiry",
+      "prefix": "enq",
+      "mode": "create",
+      "sale": "new",
+      "posts": false,
+      "business_date": "date",
+      "description": "Record the first interaction with a customer for a sale. Returns a sale_id that links every later document of this sale. Next: create_sales_order.",
+      "fields": [
+        {"name": "customer_id", "type": "ref", "ref": "customer", "required": true},
+        {"name": "date", "type": "date", "required": true},
+        {"name": "channel", "type": "string", "description": "For example email, phone, tender, visit."},
+        {"name": "items", "type": "array", "shared": "item"},
+        {"name": "notes", "type": "string"}
+      ]
+    },
+    {
+      "type": "SalesOrderCreated",
+      "tool": "create_sales_order",
+      "aggregate": "order",
+      "prefix": "ord",
+      "mode": "create",
+      "sale": "inherit_or_new",
+      "posts": false,
+      "business_date": "date",
+      "description": "Record the customer's commitment: items, quantity, rate, discount, delivery terms and approver. Pass enquiry_id to continue an existing sale. Next: record_dispatch.",
+      "fields": [
+        {"name": "customer_id", "type": "ref", "ref": "customer", "required": true},
+        {"name": "enquiry_id", "type": "ref", "ref": "enquiry"},
+        {"name": "order_no", "type": "string", "required": true},
+        {"name": "date", "type": "date", "required": true},
+        {"name": "items", "type": "array", "shared": "item", "required": true},
+        {"name": "scheme_id", "type": "string", "description": "Promotion scheme applied, if any."},
+        {"name": "delivery_terms", "type": "enum", "values": ["ex_works", "delivered"], "required": true, "description": "ex_works: control passes on dispatch. delivered: control passes on delivery."},
+        {"name": "approver", "type": "string"}
+      ]
+    },
+    {
+      "type": "DispatchRecorded",
+      "tool": "record_dispatch",
+      "aggregate": "dispatch",
+      "prefix": "dsp",
+      "mode": "create",
+      "sale": "inherit",
+      "posts": false,
+      "business_date": "dispatched_at",
+      "description": "Record goods leaving the premises for a sale. Pass order_id or invoice_id to link it. Next: generate_eway_bill and record_lr.",
+      "fields": [
+        {"name": "order_id", "type": "ref", "ref": "order"},
+        {"name": "invoice_id", "type": "ref", "ref": "invoice"},
+        {"name": "dispatched_at", "type": "datetime", "required": true},
+        {"name": "items", "type": "array", "shared": "item"},
+        {"name": "vehicle_no", "type": "string"},
+        {"name": "from_address", "type": "string"},
+        {"name": "to_address", "type": "string"},
+        {"name": "distance_km", "type": "number"}
+      ]
+    },
+    {
+      "type": "EWayBillGenerated",
+      "tool": "generate_eway_bill",
+      "aggregate": "eway_bill",
+      "prefix": "ewb",
+      "mode": "create",
+      "sale": "inherit",
+      "posts": false,
+      "business_date": "date",
+      "description": "Record the e-way bill for a consignment. Pass invoice_id, dispatch_id or order_id to link it.",
+      "fields": [
+        {"name": "invoice_id", "type": "ref", "ref": "invoice"},
+        {"name": "dispatch_id", "type": "ref", "ref": "dispatch"},
+        {"name": "order_id", "type": "ref", "ref": "order"},
+        {"name": "ewb_no", "type": "string", "required": true, "description": "12 digit e-way bill number."},
+        {"name": "date", "type": "date", "required": true},
+        {"name": "invoice_no", "type": "string"},
+        {"name": "value", "type": "money", "description": "Consignment value on the e-way bill."},
+        {"name": "supplier_gstin", "type": "string"},
+        {"name": "recipient_gstin", "type": "string"},
+        {"name": "vehicle_no", "type": "string"},
+        {"name": "distance_km", "type": "number"},
+        {"name": "valid_until", "type": "datetime"},
+        {"name": "from_pincode", "type": "string"},
+        {"name": "to_pincode", "type": "string"}
+      ]
+    },
+    {
+      "type": "LorryReceiptRecorded",
+      "tool": "record_lr",
+      "aggregate": "lorry_receipt",
+      "prefix": "lrc",
+      "mode": "create",
+      "sale": "inherit",
+      "posts": false,
+      "business_date": "date",
+      "description": "Record the transporter's lorry receipt for a dispatch. Pass dispatch_id, invoice_id or order_id to link it.",
+      "fields": [
+        {"name": "dispatch_id", "type": "ref", "ref": "dispatch"},
+        {"name": "invoice_id", "type": "ref", "ref": "invoice"},
+        {"name": "order_id", "type": "ref", "ref": "order"},
+        {"name": "lr_no", "type": "string", "required": true},
+        {"name": "transporter", "type": "string", "required": true},
+        {"name": "date", "type": "date", "required": true},
+        {"name": "vehicle_no", "type": "string"},
+        {"name": "consignor", "type": "string"},
+        {"name": "consignee", "type": "string"},
+        {"name": "packages", "type": "int"}
+      ]
+    },
+    {
+      "type": "DeliveryRecorded",
+      "tool": "record_delivery",
+      "aggregate": "delivery",
+      "prefix": "dlv",
+      "mode": "create",
+      "sale": "inherit",
+      "posts": false,
+      "business_date": "delivered_at",
+      "description": "Record proof of delivery at the customer. Pass dispatch_id, invoice_id or order_id to link it.",
+      "fields": [
+        {"name": "dispatch_id", "type": "ref", "ref": "dispatch"},
+        {"name": "invoice_id", "type": "ref", "ref": "invoice"},
+        {"name": "order_id", "type": "ref", "ref": "order"},
+        {"name": "delivered_at", "type": "datetime", "required": true},
+        {"name": "receiver_name", "type": "string"},
+        {"name": "pod_reference", "type": "string"}
+      ]
+    },
+    {
+      "type": "InvoiceIssued",
+      "tool": "issue_invoice",
+      "aggregate": "invoice",
+      "prefix": "inv",
+      "mode": "create",
+      "sale": "inherit_or_new",
+      "posts": true,
+      "business_date": "date",
+      "description": "Issue a tax invoice. Posts revenue, tax and the receivable to the ledger. gross must equal taxable_value + packing + freight + insurance + cgst + sgst + igst + tcs + round_off. Pass order_id to link the sale. Next: file_gstr1 and record_receipt.",
+      "fields": [
+        {"name": "invoice_no", "type": "string", "required": true},
+        {"name": "date", "type": "date", "required": true},
+        {"name": "customer_id", "type": "ref", "ref": "customer", "required": true},
+        {"name": "order_id", "type": "ref", "ref": "order"},
+        {"name": "job_no", "type": "string"},
+        {"name": "items", "type": "array", "shared": "item"},
+        {"name": "taxable_value", "type": "money", "required": true, "description": "Value of goods after discount, before tax."},
+        {"name": "discount", "type": "money", "description": "Discount already deducted in taxable_value. Informational."},
+        {"name": "scheme_id", "type": "string"},
+        {"name": "packing", "type": "money"},
+        {"name": "freight", "type": "money"},
+        {"name": "insurance", "type": "money"},
+        {"name": "cgst", "type": "money"},
+        {"name": "sgst", "type": "money"},
+        {"name": "igst", "type": "money"},
+        {"name": "tcs", "type": "money"},
+        {"name": "round_off", "type": "signed_money"},
+        {"name": "gross", "type": "money", "required": true, "description": "Invoice total."},
+        {"name": "tax_rate", "type": "number", "description": "GST rate in percent."},
+        {"name": "place_of_supply", "type": "string", "description": "Two digit GST state code."},
+        {"name": "customer_gstin", "type": "string"},
+        {"name": "business_unit", "type": "string"},
+        {"name": "ledger_account", "type": "string"},
+        {"name": "irn", "type": "string", "description": "E-invoice reference number."},
+        {"name": "einvoice_status", "type": "string"}
+      ]
+    },
+    {
+      "type": "Gstr1Filed",
+      "tool": "file_gstr1",
+      "aggregate": "gstr1",
+      "prefix": "gst",
+      "mode": "create",
+      "sale": "none",
+      "posts": false,
+      "business_date": "filed_on",
+      "description": "Record the GSTR-1 statement of outward supplies filed for a return period.",
+      "fields": [
+        {"name": "return_period", "type": "string", "required": true, "description": "Return period as YYYY-MM."},
+        {"name": "filed_on", "type": "date", "required": true},
+        {"name": "lines", "type": "array", "required": true, "fields": [
+          {"name": "invoice_no", "type": "string", "required": true},
+          {"name": "doc_type", "type": "enum", "values": ["invoice", "credit_note"]},
+          {"name": "date", "type": "date"},
+          {"name": "gstin", "type": "string"},
+          {"name": "place_of_supply", "type": "string"},
+          {"name": "taxable_value", "type": "money"},
+          {"name": "cgst", "type": "money"},
+          {"name": "sgst", "type": "money"},
+          {"name": "igst", "type": "money"}
+        ]}
+      ]
+    },
+    {
+      "type": "ReceiptRecorded",
+      "tool": "record_receipt",
+      "aggregate": "receipt",
+      "prefix": "rcp",
+      "mode": "create",
+      "sale": "inherit",
+      "posts": true,
+      "business_date": "date",
+      "description": "Record money received from a customer. Posts bank and reduces the receivable.",
+      "fields": [
+        {"name": "customer_id", "type": "ref", "ref": "customer", "required": true},
+        {"name": "invoice_ids", "type": "ref_list", "ref": "invoice", "description": "Invoices settled by this receipt."},
+        {"name": "amount", "type": "money", "required": true},
+        {"name": "date", "type": "date", "required": true},
+        {"name": "payer_name", "type": "string"},
+        {"name": "payer_account", "type": "string"},
+        {"name": "utr", "type": "string"},
+        {"name": "mode", "type": "string", "description": "For example NEFT, RTGS, cheque."}
+      ]
+    },
+    {
+      "type": "BankStatementImported",
+      "tool": "import_bank_statement",
+      "aggregate": "bank_statement",
+      "prefix": "bst",
+      "mode": "create",
+      "sale": "none",
+      "posts": false,
+      "business_date": "statement_date",
+      "description": "Import lines of the company's bank statement.",
+      "fields": [
+        {"name": "account_no", "type": "string", "required": true},
+        {"name": "statement_date", "type": "date", "required": true},
+        {"name": "lines", "type": "array", "required": true, "fields": [
+          {"name": "date", "type": "date", "required": true},
+          {"name": "amount", "type": "money", "required": true},
+          {"name": "direction", "type": "enum", "values": ["credit", "debit"], "required": true},
+          {"name": "counterparty_name", "type": "string"},
+          {"name": "counterparty_account", "type": "string"},
+          {"name": "utr", "type": "string"},
+          {"name": "narration", "type": "string"}
+        ]}
+      ]
+    },
+    {
+      "type": "CreditNoteIssued",
+      "tool": "issue_credit_note",
+      "aggregate": "credit_note",
+      "prefix": "crn",
+      "mode": "create",
+      "sale": "inherit",
+      "posts": true,
+      "business_date": "date",
+      "description": "Issue a credit note against an invoice. Posts a reduction of revenue, tax and the receivable. gross must equal taxable_value + cgst + sgst + igst.",
+      "fields": [
+        {"name": "credit_note_no", "type": "string", "required": true},
+        {"name": "date", "type": "date", "required": true},
+        {"name": "invoice_id", "type": "ref", "ref": "invoice", "required": true, "description": "Original invoice."},
+        {"name": "reason", "type": "string", "required": true},
+        {"name": "taxable_value", "type": "money", "required": true},
+        {"name": "cgst", "type": "money"},
+        {"name": "sgst", "type": "money"},
+        {"name": "igst", "type": "money"},
+        {"name": "gross", "type": "money", "required": true},
+        {"name": "approver", "type": "string"}
+      ]
+    },
+    {
+      "type": "SalesReturnRecorded",
+      "tool": "record_sales_return",
+      "aggregate": "sales_return",
+      "prefix": "srt",
+      "mode": "create",
+      "sale": "inherit",
+      "posts": false,
+      "business_date": "inward_date",
+      "description": "Record goods coming back from a customer. Pass credit_note_id or invoice_id to link it.",
+      "fields": [
+        {"name": "credit_note_id", "type": "ref", "ref": "credit_note"},
+        {"name": "invoice_id", "type": "ref", "ref": "invoice"},
+        {"name": "inward_date", "type": "date", "required": true},
+        {"name": "items", "type": "array", "shared": "item"},
+        {"name": "vehicle_no", "type": "string"}
+      ]
+    },
+    {
+      "type": "PurchaseInvoiceRecorded",
+      "tool": "record_purchase_invoice",
+      "aggregate": "purchase_invoice",
+      "prefix": "pin",
+      "mode": "create",
+      "sale": "none",
+      "posts": true,
+      "business_date": "date",
+      "description": "Record a vendor's invoice. Posts purchases, input tax and the payable. gross must equal taxable_value + tax.",
+      "fields": [
+        {"name": "vendor_id", "type": "ref", "ref": "vendor", "required": true},
+        {"name": "invoice_no", "type": "string", "required": true},
+        {"name": "date", "type": "date", "required": true},
+        {"name": "items", "type": "array", "shared": "item"},
+        {"name": "taxable_value", "type": "money", "required": true},
+        {"name": "tax", "type": "money"},
+        {"name": "gross", "type": "money", "required": true}
+      ]
+    },
+    {
+      "type": "GoodsReceiptRecorded",
+      "tool": "record_goods_receipt",
+      "aggregate": "goods_receipt",
+      "prefix": "grn",
+      "mode": "create",
+      "sale": "none",
+      "posts": false,
+      "business_date": "date",
+      "description": "Record goods received from a vendor.",
+      "fields": [
+        {"name": "purchase_invoice_id", "type": "ref", "ref": "purchase_invoice"},
+        {"name": "vendor_id", "type": "ref", "ref": "vendor"},
+        {"name": "date", "type": "date", "required": true},
+        {"name": "items", "type": "array", "shared": "item"},
+        {"name": "vehicle_no", "type": "string"}
+      ]
+    },
+    {
+      "type": "PaymentMade",
+      "tool": "record_payment",
+      "aggregate": "payment",
+      "prefix": "pay",
+      "mode": "create",
+      "sale": "none",
+      "posts": true,
+      "business_date": "date",
+      "description": "Record money paid to a vendor. Posts a reduction of the payable and bank.",
+      "fields": [
+        {"name": "vendor_id", "type": "ref", "ref": "vendor", "required": true},
+        {"name": "purchase_invoice_ids", "type": "ref_list", "ref": "purchase_invoice"},
+        {"name": "amount", "type": "money", "required": true},
+        {"name": "date", "type": "date", "required": true},
+        {"name": "payee_name", "type": "string"},
+        {"name": "payee_account", "type": "string"},
+        {"name": "utr", "type": "string"}
+      ]
+    },
+    {
+      "type": "JournalPosted",
+      "tool": "post_journal",
+      "aggregate": "journal",
+      "prefix": "jrn",
+      "mode": "create",
+      "sale": "none",
+      "posts": true,
+      "business_date": "date",
+      "description": "Post a manual journal to the ledger. Total debits must equal total credits. Each line carries either a debit or a credit.",
+      "fields": [
+        {"name": "date", "type": "date", "required": true},
+        {"name": "narration", "type": "string", "required": true},
+        {"name": "reference", "type": "string", "description": "Document the journal refers to, if any."},
+        {"name": "approver", "type": "string"},
+        {"name": "lines", "type": "array", "required": true, "fields": [
+          {"name": "account", "type": "string", "required": true, "description": "Account code from the chart of accounts."},
+          {"name": "debit", "type": "money"},
+          {"name": "credit", "type": "money"}
+        ]}
+      ]
+    },
+    {
+      "type": "DocumentReversed",
+      "tool": "reverse_document",
+      "aggregate": "*",
+      "prefix": "",
+      "mode": "reverse",
+      "sale": "inherit",
+      "posts": true,
+      "business_date": "date",
+      "description": "Reverse a document. Nothing is deleted: a reversal event is appended and, where the document posted to the ledger, mirror postings are made. To correct a document, reverse it and create a new one.",
+      "fields": [
+        {"name": "reason", "type": "string", "required": true},
+        {"name": "date", "type": "date", "required": true, "description": "Date of the reversal."}
+      ]
+    },
+    {
+      "type": "SalesRegisterUploaded",
+      "tool": "upload_sales_register",
+      "aggregate": "sales_register",
+      "prefix": "reg",
+      "mode": "create",
+      "sale": "none",
+      "posts": false,
+      "business_date": "period_end",
+      "description": "Hand the sales register for a period to the auditor. The auditor is notified.",
+      "fields": [
+        {"name": "file_hash", "type": "string", "required": true, "description": "SHA-256 of the stored file."},
+        {"name": "file_name", "type": "string", "required": true},
+        {"name": "row_count", "type": "int"},
+        {"name": "period_start", "type": "date", "required": true},
+        {"name": "period_end", "type": "date", "required": true}
+      ]
+    },
+    {
+      "type": "RelatedPartyListUploaded",
+      "tool": "upload_related_parties",
+      "aggregate": "related_party_list",
+      "prefix": "rpl",
+      "mode": "create",
+      "sale": "none",
+      "posts": false,
+      "business_date": "as_of",
+      "description": "Disclose the company's related parties to the auditor. The auditor is notified.",
+      "fields": [
+        {"name": "as_of", "type": "date", "required": true},
+        {"name": "file_hash", "type": "string", "description": "SHA-256 of the stored file, when the list was supplied as a file."},
+        {"name": "file_name", "type": "string"},
+        {"name": "parties", "type": "array", "required": true, "fields": [
+          {"name": "name", "type": "string", "required": true},
+          {"name": "pan", "type": "string"},
+          {"name": "gstin", "type": "string"},
+          {"name": "relationship", "type": "string"},
+          {"name": "effective_from", "type": "date"}
+        ]}
+      ]
+    },
+    {
+      "type": "EvidenceUploaded",
+      "tool": "upload_evidence",
+      "aggregate": "evidence",
+      "prefix": "evd",
+      "mode": "create",
+      "sale": "none",
+      "posts": false,
+      "business_date": "",
+      "description": "Supply a supporting document for a sample the auditor requested. The auditor is notified.",
+      "fields": [
+        {"name": "sample_id", "type": "string", "required": true},
+        {"name": "document_type", "type": "enum", "values": ["invoice", "eway_bill", "lr_copy", "proof_of_delivery", "credit_note", "sales_return", "other"], "required": true},
+        {"name": "file_hash", "type": "string", "required": true, "description": "SHA-256 of the stored file."},
+        {"name": "file_name", "type": "string"}
+      ]
+    }
+  ]
+}
