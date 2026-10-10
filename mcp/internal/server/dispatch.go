@@ -192,16 +192,17 @@ func (s *Server) record(ctx context.Context, id core.Identity, name string, args
 		s.log.Error("trail append failed", "tool", name, "user", id.User, "error", err.Message)
 	}
 
+	// A screen reloads on a call that changed something. Reads are reported too, but as
+	// reads: two auditors watching the same engagement would otherwise reload each other
+	// without end.
+	t := s.tools[name]
 	s.hub.Publish(Notice{
 		Kind:     "activity",
 		Audience: []string{core.RoleAuditor, core.RoleManager},
-		Data:     map[string]any{"tool": name, "user": id.User, "role": id.Role, "department": id.Department, "status": status, "engagement_id": engagement},
+		Data: map[string]any{"tool": name, "user": id.User, "role": id.Role, "department": id.Department, "status": status,
+			"engagement_id": engagement, "changes": t != nil && t.Changes && terr == nil},
 	})
-	if terr != nil {
-		return
-	}
-	t := s.tools[name]
-	if t == nil {
+	if terr != nil || t == nil {
 		return
 	}
 	switch t.Notify {

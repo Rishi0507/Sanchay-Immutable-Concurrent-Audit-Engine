@@ -30,6 +30,7 @@ type Tool struct {
 	Departments []string // client departments that may call it; empty means every client employee
 	Fields      []catalogue.Field
 	Write       bool
+	Changes     bool // the call changes what other people see: a client record or a step of the audit
 	Notify      string
 	Handler     core.Handler
 }

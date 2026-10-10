@@ -391,7 +391,9 @@ export default function App() {
         setBadges((b) => ({ ...b, requests: (b.requests ?? 0) + 1 }));
         toast("The auditor requested documents.");
         setPulse((p) => p + 1);
-      } else if (n.kind === "activity" && n.data.user !== identity.user && n.data.status === "ok") {
+      } else if (n.kind === "activity" && n.data.user !== identity.user && n.data.changes) {
+        // Only a call that changed something reloads the screen. Reloading on
+        // reads would make two auditors on one engagement reload each other.
         setPulse((p) => p + 1);
       }
     });

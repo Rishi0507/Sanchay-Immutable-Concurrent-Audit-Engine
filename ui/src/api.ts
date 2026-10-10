@@ -47,13 +47,22 @@ export function setRole(role: Role | "") {
   currentRole = role;
 }
 
+// The sign-in belongs to the tab, so two people can work side by side in one
+// browser: an auditor in one tab and a client employee in another.
+const kept = localStorage.getItem(TOKEN_KEY);
+if (kept) {
+  // A sign-in kept by an earlier version moves to the first tab that opens.
+  if (!sessionStorage.getItem(TOKEN_KEY)) sessionStorage.setItem(TOKEN_KEY, kept);
+  localStorage.removeItem(TOKEN_KEY);
+}
+
 export function getToken(): string {
-  return localStorage.getItem(TOKEN_KEY) ?? "";
+  return sessionStorage.getItem(TOKEN_KEY) ?? "";
 }
 
 export function setToken(token: string) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+  if (token) sessionStorage.setItem(TOKEN_KEY, token);
+  else sessionStorage.removeItem(TOKEN_KEY);
 }
 
 async function parse<T>(res: Response): Promise<T> {

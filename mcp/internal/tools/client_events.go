@@ -68,6 +68,7 @@ func eventTool(d *Deps, ev *catalogue.Event) *Tool {
 		Description: ev.Description,
 		Roles:       clientOnly,
 		Write:       true,
+		Changes:     true,
 	}
 	fields := append([]catalogue.Field{}, ev.Fields...)
 	if fileTools[ev.Tool] {

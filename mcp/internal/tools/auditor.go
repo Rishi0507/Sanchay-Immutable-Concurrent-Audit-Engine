@@ -30,6 +30,7 @@ func (e engineTool) build(d *Deps) *Tool {
 		Description: e.desc,
 		Roles:       e.roles,
 		Fields:      e.fields,
+		Changes:     e.method != http.MethodGet,
 		Notify:      e.notify,
 		Handler: func(ctx context.Context, c *core.Call) (map[string]any, *core.ToolError) {
 			path := e.path
