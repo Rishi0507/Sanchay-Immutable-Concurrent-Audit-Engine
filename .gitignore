@@ -4,6 +4,7 @@ _build/
 node_modules/
 dist/
 bin/
+!/ledger/bin/
 *.exe
 *.test
 *.out
