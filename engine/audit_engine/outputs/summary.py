@@ -8,6 +8,7 @@ it rests on, like the workpaper and the memo.
 from __future__ import annotations
 
 from collections import Counter
+from pathlib import Path
 
 from ..detectors.common import period_invoices
 from ..evidence.service import control_summary, regional_documents, request_status
@@ -20,6 +21,8 @@ from .memo import NAMES, revenue_adjustment
 # How much of the life of a sale is on record behind an invoice, strongest first.
 PROOF = ["Ordered, shipped, delivered, paid", "Delivered, not yet paid",
          "Some movement on record", "Order only, no movement", "Invoice with nothing behind it"]
+# The Sanchay emblem, printed beside the title.
+LOGO = Path(__file__).with_name("logo-mark.png")
 
 
 def proof_level(snap, inv: dict) -> int:
@@ -155,7 +158,11 @@ def render(s: dict, head_hash: str) -> bytes:
 
     # Title
     text(LEFT, 62, "Audit summary", 20, INK, bold=True)
-    text(RIGHT, 62, "Statutory revenue audit", 9, INK2, right=True)
+    label_right = RIGHT
+    if LOGO.exists():
+        page.insert_image(pymupdf.Rect(RIGHT - 32, 34, RIGHT, 66), stream=LOGO.read_bytes())
+        label_right = RIGHT - 40
+    text(label_right, 62, "Statutory revenue audit", 9, INK2, right=True)
     text(LEFT, 80, fit(f"{s['client']}   |   {s['period_start']} to {s['period_end']}", RIGHT - LEFT, 10), 10, INK2)
     rule(92)
 

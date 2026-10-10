@@ -5,7 +5,7 @@ import Lenis from "lenis";
 import { Component, ReactNode, Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { callToolAs, health, money } from "../api";
 import { Theme, prefersReducedMotion, token, useTheme } from "../theme";
-import { Mark, cx } from "../ui";
+import { BrandMark, Mark, cx } from "../ui";
 import { ChapterCopy, buildStatus, chapters, claims, closing, detectors, disclosure, handling, provenanceKey, stats, weClaim, weDoNotClaim } from "./content";
 import { Field, flagLabel, makeField } from "./data";
 import { Caption, CountUp, Headline, Magnetic, Rail, Reveal, Rise, Source, Ticker } from "./parts";
@@ -308,10 +308,8 @@ export default function Story({ onOpen }: { onOpen: () => void }) {
 
       <header className="fixed inset-x-0 top-0 z-30 flex h-16 items-center justify-between gap-6 px-6 md:px-12 lg:px-20" style={{ background: "linear-gradient(to bottom, var(--color-paper) 0%, color-mix(in srgb, var(--color-paper) 70%, transparent) 60%, transparent 100%)" }}>
         <div className="flex items-center gap-2.5 text-[15px] font-semibold tracking-[-0.01em]">
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="var(--color-brand)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M3.5 10.5l4.2 4.2L16.5 5.2" />
-          </svg>
-          Revenue Audit
+          <BrandMark size={28} />
+          Sanchay
         </div>
         <div className="flex items-center gap-5 text-[13px]">
           {live.up !== null && (

@@ -52,7 +52,7 @@ func (s *Server) auth(next authed) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := s.identityOf(r)
 		if !ok {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="revenue-audit"`)
+			w.Header().Set("WWW-Authenticate", `Bearer realm="sanchay"`)
 			writeError(w, &core.ToolError{
 				Code:     core.CodePermissionDenied,
 				Message:  "A valid bearer token is required.",

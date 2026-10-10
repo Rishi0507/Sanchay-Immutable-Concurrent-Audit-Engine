@@ -1,6 +1,8 @@
-# ELEV05: AI-Run Statutory Revenue Audit
+<p align="center"><img src="docs/logo.png" alt="Sanchay" width="240"></p>
 
-Elevate 1.0, problem statement 04.
+# Sanchay
+
+AI-run statutory revenue audit. Team ELEV05, Elevate 1.0, problem statement 04.
 
 A statutory auditor of a mid-size manufacturer usually receives a sales register exported to a spreadsheet, tests a few dozen of 6,000 to 8,000 sales, and collects the supporting documents by email. This project builds the system of record behind those sales and audits that instead. Every step of a sale is an event in an append-only, hash-chained double-entry ledger. The whole system is exposed as a Model Context Protocol (MCP) server, so that an AI agent holding only an identity can run the business as a client employee or audit it as an independent auditor, with exactly the permissions of that identity.
 
@@ -579,7 +581,7 @@ Any MCP client that supports Streamable HTTP can connect. Example client configu
 ```json
 {
   "mcpServers": {
-    "revenue-audit": {
+    "sanchay": {
       "type": "http",
       "url": "http://localhost:8080/mcp",
       "headers": { "Authorization": "Bearer auditor-demo-token" }

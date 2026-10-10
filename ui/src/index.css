@@ -92,6 +92,16 @@ html[data-theme="light"] {
   color-scheme: light;
 }
 
+/* The Sanchay logo is drawn in dark green. On the dark theme it stands on its
+   own paper; on the light theme the page is the paper. */
+.logo-ground {
+  background: #fdf9ef;
+}
+
+html[data-theme="light"] .logo-ground {
+  background: transparent;
+}
+
 body {
   background: var(--color-paper);
   color: var(--color-ink);

@@ -80,6 +80,12 @@ export function Status({ tone, children }: { tone: Tone; children: ReactNode }) 
   );
 }
 
+// The Sanchay emblem. On the dark theme it stands on a paper tile (logo-ground
+// in index.css), because it is drawn in dark green.
+export function BrandMark({ size = 28 }: { size?: number }) {
+  return <img src="/logo-mark.png" alt="" width={size} height={size} className="logo-ground shrink-0 rounded-[22%]" />;
+}
+
 export function Mark({ tone, size = 14 }: { tone: Tone; size?: number }) {
   const common = { width: size, height: size, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
   if (tone === "good")

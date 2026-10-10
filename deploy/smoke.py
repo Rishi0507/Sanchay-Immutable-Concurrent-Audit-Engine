@@ -366,7 +366,7 @@ def rpc(who, method, params=None, rid=1):
 
 
 init = rpc("auditor", "initialize", {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "smoke", "version": "1"}})
-check("initialize answers with server info", init.get("result", {}).get("serverInfo", {}).get("name") == "revenue-audit", str(init)[:200])
+check("initialize answers with server info", init.get("result", {}).get("serverInfo", {}).get("name") == "sanchay", str(init)[:200])
 listed = rpc("auditor", "tools/list")
 names = {t["name"] for t in listed.get("result", {}).get("tools", [])}
 check("the auditor lists audit tools", {"get_audit_plan", "select_sales_tod", "explain_finding"} <= names, str(sorted(names))[:200])

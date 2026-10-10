@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Identity, Notice, Role, ToolInfo, callTool, getEngagement, getToken, listTools, setEngagement, setRole, setToken, subscribe, whoami } from "./api";
 import { useTheme } from "./theme";
-import { Button, Toasts, cx, inputClass, toast } from "./ui";
+import { BrandMark, Button, Toasts, cx, inputClass, toast } from "./ui";
 import Upload from "./client/Upload";
 import Requests from "./client/Requests";
 import Records from "./client/Records";
@@ -181,17 +181,24 @@ function TabIcon({ id }: { id: string }) {
   }
 }
 
-// The auditor's tick mark, used as the product mark.
+// The Sanchay emblem beside the product name. The large form, on the sign-in
+// screen, is the full logo, which carries the name, with what the product does under it.
 function Wordmark({ large, onClick }: { large?: boolean; onClick?: () => void }) {
+  if (large) {
+    return (
+      <div>
+        <img src="/logo.png" alt="Sanchay" width={188} height={130} className="logo-ground rounded-xl" />
+        <div className="mt-4 text-sm text-ink-2">Statutory revenue audit</div>
+      </div>
+    );
+  }
   const mark = (
     <>
-      <svg width={large ? 22 : 18} height={large ? 22 : 18} viewBox="0 0 20 20" fill="none" stroke="var(--color-brand)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <path d="M3.5 10.5l4.2 4.2L16.5 5.2" />
-      </svg>
-      Revenue Audit
+      <BrandMark size={28} />
+      Sanchay
     </>
   );
-  const className = cx("flex shrink-0 items-center font-semibold whitespace-nowrap tracking-[-0.01em] text-ink", large ? "gap-2.5 text-xl" : "gap-2 text-[15px]");
+  const className = "flex shrink-0 items-center gap-2.5 text-[15px] font-semibold whitespace-nowrap tracking-[-0.01em] text-ink";
   return onClick ? (
     <button onClick={onClick} className={className} title="How it works">
       {mark}

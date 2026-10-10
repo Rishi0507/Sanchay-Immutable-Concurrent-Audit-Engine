@@ -65,7 +65,7 @@ func (m *mcpServers) forIdentity(id core.Identity) *mcp.Server {
 
 func (s *Server) buildMCP(id core.Identity) *mcp.Server {
 	srv := mcp.NewServer(
-		&mcp.Implementation{Name: "revenue-audit", Title: "Statutory Revenue Audit", Version: serverVersion},
+		&mcp.Implementation{Name: "sanchay", Title: "Sanchay", Version: serverVersion},
 		&mcp.ServerOptions{Instructions: instructionsFor(id), HasTools: true},
 	)
 	listed := map[string]bool{}
@@ -127,7 +127,7 @@ func (s *Server) MCPHandler() http.Handler {
 	}, &mcp.StreamableHTTPOptions{Stateless: !s.stateful})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := s.identityOf(r); !ok {
-			w.Header().Set("WWW-Authenticate", `Bearer realm="revenue-audit"`)
+			w.Header().Set("WWW-Authenticate", `Bearer realm="sanchay"`)
 			writeJSON(w, http.StatusUnauthorized, map[string]any{"error": core.ToolError{
 				Code:     core.CodePermissionDenied,
 				Message:  "A valid bearer token is required.",
