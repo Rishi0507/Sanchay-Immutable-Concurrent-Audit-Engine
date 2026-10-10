@@ -131,7 +131,7 @@ export default function Requests({ pulse }: ViewProps) {
                     {[s.customer, s.date, s.amount !== undefined ? `₹ ${money(s.amount)}` : null].filter(Boolean).join(", ")}
                   </div>
                 </div>
-                <span className="text-[13px] text-ink-2">{sheetLabel[g.items[0].sheet] ?? g.items[0].sheet}</span>
+                <span className="text-[14px] text-ink-2">{sheetLabel[g.items[0].sheet] ?? g.items[0].sheet}</span>
                 <div className="flex flex-wrap gap-2">
                   {g.items.map((r) =>
                     r.status === "pending" ? (

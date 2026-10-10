@@ -33,7 +33,7 @@ function Contents({ items }: { items: string[] }) {
   return (
     <ul className="mb-5 space-y-1.5">
       {items.map((i) => (
-        <li key={i} className="flex items-start gap-2 text-[13px] text-ink-2">
+        <li key={i} className="flex items-start gap-2 text-[14px] text-ink-2">
           <span className="mt-0.5 text-ink-3">
             <Mark tone="neutral" size={12} />
           </span>
@@ -152,7 +152,7 @@ export default function Export({ pulse, engagementId, identity, can }: ViewProps
           <span className="text-wait">
             <Mark tone="warn" size={18} />
           </span>
-          <span className="min-w-0 flex-1 text-[13px] text-ink">
+          <span className="min-w-0 flex-1 text-[14px] text-ink">
             <span className="block font-semibold">No finding is confirmed yet.</span>
             The {exportName[pending]} will list every finding as potential, and its totals will not be final until the manager reviews them.
           </span>
@@ -170,7 +170,7 @@ export default function Export({ pulse, engagementId, identity, can }: ViewProps
       <div id="ex-files" className="grid gap-5 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_1fr_300px]">
         <Panel title="Summary report" meta="One page">
           {report ? (
-            <p className="mb-5 text-[13px] text-ink-2">
+            <p className="mb-5 text-[14px] text-ink-2">
               {plural(Number(report.summary?.findings?.count ?? 0), "finding")}, with{" "}
               <span className="num font-medium text-ink">{(Number(report.summary?.revenue?.fully_evidenced_share ?? 0) * 100).toFixed(1)}%</span> of revenue backed by a full chain of records.
             </p>
@@ -201,7 +201,7 @@ export default function Export({ pulse, engagementId, identity, can }: ViewProps
 
         <Panel title="Findings memo" meta="Document">
           {memo ? (
-            <p className="mb-5 text-[13px] text-ink-2">
+            <p className="mb-5 text-[14px] text-ink-2">
               {plural(Number(memo.findings ?? 0), "finding")}, with proposed adjustments of <span className="num font-medium text-ink">₹ {money(memo.total_adjustment)}</span> in total.
             </p>
           ) : (
@@ -238,7 +238,7 @@ export default function Export({ pulse, engagementId, identity, can }: ViewProps
         </Panel>
 
         <Panel id="ex-rests" title="Rests on">
-          <dl className="space-y-3 text-[13px]">
+          <dl className="space-y-3 text-[14px]">
             <div>
               <dt className="text-ink-2">Period</dt>
               <dd className="text-ink">{s.period_start ? `${day(s.period_start)} to ${day(s.period_end)}` : "—"}</dd>

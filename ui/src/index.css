@@ -1,81 +1,116 @@
 @import "tailwindcss";
 
-/* Design tokens.
+/* Design tokens: the green-ink ledger.
 
-   One colour means one thing, everywhere: in the 3D scene, the tables, the
-   tags and the legends.
+   An Indian statutory auditor ticks vouchers in green ink, on columnar paper
+   ruled in pale green. The interface is that file. One colour means one
+   thing, everywhere: in the 3D scene, the tables, the tags and the legends.
 
-     gold       the ledger: what is recorded, sealed and verified
-     ice        the client's own data, and anything still open
-     teal       agrees, passes
-     vermilion  an exception, an alteration, a refusal
-     violet     a related party
+     green ink   checked, agrees, verified, and the action to take
+     vermilion   an exception, an alteration, a refusal
+     marigold    the highlighter: waiting, needs a look
+     indigo      a related party
 
-   Graphite is the default theme. The light theme is a printed page: the same
-   meanings, with each hue deepened to hold contrast on paper. */
+   The light theme, ledger paper, is the default. The dark theme is the same
+   ledger at night: each hue lifted to hold contrast on deep green. */
 @theme {
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
-  --font-serif: "Newsreader Variable", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Anek Latin Variable", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-serif: "Anek Latin Variable", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
 
-  --color-paper: #14161a;
-  /* The app's backdrop, a step away from paper so panels stand on it. */
-  --color-canvas: #0f1114;
-  --color-wash: #1b1e24;
-  --color-line: #2c3038;
-  --color-line-soft: #22262d;
+  /* Text one step larger than Tailwind's defaults: a workpaper is read at length. */
+  --text-xs: 13px;
+  --text-xs--line-height: 1.4;
+  --text-sm: 15px;
+  --text-sm--line-height: 1.45;
 
-  --color-ink: #ece7dc;
-  --color-ink-2: #a9a598;
-  --color-ink-3: #74726b;
+  --color-paper: #ffffff;
+  /* The desk under the pages: pale ledger green. */
+  --color-canvas: #e7f0ea;
+  --color-wash: #f1f6f2;
+  --color-line: #cfdcd3;
+  --color-line-soft: #e2ebe5;
 
-  --color-brand: #d4a84b;
-  --color-brand-deep: #e4bf6e;
-  --color-brand-wash: #2a2415;
-  --color-on-brand: #17130a;
+  --color-ink: #0d2a1f;
+  --color-ink-2: #45594f;
+  --color-ink-3: #6f8379;
 
-  --color-pass: #45cfa6;
-  --color-pass-wash: #14271f;
-  --color-fail: #f2603f;
-  --color-fail-wash: #2e1814;
-  --color-wait: #8fc7e8;
-  --color-wait-wash: #16242d;
-  --color-warm: #f0994d;
-
-  --color-mark: #2a1a15;
-  --color-mark-hover: #36201a;
-  --color-rp: #b9a0f4;
-  --color-rp-wash: #221c33;
-}
-
-:root[data-theme="light"] {
-  --color-paper: #fbfaf7;
-  --color-canvas: #eaeff3;
-  --color-wash: #f2f0ea;
-  --color-line: #dcd9d0;
-  --color-line-soft: #e9e6de;
-
-  --color-ink: #1b1d22;
-  --color-ink-2: #5a5c63;
-  --color-ink-3: #8c8d92;
-
-  --color-brand: #8a6410;
-  --color-brand-deep: #6f500a;
-  --color-brand-wash: #f5ecd6;
+  --color-brand: #0b6e4f;
+  --color-brand-deep: #075a40;
+  --color-brand-wash: #dff1e8;
   --color-on-brand: #ffffff;
 
-  --color-pass: #0f7a5f;
-  --color-pass-wash: #e2f3ed;
-  --color-fail: #c2391d;
-  --color-fail-wash: #fbe9e4;
-  --color-wait: #2a6c95;
-  --color-wait-wash: #e4f0f7;
-  --color-warm: #b5661b;
+  --color-pass: #0f7d58;
+  --color-pass-wash: #e1f3ea;
+  --color-fail: #c8371b;
+  --color-fail-wash: #fce9e3;
+  --color-wait: #8a5d00;
+  --color-wait-wash: #fff0c2;
+  --color-warm: #b5601a;
 
-  --color-mark: #fcefea;
-  --color-mark-hover: #f9e2da;
-  --color-rp: #6a45b5;
-  --color-rp-wash: #efe9fa;
+  /* Rows that need a look carry the highlighter. */
+  --color-mark: #fff5d1;
+  --color-mark-hover: #ffedb3;
+  --color-rp: #5440bd;
+  --color-rp-wash: #edeafb;
+
+  /* The ledger's cloth spine: the side navigation. */
+  --color-spine: #0c3a2b;
+  --color-spine-2: #12493a;
+  --color-spine-ink: #eaf4ee;
+  --color-spine-ink-2: #a5c6b7;
+  --color-highlight: #ffd84d;
+
+  /* Six kinds of problem, validated for colour-blind separation on paper. */
+  --color-fam-1: #2a78d6;
+  --color-fam-2: #c98500;
+  --color-fam-3: #4a3aa7;
+  --color-fam-4: #1a9e9a;
+  --color-fam-5: #9a5b2e;
+  --color-fam-6: #d55181;
+}
+
+:root[data-theme="dark"] {
+  --color-paper: #10201a;
+  --color-canvas: #0a1511;
+  --color-wash: #16291f;
+  --color-line: #27403a;
+  --color-line-soft: #1c3129;
+
+  --color-ink: #e6f1eb;
+  --color-ink-2: #a6bfb3;
+  --color-ink-3: #74907f;
+
+  --color-brand: #4cc38a;
+  --color-brand-deep: #6fd6a3;
+  --color-brand-wash: #143426;
+  --color-on-brand: #05190f;
+
+  --color-pass: #4cc38a;
+  --color-pass-wash: #143426;
+  --color-fail: #ff6d4f;
+  --color-fail-wash: #3a1a12;
+  --color-wait: #f2c14e;
+  --color-wait-wash: #33290f;
+  --color-warm: #f09a4d;
+
+  --color-mark: #2b2410;
+  --color-mark-hover: #372e14;
+  --color-rp: #a99af6;
+  --color-rp-wash: #241f3d;
+
+  --color-spine: #07110d;
+  --color-spine-2: #10241b;
+  --color-spine-ink: #e6f1eb;
+  --color-spine-ink-2: #8fae9f;
+  --color-highlight: #f2c14e;
+
+  --color-fam-1: #3987e5;
+  --color-fam-2: #c98500;
+  --color-fam-3: #9085e9;
+  --color-fam-4: #0fa39d;
+  --color-fam-5: #a8662f;
+  --color-fam-6: #e0609a;
 }
 
 html,
@@ -85,29 +120,24 @@ body,
 }
 
 html {
-  color-scheme: dark;
-}
-
-html[data-theme="light"] {
   color-scheme: light;
 }
 
-/* The Sanchay logo is drawn in dark green. On the dark theme it stands on its
-   own paper; on the light theme the page is the paper. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* The Sanchay logo is drawn in dark green and stands on its own paper tile. */
 .logo-ground {
   background: #fdf9ef;
 }
 
-html[data-theme="light"] .logo-ground {
-  background: transparent;
-}
-
 body {
-  background: var(--color-paper);
+  background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 15px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -122,23 +152,30 @@ body {
   letter-spacing: -0.01em;
 }
 
-/* Small label set in mono capitals: section numbers, provenance, legends. */
+/* A small quiet label: provenance, legends. */
 .label {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--color-ink-2);
 }
 
-.serif {
-  font-family: var(--font-serif);
-  font-optical-sizing: auto;
+/* Display type: Anek drawn narrower and heavier, the voice of a ledger total. */
+.serif,
+.display {
+  font-family: var(--font-sans);
+  font-variation-settings: "wdth" 86;
+  font-weight: 650;
+  letter-spacing: -0.015em;
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-brand);
-  outline-offset: 2px;
-  border-radius: 4px;
+/* In the base layer, so a component's own focus style can replace it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
 
 ::selection {
@@ -364,8 +401,8 @@ html.lenis body {
   }
 }
 
-/* Auditor figures. Interface numbers in the sans with tabular digits; headline
-   amounts in the serif, set like the totals of a financial statement. */
+/* Figures. Interface numbers in Anek with tabular digits; headline amounts
+   narrower and heavier, set like the total at the foot of a ledger page. */
 .num {
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums lining-nums;
@@ -373,10 +410,76 @@ html.lenis body {
 }
 
 .amount {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums lining-nums;
-  font-optical-sizing: auto;
+  font-variation-settings: "wdth" 82;
+  font-weight: 640;
   letter-spacing: -0.01em;
+}
+
+/* Ledger paper: feint rules every line and the red double margin. Used on the
+   one panel that carries the verdict of a page. */
+.ledger-paper {
+  position: relative;
+  background-color: var(--color-paper);
+  background-image:
+    linear-gradient(to right, transparent 46px, color-mix(in oklab, var(--color-fail) 55%, transparent) 46px 47px, transparent 47px 50px, color-mix(in oklab, var(--color-fail) 55%, transparent) 50px 51px, transparent 51px),
+    repeating-linear-gradient(to bottom, transparent 0 31px, color-mix(in oklab, var(--color-brand) 13%, transparent) 31px 32px);
+}
+
+/* Ink that draws itself: a tick, a cross, a circle made by the auditor's pen.
+   Paths carry pathLength="1" so one dash covers any length. */
+@keyframes ink-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.ink-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ink-draw 0.55s cubic-bezier(0.55, 0.1, 0.3, 1) forwards;
+}
+
+/* The highlighter pen over a phrase. */
+.highlight {
+  background: linear-gradient(transparent 52%, color-mix(in oklab, var(--color-highlight) 70%, transparent) 52% 92%, transparent 92%);
+  padding: 0 0.12em;
+  margin: 0 -0.12em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+html[data-theme="dark"] .highlight {
+  background: linear-gradient(transparent 55%, color-mix(in oklab, var(--color-highlight) 38%, transparent) 55% 92%, transparent 92%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-draw {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Keyboard keys in hints. */
+kbd {
+  display: inline-flex;
+  min-width: 1.5em;
+  height: 1.5em;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0 0.3em;
+  font-family: var(--font-sans);
+  font-size: 0.78em;
+  font-weight: 600;
+  color: var(--color-ink-2);
+  background: var(--color-paper);
 }
 
 /* Recharts draws focus rings on its wrapper; the chart's own marks carry focus instead. */

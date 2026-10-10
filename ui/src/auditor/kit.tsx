@@ -118,25 +118,25 @@ export function SeverityIcon({ severity, size = 14 }: { severity: Severity; size
 
 export function SeverityBadge({ severity, compact }: { severity: Severity; compact?: boolean }) {
   return (
-    <span className={cx("inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 text-xs font-semibold whitespace-nowrap", sevText[severity], sevWash[severity])}>
+    <span className={cx("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12.5px] font-bold whitespace-nowrap", sevText[severity], sevWash[severity])}>
       <SeverityIcon severity={severity} size={12} />
       {compact ? severity : `${severity} severity`}
     </span>
   );
 }
 
-// The small caps line above a view's title.
+// The line above a view's title: where in the audit this page sits.
 export function Eyebrow({ children }: { children: ReactNode }) {
-  return <div className="mb-1.5 text-[13px] text-ink-2">{children}</div>;
+  return <div className="mb-1 text-[14px] font-medium text-ink-2">{children}</div>;
 }
 
 export function ViewHead({ eyebrow, title, summary, action }: { eyebrow?: ReactNode; title: string; summary?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
       <div className="min-w-0 max-w-3xl">
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
-        <h1 className="serif text-[28px] leading-8 font-[450] tracking-[-0.015em]">{title}</h1>
-        {summary && <p className="mt-2 text-[15px] leading-relaxed text-ink-2">{summary}</p>}
+        <h1 className="display text-[40px] leading-[1.02] text-ink">{title}</h1>
+        {summary && <p className="mt-2 text-[16px] leading-relaxed text-ink-2">{summary}</p>}
       </div>
       {action && <div className="flex flex-wrap items-center gap-3">{action}</div>}
     </div>
@@ -162,7 +162,7 @@ export function Kpi({
   const toneClass = { bad: "text-fail", good: "text-pass", warn: "text-wait", accent: "text-brand" };
   const body = (
     <>
-      <div className="flex items-center justify-between gap-3 text-[13px] font-medium text-ink-2">
+      <div className="flex items-center justify-between gap-3 text-[14px] font-semibold text-ink-2">
         <span>{label}</span>
         {onClick && (
           <svg className="text-ink-3 transition-transform duration-150 group-hover:translate-x-0.5" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -170,14 +170,14 @@ export function Kpi({
           </svg>
         )}
       </div>
-      <div className={cx("amount mt-1.5 text-[30px] leading-9", tone && toneClass[tone])}>{value}</div>
-      {note && <div className="mt-1 text-[13px] leading-snug text-ink-2">{note}</div>}
+      <div className={cx("amount mt-1.5 text-[36px] leading-10", tone && toneClass[tone])}>{value}</div>
+      {note && <div className="mt-1 text-[14px] leading-snug text-ink-2">{note}</div>}
       {children && <div className="mt-3">{children}</div>}
     </>
   );
-  const base = "kpi flex flex-col rounded-lg border border-line bg-paper px-5 py-4 text-left";
+  const base = "kpi flex flex-col rounded-xl border border-line bg-paper px-5 py-4 text-left";
   return onClick ? (
-    <button onClick={onClick} className={cx(base, "group transition-colors duration-150 hover:border-ink-3 hover:bg-wash focus-visible:border-brand focus-visible:outline-none")}>
+    <button onClick={onClick} className={cx(base, "group transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-[0_8px_24px_rgba(12,58,43,0.10)] focus-visible:border-brand focus-visible:outline-none")}>
       {body}
     </button>
   ) : (
@@ -210,13 +210,13 @@ export function Panel({
   flush?: boolean;
 }) {
   return (
-    <section id={id} data-more={more} className={cx("rounded-lg border border-line bg-paper", className)}>
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-line-soft px-5 py-3.5">
+    <section id={id} data-more={more} className={cx("rounded-xl border border-line bg-paper shadow-[0_1px_0_var(--color-line-soft)]", className)}>
+      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-line-soft px-5 py-4">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-ink">{title}</h2>
-          {takeaway && <p className="mt-0.5 text-[13px] text-ink-2">{takeaway}</p>}
+          <h2 className="text-[17px] leading-snug font-bold text-ink">{title}</h2>
+          {takeaway && <p className="mt-0.5 text-[14px] text-ink-2">{takeaway}</p>}
         </div>
-        <div className="flex items-center gap-3 text-[13px] text-ink-2">
+        <div className="flex items-center gap-3 text-[14px] text-ink-2">
           {meta}
           {action}
         </div>
@@ -230,7 +230,7 @@ export function Panel({
 export function Bar({ share, className }: { share: number; className?: string }) {
   const pct = Math.max(0, Math.min(1, share)) * 100;
   return (
-    <div className="h-1.5 w-full overflow-hidden rounded-full bg-wash">
+    <div className="h-2 w-full overflow-hidden rounded-full bg-wash">
       <div className={cx("grow-x h-full rounded-full", className ?? "bg-brand")} style={{ width: `${pct}%` }} />
     </div>
   );
@@ -291,7 +291,7 @@ export function SearchBox({ value, onChange, placeholder, label }: { value: stri
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-9 w-full rounded-md border border-line bg-paper pr-3 pl-8.5 text-sm text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-ink-3 focus:border-brand focus:ring-2 focus:ring-brand/15"
+        className="h-10 w-full rounded-lg border border-line bg-paper pr-3 pl-9 text-[15px] text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-ink-3 focus:border-brand focus:ring-[3px] focus:ring-brand/15"
       />
     </div>
   );
@@ -301,8 +301,8 @@ export function SearchBox({ value, onChange, placeholder, label }: { value: stri
 export function Tally({ n, label, className }: { n: ReactNode; label: string; className?: string }) {
   return (
     <span className="whitespace-nowrap">
-      <span className={cx("num text-[15px] font-medium", className)}>{n}</span>
-      <span className="ml-1.5 text-[13px] text-ink-2">{label}</span>
+      <span className={cx("num text-[16px] font-bold", className)}>{n}</span>
+      <span className="ml-1.5 text-[14px] text-ink-2">{label}</span>
     </span>
   );
 }
@@ -434,35 +434,28 @@ export function dateKey(v: unknown): string | null {
   return null;
 }
 
-// ---------------------------------------------------------------- Category colours
+// ---------------------------------------------------------------- Kinds of problem
 
-// One colour per finding category, the same on every page. Muted hues, none of
-// them red, so red keeps meaning high severity.
-const catPalette: Record<string, string> = {
-  CIRCULAR_TRADING: "#8E7CC3",
-  SETTLEMENT: "#2A9D8F",
-  RP_UNDISCLOSED: "#B07AA1",
-  RP_MID_PERIOD: "#C49BBB",
-  REGISTER_MISMATCH: "#C2A26B",
-  PERIOD_END_CONCENTRATION: "#D19A3A",
-  CUTOFF: "#E0B45C",
-  DOC_TAX_MISMATCH: "#4FB3BF",
-  NON_SALE_REVENUE: "#6BA368",
-  EVIDENCE_SUSPECT: "#A9805B",
-  CREDIT_NOTE: "#8AA39B",
-  PROMOTION_DISCOUNT: "#9C9ED6",
-  DOCUMENT_INTEGRITY: "#3E8E7E",
-  POST_TESTING_CHANGE: "#B5A66B",
-  NO_MOVEMENT: "#7FA7C9",
-  LEDGER_INTEGRITY: "#A47764",
-};
-const spare = ["#7D9D9C", "#B39470", "#8C8FB8", "#9DB17C"];
+// Sixteen detector categories are too many colours to tell apart, so each
+// belongs to one of six kinds of problem, named in plain words. A kind has
+// one colour, the same on every page; none of them is red, which means high
+// severity, or green, which means checked. The six colours were validated for
+// colour-blind separation in both themes (tokens --color-fam-1 to 6).
+export const families: { key: string; label: string; color: string; cats: string[] }[] = [
+  { key: "real", label: "Sales that may not be real", color: "var(--color-fam-1)", cats: ["CIRCULAR_TRADING", "NO_MOVEMENT", "NON_SALE_REVENUE"] },
+  { key: "timing", label: "Booked in the wrong period", color: "var(--color-fam-2)", cats: ["CUTOFF", "PERIOD_END_CONCENTRATION"] },
+  { key: "rp", label: "Related parties", color: "var(--color-fam-3)", cats: ["RP_UNDISCLOSED", "RP_MID_PERIOD"] },
+  { key: "docs", label: "Documents and tax", color: "var(--color-fam-4)", cats: ["DOC_TAX_MISMATCH", "DOCUMENT_INTEGRITY", "EVIDENCE_SUSPECT"] },
+  { key: "money", label: "Money in and out", color: "var(--color-fam-5)", cats: ["SETTLEMENT", "CREDIT_NOTE", "PROMOTION_DISCOUNT"] },
+  { key: "books", label: "Books and records", color: "var(--color-fam-6)", cats: ["REGISTER_MISMATCH", "POST_TESTING_CHANGE", "LEDGER_INTEGRITY"] },
+];
+
+export function family(c: string) {
+  return families.find((f) => f.cats.includes(c)) ?? families[5];
+}
 
 export function catColor(c: string): string {
-  if (catPalette[c]) return catPalette[c];
-  let h = 0;
-  for (const ch of c) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return spare[h % spare.length];
+  return family(c).color;
 }
 
 // ---------------------------------------------------------------- One unit per chart
@@ -511,7 +504,7 @@ export function Term({ word, children }: { word: string; children?: ReactNode })
       </button>
       <span
         role="tooltip"
-        className="pointer-events-none absolute top-full left-0 z-30 mt-1.5 hidden w-64 max-w-[calc(100vw-2rem)] rounded-md border border-line bg-paper px-3 py-2 text-xs leading-relaxed font-normal text-ink shadow-[0_10px_30px_rgba(0,0,0,0.28)] group-focus-within/term:block group-hover/term:block"
+        className="pointer-events-none absolute top-full left-0 z-30 mt-1.5 hidden w-72 max-w-[calc(100vw-2rem)] rounded-lg bg-spine px-3.5 py-2.5 text-[14px] leading-relaxed font-normal text-spine-ink shadow-[0_14px_34px_rgba(6,21,15,0.35)] group-focus-within/term:block group-hover/term:block"
       >
         {text}
       </span>
@@ -564,17 +557,17 @@ export function ReviewProgress({ findings }: { findings: FindingLite[] }) {
   return (
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <span className="text-[13px] text-ink-2">
-          <span className="num text-[15px] font-semibold text-ink">{reviewed}</span> of <span className="num">{total}</span> findings reviewed by the manager
+        <span className="text-[14px] text-ink-2">
+          <span className="num text-[17px] font-bold text-ink">{reviewed}</span> of <span className="num">{total}</span> findings reviewed by the manager
         </span>
-        <span className="num text-[13px] text-ink-2">{total ? Math.round(pct(reviewed)) : 0}%</span>
+        <span className="num text-[14px] font-semibold text-ink-2">{total ? Math.round(pct(reviewed)) : 0}%</span>
       </div>
-      <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-wash" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={reviewed} aria-label="Findings reviewed">
+      <div className="mt-2 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-wash" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={reviewed} aria-label="Findings reviewed">
         <div className="grow-x h-full bg-pass" style={{ width: `${pct(confirmed)}%` }} title={`${confirmed} confirmed`} />
         <div className="grow-x h-full bg-ink-3" style={{ width: `${pct(rejected)}%` }} title={`${rejected} rejected`} />
         <div className="grow-x h-full bg-wait/60" style={{ width: `${pct(info)}%` }} title={`${info} need more information`} />
       </div>
-      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-2">
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[14px] text-ink-2">
         <span>{confirmed} confirmed</span>
         <span>{rejected} rejected</span>
         {info > 0 && <span>{info} need more information</span>}
@@ -643,25 +636,27 @@ export function spotlight(id: string) {
   window.setTimeout(() => el.classList.remove("spotlight"), 1800);
 }
 
-// The box at the top of every page: what the page says, the figures that
-// matter as switches, and a short guided walk through the page.
+// The box at the top of every page: what the page says in one line, the
+// figures that matter as switches, and a short guided walk through the page.
 export function PageBrief({ lead, detail, stats, guide }: { lead: ReactNode; detail?: ReactNode; stats: BriefStat[]; guide?: { label: string; target: string }[] }) {
   const [step, setStep] = useState<number | null>(null);
   return (
-    <section className="brief mb-6 overflow-hidden rounded-xl border border-line bg-paper" aria-label="Summary of this page">
-      <div className="grid gap-x-8 gap-y-5 px-6 py-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)]">
+    <section className="brief mb-6 overflow-hidden rounded-2xl border border-line bg-paper shadow-[0_1px_0_var(--color-line-soft)]" aria-label="Summary of this page">
+      <div className="grid gap-x-8 gap-y-5 px-6 pt-6 pb-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         <div className="min-w-0">
-          <p className="serif text-[22px] leading-snug font-[430] text-ink">{lead}</p>
-          {detail && <p className="mt-2 text-[13px] leading-relaxed text-ink-2">{detail}</p>}
+          <p className="display text-[27px] leading-[1.15] text-ink">{lead}</p>
+          {detail && <p className="mt-2.5 text-[15px] leading-relaxed text-ink-2">{detail}</p>}
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
           {stats.map((s) => {
+            const edge = s.tone === "bad" ? "before:bg-fail" : s.tone === "good" ? "before:bg-pass" : s.tone === "warn" ? "before:bg-highlight" : s.tone === "accent" ? "before:bg-brand" : "before:bg-line";
             const inner = (
               <>
-                <span className={cx("amount block text-[22px] leading-7", s.tone ? briefTone[s.tone] : "text-ink")}>{s.value}</span>
-                <span className="mt-0.5 block text-xs leading-snug text-ink-2">{s.label}</span>
+                <span className={cx("amount block text-[28px] leading-8", s.tone ? briefTone[s.tone] : "text-ink")}>{s.value}</span>
+                <span className="mt-1 block text-[14px] leading-snug font-medium text-ink-2">{s.label}</span>
               </>
             );
+            const base = cx("relative rounded-xl border bg-paper py-3 pr-3 pl-4 text-left before:absolute before:inset-y-3 before:left-0 before:w-[3px] before:rounded-full", edge);
             return s.onClick ? (
               <button
                 key={s.label}
@@ -669,17 +664,24 @@ export function PageBrief({ lead, detail, stats, guide }: { lead: ReactNode; det
                 aria-pressed={s.active}
                 title={s.hint}
                 className={cx(
-                  "group relative rounded-lg px-3 py-2.5 text-left transition-colors duration-150",
-                  s.active ? "bg-brand-wash ring-1 ring-brand/40" : "hover:bg-wash focus-visible:bg-wash",
+                  base,
+                  "group transition-[border-color,box-shadow,transform] duration-150",
+                  s.active ? "border-brand bg-brand-wash shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_18%,transparent)]" : "border-line-soft hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-[0_8px_22px_rgba(12,58,43,0.10)] focus-visible:border-brand",
                 )}
               >
                 {inner}
-                <span className={cx("absolute top-2.5 right-2.5 text-ink-3 transition-opacity", s.active ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100")} aria-hidden>
-                  {s.active ? "✓" : "→"}
+                <span className={cx("absolute top-3 right-3 transition-opacity", s.active ? "text-brand opacity-100" : "text-ink-3 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100")} aria-hidden>
+                  {s.active ? (
+                    <Mark tone="good" size={15} draw />
+                  ) : (
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M6 3.5L10.5 8 6 12.5" />
+                    </svg>
+                  )}
                 </span>
               </button>
             ) : (
-              <div key={s.label} className="rounded-lg px-3 py-2.5" title={s.hint}>
+              <div key={s.label} className={cx(base, "border-line-soft")} title={s.hint}>
                 {inner}
               </div>
             );
@@ -687,26 +689,23 @@ export function PageBrief({ lead, detail, stats, guide }: { lead: ReactNode; det
         </div>
       </div>
       {guide && guide.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-1 gap-y-2 border-t border-line-soft bg-wash/60 px-6 py-2.5 text-[13px]">
-          <span className="mr-2 text-ink-3">Walk me through</span>
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2 border-t border-line-soft bg-wash px-6 py-3 text-[14px]">
+          <span className="mr-2 font-semibold text-ink-2">Show me around</span>
           {guide.map((g, i) => (
-            <span key={g.target} className="inline-flex items-center gap-1">
-              {i > 0 && (
-                <span className="text-ink-3" aria-hidden>
-                  ·
-                </span>
+            <button
+              key={g.target}
+              onClick={() => {
+                setStep(i);
+                spotlight(g.target);
+              }}
+              className={cx(
+                "inline-flex items-center gap-2 rounded-full border py-1 pr-3 pl-1 transition-colors",
+                step === i ? "border-brand bg-paper font-semibold text-ink" : "border-transparent text-ink-2 hover:border-line hover:bg-paper hover:text-ink",
               )}
-              <button
-                onClick={() => {
-                  setStep(i);
-                  spotlight(g.target);
-                }}
-                className={cx("inline-flex items-center gap-1.5 rounded-md px-2 py-1 transition-colors", step === i ? "bg-paper font-medium text-ink shadow-[0_0_0_1px_var(--color-line)]" : "text-ink-2 hover:bg-paper hover:text-ink")}
-              >
-                <span className={cx("inline-flex h-4.5 w-4.5 items-center justify-center rounded-full text-[10.5px] font-semibold", step === i ? "bg-brand text-on-brand" : "bg-line text-ink-2")}>{i + 1}</span>
-                {g.label}
-              </button>
-            </span>
+            >
+              <span className={cx("inline-flex h-5.5 w-5.5 items-center justify-center rounded-full text-[13px] font-bold", step === i ? "bg-brand text-on-brand" : "bg-line-soft text-ink-2")}>{i + 1}</span>
+              {g.label}
+            </button>
           ))}
         </div>
       )}
@@ -757,20 +756,20 @@ export function LedgerRows({ items, format, empty, open: openKey, onToggle }: { 
         return (
           <div key={it.key}>
             {heading !== null && (
-              <div className="sticky top-0 z-10 border-b border-line-soft bg-paper/95 px-5 pt-4 pb-1.5 text-xs font-semibold tracking-wide text-ink-2 backdrop-blur-sm lg:top-0">{heading}</div>
+              <div className="sticky top-0 z-10 border-b border-line-soft bg-paper/95 px-5 pt-4 pb-2 text-[14px] font-bold text-ink-2 backdrop-blur-sm lg:top-0">{heading}</div>
             )}
             <div className={cx("relative border-b border-line-soft transition-colors", isOpen ? "bg-wash/70" : "")}>
-              <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: it.rail }} aria-hidden />
+              <span className="absolute inset-y-0 left-0 w-1" style={{ background: it.rail }} aria-hidden />
               <button
                 data-ledger-row
                 onClick={() => setOpen(isOpen ? null : it.key)}
                 onKeyDown={move}
                 aria-expanded={isOpen}
-                className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-1 py-2.5 pr-4 pl-5 text-left transition-colors hover:bg-wash focus-visible:bg-wash focus-visible:outline-none sm:grid-cols-[minmax(0,1fr)_minmax(120px,200px)_auto_16px]"
+                className="group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-5 gap-y-1 py-3 pr-4 pl-5 text-left transition-colors hover:bg-wash focus-visible:bg-wash focus-visible:outline-none sm:grid-cols-[minmax(0,1fr)_minmax(120px,200px)_auto_16px]"
               >
                 <span className="min-w-0">
-                  <span className="block truncate text-[13px] font-medium text-ink">{it.title}</span>
-                  {it.meta && <span className="block truncate text-xs text-ink-2">{it.meta}</span>}
+                  <span className="block truncate text-[14.5px] font-semibold text-ink">{it.title}</span>
+                  {it.meta && <span className="block truncate text-[14px] text-ink-2">{it.meta}</span>}
                 </span>
                 <span className="hidden items-center gap-2 sm:flex">
                   {it.amount !== undefined && (
@@ -778,7 +777,7 @@ export function LedgerRows({ items, format, empty, open: openKey, onToggle }: { 
                       <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-line-soft">
                         <span className="block h-full rounded-full" style={{ width: `${(Math.abs(it.amount) / max) * 100}%`, background: it.rail, opacity: 0.85 }} />
                       </span>
-                      <span className="num w-24 text-right text-[13px] text-ink">{fmt(it.amount)}</span>
+                      <span className="num w-24 text-right text-[14px] font-semibold text-ink">{fmt(it.amount)}</span>
                     </>
                   )}
                 </span>
@@ -799,12 +798,12 @@ export function LedgerRows({ items, format, empty, open: openKey, onToggle }: { 
 // Every field of a record as a compact grid, for an opened ledger row.
 export function FieldGrid({ fields }: { fields: [string, ReactNode][] }) {
   return (
-    <dl className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-x-6 gap-y-3 text-[13px]">
+    <dl className="grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-x-6 gap-y-3 text-[14px]">
       {fields
         .filter(([, v]) => v !== undefined && v !== null && v !== "")
         .map(([k, v]) => (
           <div key={k} className="min-w-0">
-            <dt className="text-xs text-ink-3">{k}</dt>
+            <dt className="text-[12.5px] font-medium text-ink-3">{k}</dt>
             <dd className="mt-0.5 break-words text-ink">{v}</dd>
           </div>
         ))}
@@ -883,11 +882,11 @@ export function EmailAction({
         </Button>
       </span>
       {open && (
-        <div role="dialog" aria-label={label} className="view absolute top-full right-0 z-40 mt-2 w-[min(400px,calc(100vw-2rem))] rounded-lg border border-line bg-paper p-4 text-left shadow-[0_16px_40px_rgba(0,0,0,0.3)]">
+        <div role="dialog" aria-label={label} className="view absolute top-full right-0 z-40 mt-2 w-[min(420px,calc(100vw-2rem))] rounded-xl border border-line bg-paper p-5 text-left shadow-[0_20px_50px_rgba(6,21,15,0.25)]">
           {!result ? (
             <>
               <div className="text-sm font-semibold text-ink">{label}</div>
-              <p className="mt-1 text-[13px] leading-relaxed text-ink-2">
+              <p className="mt-1 text-[14px] leading-relaxed text-ink-2">
                 Sends {what} to <span className="font-medium text-ink">{audience}</span>, at the addresses set on the server. It states the snapshot hash and is recorded in the audit trail.
               </p>
               <textarea
@@ -913,9 +912,9 @@ export function EmailAction({
                 {result.sent ? `Sent to ${result.recipients?.length ?? 0} ${(result.recipients?.length ?? 0) === 1 ? "recipient" : "recipients"}` : "Preview only, nothing was sent"}
               </div>
               {result.reason && <p className="mt-1 text-xs text-ink-2">{result.reason}</p>}
-              {result.message_id && <p className="mt-1 font-mono text-[11px] text-ink-3">Message {result.message_id}</p>}
+              {result.message_id && <p className="mt-1 font-mono text-[12px] text-ink-3">Message {result.message_id}</p>}
               <div className="mt-3 rounded-md border border-line-soft bg-wash/60 p-3">
-                <div className="text-[13px] font-medium text-ink">{result.subject}</div>
+                <div className="text-[14px] font-medium text-ink">{result.subject}</div>
                 <pre className="thin-scroll mt-2 max-h-56 overflow-auto font-sans text-xs leading-relaxed whitespace-pre-wrap text-ink-2">{result.text}</pre>
               </div>
               <div className="mt-3 flex justify-end">
@@ -1001,20 +1000,20 @@ export function MoreBar({ group, title, items }: { group: string; title: string;
       onClick={() => openGroup(group)}
       aria-expanded={open}
       className={cx(
-        "group mb-5 flex w-full items-center gap-4 rounded-lg border border-dashed px-5 py-3 text-left transition-colors",
-        open ? "border-line bg-paper" : "border-line bg-paper/60 hover:border-ink-3 hover:bg-paper",
+        "group mb-5 flex w-full items-center gap-4 rounded-xl border px-5 py-3.5 text-left transition-colors",
+        open ? "border-line bg-paper" : "border-line bg-wash hover:border-brand/50 hover:bg-paper",
       )}
     >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wash text-ink-2">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-wash text-brand">
         <svg className={cx("transition-transform duration-200", open && "rotate-180")} width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M3.5 6l4.5 4.5L12.5 6" />
         </svg>
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-ink">{open ? `Hide ${title.toLowerCase()}` : title}</span>
-        <span className="block text-[13px] text-ink-2">{items}</span>
+        <span className="block text-[15px] font-bold text-ink">{open ? `Hide ${title.toLowerCase()}` : title}</span>
+        <span className="block text-[14px] text-ink-2">{items}</span>
       </span>
-      <span className="hidden text-xs text-ink-3 sm:block">{open ? "Showing" : "Show"}</span>
+      <span className="hidden text-[14px] font-semibold text-brand sm:block">{open ? "Hide" : "Show"}</span>
     </button>
   );
 }

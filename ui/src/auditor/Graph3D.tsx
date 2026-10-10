@@ -523,26 +523,26 @@ export default function Graph3D({ data, active, onPickCycle }: { data: GraphData
               className="absolute left-0 top-0 whitespace-nowrap rounded border border-line px-1.5 py-0.5 text-center leading-tight transition-opacity duration-300"
               style={{ background: chip, opacity: show ? 1 : 0 }}
             >
-              <div className={`text-[11px] font-medium ${st === "hot" ? "text-fail" : isCompany(c.side) ? "text-brand" : "text-ink"}`}>
+              <div className={`text-[12px] font-medium ${st === "hot" ? "text-fail" : isCompany(c.side) ? "text-brand" : "text-ink"}`}>
                 {(() => {
                   const max = c.side === "both" && !c.others ? 16 : 22;
                   return c.label.length > max ? c.label.slice(0, max - 1) + "…" : c.label;
                 })()}
               </div>
-              {!isCompany(c.side) && <div className="text-[10px] tabular-nums text-ink-3">{compact(c.volume)}</div>}
+              {!isCompany(c.side) && <div className="text-[11px] tabular-nums text-ink-3">{compact(c.volume)}</div>}
             </div>
           );
         })}
         {["Vendors · supply", "Customers · sales", "Both buy and sell"].map((t, i) => (
           <div key={t} ref={(el) => (sideEls.current[i] = el)}
-            className="absolute left-0 top-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-3"
+            className="absolute left-0 top-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-3"
             style={{ display: i === 2 && !hasBoth ? "none" : undefined }}>
             {t}
           </div>
         ))}
       </div>
 
-      <div className="pointer-events-none absolute bottom-9 right-4 flex flex-wrap justify-end gap-4 text-[11px] text-ink-2">
+      <div className="pointer-events-none absolute bottom-9 right-4 flex flex-wrap justify-end gap-4 text-[12px] text-ink-2">
         <span className="flex items-center gap-1.5"><i className="h-0.5 w-5 rounded bg-ink-3" />Goods (high arc)</span>
         <span className="flex items-center gap-1.5"><i className="h-0.5 w-5 rounded bg-pass" />Money (low arc)</span>
         <span>Column height is trade value</span>
@@ -565,7 +565,7 @@ export default function Graph3D({ data, active, onPickCycle }: { data: GraphData
         </div>
       )}
 
-      <div className="pointer-events-none absolute bottom-4 right-4 text-[11px] text-ink-3">Drag to tilt · scroll to zoom · click a column</div>
+      <div className="pointer-events-none absolute bottom-4 right-4 text-[12px] text-ink-3">Drag to tilt · scroll to zoom · click a column</div>
     </div>
   );
 }

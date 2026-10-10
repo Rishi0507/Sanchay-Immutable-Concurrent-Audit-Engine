@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { callTool, money, when } from "../api";
 import type { ViewProps } from "../App";
-import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Pills, Section, Status, Table, cx, inputClass, toast, toneFor, useAction, useTool } from "../ui";
+import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Mark, Pills, Section, Status, Table, cx, inputClass, toast, toneFor, useAction, useTool } from "../ui";
 import { Ranked, RiskMap, Swatch, ink } from "./charts";
 import { EmailAction, FindingLite, ListSkeleton, MoreBar, PageBrief, dedupe, Panel, SearchBox, Severity, SeverityBadge, SeverityIcon, Tally, Term, ViewHead, byPriority, catColor, category, findingStatus, inr, plural, sevFill, severities, sum } from "./kit";
 
@@ -50,7 +50,7 @@ function EvidenceChain({ docs, test }: { docs: { document_type: string; status: 
   const mark = (st: string) =>
     st === "verified" ? { sym: "✓", cls: "text-pass", word: "verified" } : st === "received" ? { sym: "✓", cls: "text-ink-2", word: "received, not yet tested" } : { sym: "✗", cls: "text-fail", word: "not received" };
   return (
-    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[14px]">
       {sorted.map((d, i) => {
         const m = mark(d.status);
         return (
@@ -81,7 +81,7 @@ function EvidenceChain({ docs, test }: { docs: { document_type: string; status: 
   );
 }
 
-function Detail({ id, manager, onDecided, goTo }: { id: string; manager: boolean; onDecided: () => void; goTo: ViewProps["goTo"] }) {
+function Detail({ id, manager, onDecided, onNext, goTo }: { id: string; manager: boolean; onDecided: () => void; onNext?: () => void; goTo: ViewProps["goTo"] }) {
   const { data, error, loading, reload } = useTool<Finding>("explain_finding", { finding_id: id }, [id]);
   const [note, setNote] = useState("");
   const [more, setMore] = useState(false);
@@ -118,13 +118,6 @@ function Detail({ id, manager, onDecided, goTo }: { id: string; manager: boolean
     };
   }, [sampleKey]);
 
-  if (loading && !data) return <ListSkeleton rows={7} />;
-  if (error) return <ErrorNote error={error} onRetry={reload} />;
-  if (!data) return null;
-  const f = data;
-  const lineage = f.lineage ?? {};
-  const confirmed = f.status === "confirmed";
-
   const decide = (decision: string) =>
     run(decision, async () => {
       await callTool("confirm_finding", { finding_id: id, decision, note });
@@ -132,13 +125,38 @@ function Detail({ id, manager, onDecided, goTo }: { id: string; manager: boolean
       setNote("");
       reload();
       onDecided();
+      // Move on to the next finding, once the mark has been seen.
+      if (onNext) window.setTimeout(onNext, 450);
     });
+
+  // The manager decides from the keyboard: C confirms, R rejects, I asks for more.
+  useEffect(() => {
+    if (!manager || !data) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).closest("input, textarea, select") || e.ctrlKey || e.metaKey || e.altKey || busy) return;
+      const decision = { c: "confirmed", r: "rejected", i: "needs_info" }[e.key.toLowerCase()];
+      if (decision) {
+        e.preventDefault();
+        decide(decision);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manager, data, busy, note, id]);
+
+  if (loading && !data) return <ListSkeleton rows={7} />;
+  if (error) return <ErrorNote error={error} onRetry={reload} />;
+  if (!data) return null;
+  const f = data;
+  const lineage = f.lineage ?? {};
+  const confirmed = f.status === "confirmed";
 
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         <SeverityBadge severity={f.severity} />
-        <span className="inline-flex items-center gap-1.5 text-[13px] text-ink-2">
+        <span className="inline-flex items-center gap-1.5 text-[14px] text-ink-2">
           <Swatch color={catColor(f.category)} shape="dot" />
           {category(f.category)}
         </span>
@@ -151,12 +169,12 @@ function Detail({ id, manager, onDecided, goTo }: { id: string; manager: boolean
       <p className="mb-5 text-[15px] leading-relaxed text-ink">{firstSentence(f.reason ?? f.explanation)}</p>
 
       {/* The money, and whether it is confirmed or only flagged. */}
-      <div className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line">
-        <div className="bg-paper px-4 py-3">
-          <div className="text-xs font-medium text-ink-2">
+      <div className="mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line">
+        <div className="bg-paper px-4 py-3.5">
+          <div className="text-xs font-semibold text-ink-2">
             <Term word="misstatement">{confirmed ? "Confirmed misstatement" : "Potential misstatement"}</Term>
           </div>
-          <div className={cx("amount mt-1 text-2xl", confirmed ? "text-pass" : f.amount_impact ? "text-fail" : "text-ink")}>{f.amount_impact ? `₹ ${money(f.amount_impact)}` : "No direct amount"}</div>
+          <div className={cx("amount mt-1 text-[32px] leading-9", confirmed ? "text-pass" : f.amount_impact ? "text-fail" : "text-ink")}>{f.amount_impact ? `₹ ${money(f.amount_impact)}` : "No direct amount"}</div>
           <div className="mt-0.5 text-xs text-ink-3">{confirmed ? "Confirmed by the manager." : "Flagged by the detector, not yet confirmed."}</div>
         </div>
         <div className="bg-paper px-4 py-3">
@@ -169,7 +187,7 @@ function Detail({ id, manager, onDecided, goTo }: { id: string; manager: boolean
       {/* Evidence chain and linked samples. */}
       <Section title={sampleIds.length ? `Evidence for ${plural(sampleIds.length, "linked sample")}` : "Evidence"}>
         {!sampleIds.length ? (
-          <p className="text-[13px] text-ink-2">This finding comes from the records themselves, not from a sample, so there is no document chain. Its lineage is under More detail.</p>
+          <p className="text-[14px] text-ink-2">This finding comes from the records themselves, not from a sample, so there is no document chain. Its lineage is under More detail.</p>
         ) : !linked ? (
           <ListSkeleton rows={Math.min(3, sampleIds.length)} />
         ) : (
@@ -184,7 +202,7 @@ function Detail({ id, manager, onDecided, goTo }: { id: string; manager: boolean
                     <button
                       onClick={() => sheet && goTo("samples", `${sheet}:${sid}`)}
                       disabled={!sheet}
-                      className="text-[13px] font-medium text-brand hover:underline disabled:text-ink-2 disabled:no-underline"
+                      className="text-[14px] font-medium text-brand hover:underline disabled:text-ink-2 disabled:no-underline"
                       title="Open this sample"
                     >
                       {smp?.credit_note_no ?? smp?.invoice_no ?? smp?.subject_id ?? sid}
@@ -211,18 +229,33 @@ function Detail({ id, manager, onDecided, goTo }: { id: string; manager: boolean
         )}
         {manager ? (
           <>
-            <textarea className={inputClass + " mb-3 h-auto min-h-20 py-2"} placeholder="Reason for the decision" value={note} onChange={(e) => setNote(e.target.value)} />
-            <div className="flex flex-wrap gap-2">
-              <Button busy={busy === "confirmed"} onClick={() => decide("confirmed")}>
-                Confirm finding
-              </Button>
-              <Button kind="danger" busy={busy === "rejected"} onClick={() => decide("rejected")}>
-                Reject
-              </Button>
-              <Button kind="ghost" busy={busy === "needs_info"} onClick={() => decide("needs_info")}>
-                Ask for more information
-              </Button>
+            <textarea className={inputClass + " mb-3 h-auto min-h-20 py-2"} placeholder="Reason for the decision (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+            <div className="grid gap-2 sm:grid-cols-3">
+              {(
+                [
+                  { decision: "confirmed", key: "C", label: "Confirm", hint: "It is a misstatement", tone: "good", cls: "border-brand bg-brand text-on-brand hover:bg-brand-deep" },
+                  { decision: "rejected", key: "R", label: "Reject", hint: "Not a problem", tone: "bad", cls: "border-fail/50 bg-paper text-fail hover:bg-fail-wash" },
+                  { decision: "needs_info", key: "I", label: "Ask for more", hint: "Need more information", tone: "warn", cls: "border-line bg-paper text-ink hover:border-highlight hover:bg-wait-wash" },
+                ] as const
+              ).map((d) => (
+                <button
+                  key={d.decision}
+                  onClick={() => decide(d.decision)}
+                  disabled={!!busy}
+                  className={cx("group flex flex-col items-start rounded-xl border-2 px-3.5 py-3 text-left transition-[background-color,border-color,transform] duration-150 hover:-translate-y-0.5 disabled:opacity-60", d.cls, f.status === d.decision && "ring-[3px] ring-highlight/60")}
+                >
+                  <span className="flex w-full items-center justify-between">
+                    <span className="inline-flex items-center gap-2 text-[16px] font-bold">
+                      {busy === d.decision ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" /> : <Mark tone={d.tone} size={18} />}
+                      {d.label}
+                    </span>
+                    <kbd className="!bg-transparent !text-current opacity-70">{d.key}</kbd>
+                  </span>
+                  <span className="mt-0.5 text-[13px] opacity-80">{d.hint}</span>
+                </button>
+              ))}
             </div>
+            {onNext && <p className="mt-2 text-[13px] text-ink-2">After a decision, the next finding opens by itself.</p>}
           </>
         ) : (
           <>
@@ -232,12 +265,12 @@ function Detail({ id, manager, onDecided, goTo }: { id: string; manager: boolean
                 Reject
               </Button>
             </div>
-            <p className="mt-2 text-[13px] text-ink-2">Only the audit manager can confirm or reject a finding. Sign in as the audit manager to decide.</p>
+            <p className="mt-2 text-[14px] text-ink-2">Only the audit manager can confirm or reject a finding. Sign in as the audit manager to decide.</p>
           </>
         )}
       </Section>
 
-      <button onClick={() => setMore((m) => !m)} aria-expanded={more} className="mb-4 text-[13px] font-medium text-brand hover:underline">
+      <button onClick={() => setMore((m) => !m)} aria-expanded={more} className="mb-4 text-[14px] font-medium text-brand hover:underline">
         {more ? "Hide detail" : "More detail: full reasoning, adjusting entry and lineage"}
       </button>
       {more && (
@@ -325,7 +358,7 @@ function FindingCard({ f, selected, onOpen }: { f: FindingLite; selected: boolea
           <span className="text-sm leading-snug font-medium text-ink">{f.title}</span>
           <span className="shrink-0 text-right">
             <span className={cx("num block text-[15px] font-medium", f.status === "confirmed" ? "text-pass" : "text-ink")}>{f.amount_impact ? inr(f.amount_impact) : "—"}</span>
-            <span className="block text-[11px] text-ink-3">{f.amount_impact ? (f.status === "confirmed" ? "confirmed" : "potential") : "no amount"}</span>
+            <span className="block text-[12px] text-ink-3">{f.amount_impact ? (f.status === "confirmed" ? "confirmed" : "potential") : "no amount"}</span>
           </span>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-ink-2">
@@ -346,7 +379,7 @@ function FindingCard({ f, selected, onOpen }: { f: FindingLite; selected: boolea
           </button>
         )}
       </div>
-      {open && f.reason && <p className="view border-t border-line-soft px-4 py-3 text-[13px] leading-relaxed text-ink-2">{f.reason}</p>}
+      {open && f.reason && <p className="view border-t border-line-soft px-4 py-3 text-[14px] leading-relaxed text-ink-2">{f.reason}</p>}
     </article>
   );
 }
@@ -597,7 +630,7 @@ export default function Findings({ identity, pulse, focus, goTo, can }: ViewProp
                   label: category(a.cat),
                   value: a.value,
                   color: catColor(a.cat),
-                  tag: a.high ? <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-fail" title={`${a.high} high severity`}><SeverityIcon severity="High" size={10} />{a.high}</span> : undefined,
+                  tag: a.high ? <span className="inline-flex items-center gap-0.5 text-[12px] font-semibold text-fail" title={`${a.high} high severity`}><SeverityIcon severity="High" size={10} />{a.high}</span> : undefined,
                   note: plural(a.count, "finding"),
                 }))}
               />
@@ -642,7 +675,7 @@ export default function Findings({ identity, pulse, focus, goTo, can }: ViewProp
       </div>
 
       {filtered && (
-        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-2">
+        <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] text-ink-2">
           <Tally n={shown.length} label={`of ${everything.length} findings`} />
           <Tally n={inr(sum(shown.filter((f) => f.status !== "rejected")))} label="potential" />
           <button onClick={clear} className="font-medium text-brand hover:underline">
@@ -681,7 +714,7 @@ export default function Findings({ identity, pulse, focus, goTo, can }: ViewProp
                 <div className="mb-3 flex items-center gap-3">
                   <span className={cx("h-2 w-2 rounded-full", sevFill[sev])} />
                   <h2 className="text-sm font-semibold text-ink">{sev} severity</h2>
-                  <span className="text-[13px] text-ink-2">
+                  <span className="text-[14px] text-ink-2">
                     {plural(list.length, "finding")}, {inr(sum(list.filter((f) => f.status !== "rejected")))}
                   </span>
                   <span className="h-px flex-1 bg-line-soft" />
@@ -709,7 +742,7 @@ export default function Findings({ identity, pulse, focus, goTo, can }: ViewProp
           ))}
         </div>
       )}
-      {total > everything.length && <p className="mt-4 text-[13px] text-ink-2">Showing the first {everything.length} of {total} findings.</p>}
+      {total > everything.length && <p className="mt-4 text-[14px] text-ink-2">Showing the first {everything.length} of {total} findings.</p>}
 
       <Drawer
         open={!!selected}
@@ -732,7 +765,7 @@ export default function Findings({ identity, pulse, focus, goTo, can }: ViewProp
           ) : undefined
         }
       >
-        {selected && <Detail id={selected} manager={identity.role === "audit_manager"} onDecided={reload} goTo={goTo} />}
+        {selected && <Detail id={selected} manager={identity.role === "audit_manager"} onDecided={reload} onNext={shown.length > 1 ? () => step(1) : undefined} goTo={goTo} />}
       </Drawer>
     </>
   );

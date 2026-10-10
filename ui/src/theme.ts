@@ -1,4 +1,4 @@
-// Theme state. Graphite is the default; the light theme is a printed page.
+// Theme state. Ledger paper, the light theme, is the default; dark is the same ledger at night.
 // The choice is kept on the <html> element so CSS variables do the work.
 
 import { useEffect, useState } from "react";
@@ -9,7 +9,7 @@ const KEY = "revenue-audit-theme";
 const listeners = new Set<(t: Theme) => void>();
 
 export function getTheme(): Theme {
-  return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 }
 
 export function setTheme(theme: Theme) {
@@ -20,7 +20,7 @@ export function setTheme(theme: Theme) {
 
 export function initTheme() {
   const stored = localStorage.getItem(KEY);
-  document.documentElement.dataset.theme = stored === "light" ? "light" : "dark";
+  document.documentElement.dataset.theme = stored === "dark" ? "dark" : "light";
 }
 
 export function useTheme(): [Theme, (t: Theme) => void] {

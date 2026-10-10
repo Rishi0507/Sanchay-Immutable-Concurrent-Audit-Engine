@@ -60,7 +60,7 @@ export default function Graph({ pulse, goTo }: ViewProps) {
             label: "data(label)",
             "font-size": 10,
             color: c.ink,
-            "font-family": "Geist Variable, sans-serif",
+            "font-family": "Anek Latin Variable, sans-serif",
             "text-background-color": c.paper,
             "text-background-opacity": 0.85,
             "text-background-padding": "2px",
@@ -231,7 +231,7 @@ export default function Graph({ pulse, goTo }: ViewProps) {
                     ))}
                   </ol>
                   <div className="mt-1.5 flex items-center justify-between text-xs text-ink-2">
-                    <span className="num text-[13px] font-medium text-ink">₹ {money(c.value)}</span>
+                    <span className="num text-[14px] font-medium text-ink">₹ {money(c.value)}</span>
                     {c.finding_id && (
                       <button
                         onClick={(e) => {

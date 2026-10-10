@@ -56,7 +56,7 @@ export default function Proof() {
 
   const firstBad = stored.length && now.length ? stored.findIndex((h, i) => h !== now[i]) : -1;
 
-  // The gold chain in the scene follows this table.
+  // The green chain in the scene follows this table.
   useEffect(() => {
     story.brokenAt = firstBad >= 0 ? FIRST_BLOCK + firstBad : -1;
     return () => {

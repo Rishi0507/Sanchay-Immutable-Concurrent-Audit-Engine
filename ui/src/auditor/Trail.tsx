@@ -214,7 +214,7 @@ export default function Trail({ pulse }: ViewProps) {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-semibold text-ink">{checking ? "Recomputing every hash in the chain" : v.ok ? "The trail is intact" : "The trail has been altered"}</span>
-              <span className="block text-[13px] text-ink-2">
+              <span className="block text-[14px] text-ink-2">
                 {checking
                   ? "Each entry's hash is recomputed from the one before it."
                   : v.ok
@@ -254,7 +254,7 @@ export default function Trail({ pulse }: ViewProps) {
             >
               <span className={cx("amount text-[30px] leading-9", problems ? "text-fail" : "text-ink")}>{problems}</span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[13px] font-semibold text-ink">Refused attempts</span>
+                <span className="block text-[14px] font-semibold text-ink">Refused attempts</span>
                 <span className="block text-xs text-ink-2">{problems ? "Actions the system turned away. Select to list them." : "Nothing was refused. Every action was allowed for its role."}</span>
               </span>
             </button>
@@ -266,10 +266,10 @@ export default function Trail({ pulse }: ViewProps) {
                     aria-pressed={person === p.user}
                     className={cx("grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-wash", person === p.user && "bg-wash", person && person !== p.user && "opacity-55")}
                   >
-                    <span className="min-w-0 truncate text-[13px] text-ink">
+                    <span className="min-w-0 truncate text-[14px] text-ink">
                       {p.user} <span className="text-ink-3">{roleLabel[p.role] ?? p.role}</span>
                     </span>
-                    <span className="num text-[13px] font-medium text-ink">
+                    <span className="num text-[14px] font-medium text-ink">
                       {p.n.toLocaleString("en-IN")}
                       {p.refused > 0 && <span className="ml-2 text-fail">{p.refused} refused</span>}
                     </span>
@@ -308,11 +308,11 @@ export default function Trail({ pulse }: ViewProps) {
         <span className="ml-auto order-last">
           <Pills value={rowView} onChange={setRowView} options={[{ value: "ledger", label: "Ledger" }, { value: "table", label: "Table" }]} />
         </span>
-        <span className="text-[13px] text-ink-2">
+        <span className="text-[14px] text-ink-2">
           {plural(shown.length, "entry", "entries")} shown; <span className="num">{rows.length.toLocaleString("en-IN")}</span> loaded of <span className="num">{total.toLocaleString("en-IN")}</span> entries in the trail
         </span>
         {person && (
-          <button onClick={() => setPerson("")} className="text-[13px] font-medium text-brand hover:underline">
+          <button onClick={() => setPerson("")} className="text-[14px] font-medium text-brand hover:underline">
             Show every identity
           </button>
         )}

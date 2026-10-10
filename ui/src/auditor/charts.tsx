@@ -271,14 +271,14 @@ export function Donut({
           {focused ? (
             <>
               <div className={cx("amount leading-6 text-ink", size >= 170 ? "text-xl" : "text-[16px]")}>{format(focused.value)}</div>
-              <div className="mt-0.5 text-[11px] leading-tight text-ink-2">
+              <div className="mt-0.5 text-[12px] leading-tight text-ink-2">
                 {total ? Math.round((focused.value / total) * 100) : 0}% of the total
               </div>
             </>
           ) : (
             <>
               <div className={cx("amount leading-6 text-ink", size >= 170 ? "text-xl" : "text-[16px]")}>{center}</div>
-              {centerNote && <div className="mt-0.5 text-[11px] leading-tight text-ink-2">{centerNote}</div>}
+              {centerNote && <div className="mt-0.5 text-[12px] leading-tight text-ink-2">{centerNote}</div>}
             </>
           )}
         </div>
@@ -295,7 +295,7 @@ export function Donut({
                 onBlur={() => setHover(null)}
                 aria-pressed={selected === s.key}
                 disabled={!onSelect}
-                className={cx("flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[13px] transition-colors", focus === s.key ? "bg-wash" : "enabled:hover:bg-wash", selected && selected !== s.key && "opacity-55")}
+                className={cx("flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[14px] transition-colors", focus === s.key ? "bg-wash" : "enabled:hover:bg-wash", selected && selected !== s.key && "opacity-55")}
               >
                 <Swatch color={s.color} shape="dot" />
                 <span className="min-w-0 flex-1 truncate text-ink-2">
@@ -523,7 +523,7 @@ export function Matrix({
   const max = Math.max(1, ...rows.flatMap((r) => cols.map((c) => cell(r.key, c.key).value)));
   return (
     <div className="thin-scroll overflow-x-auto">
-      <table className="w-full border-separate border-spacing-1 text-[13px]">
+      <table className="w-full border-separate border-spacing-1 text-[14px]">
         <thead>
           <tr>
             <th />
@@ -554,8 +554,8 @@ export function Matrix({
                     >
                       {v.count ? (
                         <>
-                          <span className="num text-[13px] leading-4 font-medium text-ink">{format(v.value)}</span>
-                          <span className="text-[11px] leading-4 text-ink-2">{v.count === 1 ? "1 finding" : `${v.count} findings`}</span>
+                          <span className="num text-[14px] leading-4 font-medium text-ink">{format(v.value)}</span>
+                          <span className="text-[12px] leading-4 text-ink-2">{v.count === 1 ? "1 finding" : `${v.count} findings`}</span>
                         </>
                       ) : (
                         <span className="text-xs text-ink-3">–</span>
@@ -595,11 +595,11 @@ export function Ranked({ items, format, onSelect, selected }: { items: Rank[]; f
             aria-pressed={selected === it.key}
             className={cx("group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 rounded-md px-2 py-1.5 text-left transition-colors enabled:hover:bg-wash", selected === it.key && "bg-wash", selected && selected !== it.key && "opacity-55")}
           >
-            <span className="flex min-w-0 items-center gap-2 text-[13px] text-ink">
+            <span className="flex min-w-0 items-center gap-2 text-[14px] text-ink">
               <span className="truncate">{it.label}</span>
               {it.tag}
             </span>
-            <span className="num text-[13px] font-medium text-ink">{format(it.value)}</span>
+            <span className="num text-[14px] font-medium text-ink">{format(it.value)}</span>
             <span className="col-span-2 h-1.5 overflow-hidden rounded-full bg-wash">
               <span className="grow-x block h-full rounded-full" style={{ width: `${(it.value / max) * 100}%`, background: it.color }} />
             </span>

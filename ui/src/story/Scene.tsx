@@ -3,7 +3,7 @@
 // changes state.
 //
 // Geography, front to back:
-//   the ledger     a gold chain of blocks, nearest the visitor
+//   the ledger     a green chain of blocks, nearest the visitor
 //   the documents  a row of stacks, one stack per sale, one plate per document
 //   the register   a field of columns, one per invoice, a year across
 //
@@ -26,7 +26,7 @@ export interface Palette {
   vermilion: string;
   violet: string;
   dim: number; // how far unlit columns fall back
-  glow: number; // how hard gold is pushed for the bloom
+  glow: number; // how hard the ledger green is pushed for the bloom
 }
 
 // The ledger runs in front of the register. The documents are laid out in
@@ -224,7 +224,7 @@ function Documents({ palette }: { palette: Palette }) {
   );
 }
 
-// The ledger: a chain of gold blocks. A light runs along it as each hash is
+// The ledger: a chain of green blocks. A light runs along it as each hash is
 // carried into the next block. In the proof, the visitor breaks it.
 function Ledger({ palette }: { palette: Palette }) {
   const blocks = useRef<THREE.InstancedMesh>(null);

@@ -34,7 +34,7 @@ export default function Access({ identity }: ViewProps) {
       />
       <Card>
         <div className="thin-scroll overflow-x-auto">
-          <table className="w-full text-[13px]">
+          <table className="w-full text-[14px]">
             <thead>
               <tr className="border-b border-line text-xs text-ink-2">
                 <th className="px-4 py-3 text-left font-medium">Step</th>

@@ -256,7 +256,7 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
 
       {/* Shown when the engagement reports its seed and snapshot. */}
       {status.data?.seed && status.data?.snapshot_seq !== undefined && (
-        <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-ink-2">
+        <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[14px] text-ink-2">
           <span
             className="inline-flex items-center gap-2 rounded-md border border-pass/40 bg-pass-wash px-2.5 py-1 font-medium text-pass"
             title="The samples are a function of the seed and the snapshot. Running the selection again on the same snapshot with the same seed returns exactly these samples."
@@ -390,7 +390,7 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
                 setMonth("");
                 setReasonPick("");
               }}
-              className="text-[13px] font-medium text-brand hover:underline"
+              className="text-[14px] font-medium text-brand hover:underline"
             >
               Clear
             </button>
@@ -434,7 +434,7 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
                   status: w ? <Status tone={toneFor(w)}>{w}</Status> : null,
                   detail: (
                     <>
-                      <p className="mb-3 text-[13px] leading-relaxed text-ink">{x.reason}</p>
+                      <p className="mb-3 text-[14px] leading-relaxed text-ink">{x.reason}</p>
                       {x.tests && Object.keys(x.tests).length > 0 && (
                         <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5">
                           {Object.entries(x.tests).map(([t, r]) => (
@@ -444,7 +444,7 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
                           ))}
                         </div>
                       )}
-                      <div className="flex flex-wrap items-center gap-4 text-[13px]">
+                      <div className="flex flex-wrap items-center gap-4 text-[14px]">
                         <button onClick={() => setSelected(x)} className="font-medium text-brand hover:underline">
                           Open the full sample
                         </button>

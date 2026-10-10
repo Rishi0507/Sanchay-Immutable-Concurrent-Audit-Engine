@@ -1,8 +1,9 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Identity, Notice, Role, ToolInfo, callTool, getEngagement, getToken, listTools, setEngagement, setRole, setToken, subscribe, whoami } from "./api";
 import { useTheme } from "./theme";
-import { BrandMark, Button, Toasts, cx, inputClass, toast } from "./ui";
+import { BrandMark, Button, Mark, Toasts, cx, inputClass, toast } from "./ui";
 import { setFullDetail, useDetail } from "./auditor/kit";
+import { CommandItem, CommandPalette } from "./Command";
 import Upload from "./client/Upload";
 import Requests from "./client/Requests";
 import Records from "./client/Records";
@@ -49,17 +50,17 @@ type TabDef = {
   hint?: string; id: string; label: string; view: (p: ViewProps) => JSX.Element; needs?: string[] };
 
 const clientTabs: TabDef[] = [
-  { id: "upload", label: "Upload", view: (p) => <Upload {...p} />, needs: ["upload_sales_register", "upload_related_parties"] },
-  { id: "requests", label: "Requests", view: (p) => <Requests {...p} />, needs: ["upload_evidence"] },
-  { id: "records", label: "Records", view: (p) => <Records {...p} /> },
-  { id: "new", label: "New record", view: (p) => <NewRecord {...p} /> },
-  { id: "access", label: "Access", view: (p) => <Access {...p} /> },
+  { id: "upload", hint: "Send the register and parties", label: "Upload", view: (p) => <Upload {...p} />, needs: ["upload_sales_register", "upload_related_parties"] },
+  { id: "requests", hint: "Documents the auditor asked for", label: "Requests", view: (p) => <Requests {...p} />, needs: ["upload_evidence"] },
+  { id: "records", hint: "Every record you have made", label: "Records", view: (p) => <Records {...p} /> },
+  { id: "new", hint: "Record a step of a sale", label: "New record", view: (p) => <NewRecord {...p} /> },
+  { id: "access", hint: "Who may do what", label: "Access", view: (p) => <Access {...p} /> },
 ];
 
 const auditorTabs: TabDef[] = [
   { id: "overview", hint: "The answer on one page", label: "Overview", view: (p) => <Overview {...p} /> },
   { id: "register", hint: "The client's list of sales", label: "Register", view: (p) => <Register {...p} /> },
-  { id: "samples", hint: "Invoices checked against documents", label: "Samples", view: (p) => <Samples {...p} /> },
+  { id: "samples", hint: "Invoices checked against papers", label: "Samples", view: (p) => <Samples {...p} /> },
   { id: "findings", hint: "Problems found, to review", label: "Findings", view: (p) => <Findings {...p} /> },
   { id: "graph", hint: "Money going round in circles", label: "Graph", view: (p) => <Graph {...p} /> },
   { id: "trail", hint: "Every action, sealed", label: "Trail", view: (p) => <Trail {...p} /> },
@@ -81,8 +82,8 @@ const departments: { label: string; does: string; token: string }[] = [
 ];
 
 const auditIdentities: { label: string; does: string; token: string }[] = [
-  { label: "Auditor", does: "Sample, test and raise findings", token: "auditor-demo-token" },
-  { label: "Audit manager", does: "Confirm findings and sign off", token: "manager-demo-token" },
+  { label: "Auditor", does: "Runs the audit: samples, tests and raises findings", token: "auditor-demo-token" },
+  { label: "Audit manager", does: "Reviews each finding and signs off", token: "manager-demo-token" },
 ];
 
 // A client employee who belongs to no department, used to load the business.
@@ -103,9 +104,9 @@ function fiscalYear(start: string, end: string) {
 function ViewSwitch() {
   const d = useDetail();
   return (
-    <div className="border-t border-line-soft px-4 py-2.5">
+    <div className="px-4 pb-3">
       <div
-        className="grid grid-cols-2 rounded-md border border-line bg-wash p-0.5"
+        className="grid grid-cols-2 rounded-lg bg-black/25 p-1"
         role="group"
         aria-label="How much to show"
         title={d.full ? "Every chart and table is shown." : "Main points first. Each page folds its extra analysis into one bar you can open."}
@@ -118,7 +119,7 @@ function ViewSwitch() {
             key={o.label}
             onClick={() => setFullDetail(o.full)}
             aria-pressed={d.full === o.full}
-            className={cx("h-7 rounded-[5px] text-[13px] font-medium transition-colors", d.full === o.full ? "bg-paper text-ink shadow-[0_0_0_1px_var(--color-line)]" : "text-ink-2 hover:text-ink")}
+            className={cx("h-8 rounded-md text-[13.5px] font-semibold transition-colors", d.full === o.full ? "bg-spine-ink text-spine" : "text-spine-ink-2 hover:text-spine-ink")}
           >
             {o.label}
           </button>
@@ -204,6 +205,24 @@ function TabIcon({ id }: { id: string }) {
           <path d="M4 17c.8-3 3.2-4.5 6-4.5s5.2 1.5 6 4.5" />
         </svg>
       );
+    case "theme":
+      return (
+        <svg {...p}>
+          <path d="M16 11.5A6.5 6.5 0 018.5 4a6.5 6.5 0 107.5 7.5z" />
+        </svg>
+      );
+    case "story":
+      return (
+        <svg {...p}>
+          <path d="M4 4.5h5a2 2 0 012 2V16a1.5 1.5 0 00-1.5-1.5H4zM16 4.5h-5a2 2 0 00-2 2V16a1.5 1.5 0 011.5-1.5H16z" />
+        </svg>
+      );
+    case "signout":
+      return (
+        <svg {...p}>
+          <path d="M8 4H4.5v12H8M12 6.5L15.5 10 12 13.5M15.5 10H8" />
+        </svg>
+      );
     default:
       return (
         <svg {...p}>
@@ -213,26 +232,20 @@ function TabIcon({ id }: { id: string }) {
   }
 }
 
-// The Sanchay emblem beside the product name. The large form, on the sign-in
-// screen, is the full logo, which carries the name, with what the product does under it.
-function Wordmark({ large, onClick }: { large?: boolean; onClick?: () => void }) {
-  if (large) {
-    return (
-      <div>
-        <img src="/logo.png" alt="Sanchay" width={188} height={130} className="logo-ground rounded-xl" />
-        <div className="mt-4 text-sm text-ink-2">Statutory revenue audit</div>
-      </div>
-    );
-  }
+// The Sanchay emblem beside the product name, on the green spine.
+function Wordmark({ onClick }: { onClick?: () => void }) {
   const mark = (
     <>
-      <BrandMark size={28} />
-      Sanchay
+      <BrandMark size={34} />
+      <span className="text-left leading-tight">
+        <span className="display block text-[21px] text-spine-ink">Sanchay</span>
+        <span className="block text-[12px] font-medium text-spine-ink-2">Statutory revenue audit</span>
+      </span>
     </>
   );
-  const className = "flex shrink-0 items-center gap-2.5 text-[15px] font-semibold whitespace-nowrap tracking-[-0.01em] text-ink";
+  const className = "flex shrink-0 items-center gap-3";
   return onClick ? (
-    <button onClick={onClick} className={className} title="How it works">
+    <button onClick={onClick} className={cx(className, "rounded-lg transition-opacity hover:opacity-85")} title="How it works">
       {mark}
     </button>
   ) : (
@@ -240,11 +253,22 @@ function Wordmark({ large, onClick }: { large?: boolean; onClick?: () => void })
   );
 }
 
-function ThemeSwitch() {
+function ThemeSwitch({ className }: { className?: string }) {
   const [theme, setTheme] = useTheme();
+  const dark = theme === "dark";
   return (
-    <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="font-medium text-ink-2 transition-colors hover:text-ink" aria-label={`Switch to the ${theme === "dark" ? "light" : "dark"} theme`}>
-      {theme === "dark" ? "Light" : "Dark"}
+    <button onClick={() => setTheme(dark ? "light" : "dark")} className={cx("inline-flex items-center gap-1.5 font-semibold transition-colors", className)} aria-label={`Switch to the ${dark ? "light" : "dark"} theme`}>
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden>
+        {dark ? (
+          <>
+            <circle cx="8" cy="8" r="3" />
+            <path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1" />
+          </>
+        ) : (
+          <path d="M13.5 9.5A5.5 5.5 0 016.5 2.5a5.5 5.5 0 107 7z" />
+        )}
+      </svg>
+      {dark ? "Light" : "Dark"}
     </button>
   );
 }
@@ -262,56 +286,82 @@ function SignIn({ onSignedIn, onBack }: { onSignedIn: (id: Identity) => void; on
       setToken(t);
       onSignedIn(id);
     } catch {
-      setError("That token is not recognised.");
+      setError("That token is not recognised. Check it, or pick one of the identities above.");
     } finally {
       setBusy("");
     }
   };
 
+  const spinner = <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-brand" />;
+
   return (
-    <div className="view flex min-h-full flex-col">
-      <header className="flex h-16 items-center justify-between px-6 text-[13px] md:px-12">
-        <button onClick={onBack} className="font-medium text-ink-2 transition-colors hover:text-ink">
-          Back to how it works
-        </button>
-        <ThemeSwitch />
-      </header>
-      <div className="flex flex-1 items-center justify-center px-6 pb-24">
-        <div className="w-full max-w-[400px]">
-          <Wordmark large />
-          <h1 className="serif mt-10 text-[34px] leading-[1.08] font-[430] tracking-[-0.02em]">Sign in</h1>
-          <p className="mt-2 text-sm text-ink-2">Each identity sees only what its role and department allow.</p>
+    <div className="view grid min-h-full lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+      {/* The ledger's cover: the product, and what it does, in one sentence. */}
+      <aside className="relative flex flex-col justify-between overflow-hidden bg-spine px-8 py-8 text-spine-ink md:px-12 lg:min-h-screen">
+        <div className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "repeating-linear-gradient(to bottom, transparent 0 39px, #eaf4ee 39px 40px)" }} aria-hidden />
+        <div className="relative flex items-center justify-between text-[14px]">
+          <button onClick={onBack} className="inline-flex items-center gap-1.5 font-semibold text-spine-ink-2 transition-colors hover:text-spine-ink">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M10 3.5L5.5 8 10 12.5" />
+            </svg>
+            How it works
+          </button>
+          <ThemeSwitch className="text-spine-ink-2 hover:text-spine-ink" />
+        </div>
+        <div className="relative my-12 lg:my-0">
+          <img src="/logo.png" alt="Sanchay" width={150} height={104} className="logo-ground rounded-2xl" />
+          <h1 className="display mt-10 max-w-[13ch] text-[52px] leading-[0.98] md:text-[64px]">Every sale, checked against its record.</h1>
+          <p className="mt-6 max-w-md text-[17px] leading-relaxed text-spine-ink-2">
+            Sanchay audits a company's revenue from the ledger behind it: each order, dispatch, invoice and payment, sealed so nobody can change it later.
+          </p>
+        </div>
+        <ul className="relative grid gap-3 text-[15px] text-spine-ink-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+          {["Every register row reconciled", "Samples nobody can pick", "Findings a manager signs off"].map((t) => (
+            <li key={t} className="flex items-center gap-2.5">
+              <span className="text-highlight">
+                <Mark tone="good" size={18} draw />
+              </span>
+              {t}
+            </li>
+          ))}
+        </ul>
+      </aside>
 
-          <div className="mt-8 mb-2 flex items-baseline justify-between text-xs font-medium text-ink-2">
-            <span>Client company</span>
-            <button onClick={() => signIn(unrestrictedToken)} disabled={!!busy} className="text-ink-3 transition-colors hover:text-brand disabled:opacity-60">
-              All departments
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {departments.map((d) => (
-              <button key={d.token} onClick={() => signIn(d.token)} disabled={!!busy} className="rounded-md border border-line px-3 py-2.5 text-left transition-colors hover:border-brand hover:bg-wash disabled:opacity-60">
-                <span className="flex items-center justify-between text-[15px] font-medium text-ink">
-                  {d.label}
-                  {busy === d.token && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-brand" />}
+      <div className="flex items-center justify-center bg-canvas px-6 py-12 md:px-12">
+        <div className="w-full max-w-[480px]">
+          <h2 className="display text-[38px] leading-none">Sign in</h2>
+          <p className="mt-2 text-[16px] text-ink-2">Choose who you are. Each identity sees only what its role allows.</p>
+
+          <div className="mt-8 mb-3 text-[14px] font-bold text-ink">Audit firm</div>
+          <div className="grid gap-3">
+            {auditIdentities.map((d, i) => (
+              <button
+                key={d.token}
+                onClick={() => signIn(d.token)}
+                disabled={!!busy}
+                className="group flex items-center gap-4 rounded-2xl border border-line bg-paper px-5 py-4 text-left shadow-[0_1px_0_var(--color-line-soft)] transition-[border-color,box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:border-brand hover:shadow-[0_12px_28px_rgba(12,58,43,0.14)] disabled:opacity-60"
+              >
+                <span className={cx("flex h-12 w-12 shrink-0 items-center justify-center rounded-xl", i === 0 ? "bg-brand text-on-brand" : "bg-spine text-highlight")}>
+                  {i === 0 ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <circle cx="10.5" cy="10.5" r="6" />
+                      <path d="M15 15l5 5M8 10.6l1.8 1.8 3.2-3.6" />
+                    </svg>
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M4 20c4-1 6.5-3.5 8-7.5M12.5 12.5L18 5l1 1-6 7.5" />
+                      <path d="M4 20h16" />
+                    </svg>
+                  )}
                 </span>
-                <span className="block text-[13px] text-ink-2">{d.does}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="mt-7 mb-2 text-xs font-medium text-ink-2">Audit firm</div>
-          <div className="divide-y divide-line-soft border-y border-line">
-            {auditIdentities.map((d) => (
-              <button key={d.token} onClick={() => signIn(d.token)} disabled={!!busy} className="group flex w-full items-center justify-between gap-4 py-3.5 text-left transition-colors hover:bg-wash disabled:opacity-60 sm:px-2">
-                <span>
-                  <span className="block text-[15px] font-medium text-ink">{d.label}</span>
-                  <span className="block text-[13px] text-ink-2">{d.does}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[18px] font-bold text-ink">{d.label}</span>
+                  <span className="block text-[14px] text-ink-2">{d.does}</span>
                 </span>
                 {busy === d.token ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-brand" />
+                  spinner
                 ) : (
-                  <svg className="text-ink-3 transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-brand" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <svg className="text-ink-3 transition-all duration-150 group-hover:translate-x-1 group-hover:text-brand" width="20" height="20" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                     <path d="M6 3.5L10.5 8 6 12.5" />
                   </svg>
                 )}
@@ -319,14 +369,32 @@ function SignIn({ onSignedIn, onBack }: { onSignedIn: (id: Identity) => void; on
             ))}
           </div>
 
+          <div className="mt-8 mb-3 flex items-baseline justify-between">
+            <span className="text-[14px] font-bold text-ink">Client company, by department</span>
+            <button onClick={() => signIn(unrestrictedToken)} disabled={!!busy} className="text-[13px] font-semibold text-brand transition-colors hover:underline disabled:opacity-60">
+              All departments
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {departments.map((d) => (
+              <button key={d.token} onClick={() => signIn(d.token)} disabled={!!busy} className="rounded-xl border border-line bg-paper px-4 py-3 text-left transition-[border-color,background-color] duration-150 hover:border-brand hover:bg-brand-wash/40 disabled:opacity-60">
+                <span className="flex items-center justify-between text-[16px] font-bold text-ink">
+                  {d.label}
+                  {busy === d.token && spinner}
+                </span>
+                <span className="block text-[13.5px] text-ink-2">{d.does}</span>
+              </button>
+            ))}
+          </div>
+
           <form
-            className="mt-8"
+            className="mt-8 border-t border-line pt-6"
             onSubmit={(e) => {
               e.preventDefault();
               if (token) signIn(token);
             }}
           >
-            <label htmlFor="token" className="mb-1.5 block text-xs font-medium text-ink-2">
+            <label htmlFor="token" className="mb-1.5 block text-[13px] font-semibold text-ink-2">
               Or sign in with an identity token
             </label>
             <div className="flex gap-2">
@@ -335,7 +403,7 @@ function SignIn({ onSignedIn, onBack }: { onSignedIn: (id: Identity) => void; on
                 Sign in
               </Button>
             </div>
-            {error && <p className="mt-2 text-sm text-fail">{error}</p>}
+            {error && <p className="mt-2 text-[14px] font-medium text-fail">{error}</p>}
           </form>
         </div>
       </div>
@@ -357,6 +425,9 @@ export default function App() {
   const [engagementId, setEngagementId] = useState("");
   const [engagementsLoaded, setEngagementsLoaded] = useState(false);
   const [tools, setTools] = useState<ToolInfo[] | null>(null);
+  const [palette, setPalette] = useState(false);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [theme, setThemeValue] = useTheme();
 
   useEffect(() => {
     if (!getToken()) {
@@ -417,6 +488,25 @@ export default function App() {
     if (auditing) loadEngagements();
   }, [auditing, loadEngagements]);
 
+  // Counts beside the sections, so the navigation itself says where the work is.
+  useEffect(() => {
+    if (!auditing || !engagementId) {
+      setCounts({});
+      return;
+    }
+    let live = true;
+    callTool<any>("get_engagement_status")
+      .then((s) => {
+        if (!live) return;
+        const sev = s.counts?.findings_by_severity ?? {};
+        setCounts({ findings: Number(sev.High ?? 0) + Number(sev.Medium ?? 0) + Number(sev.Low ?? 0), high: Number(sev.High ?? 0), samples: Number(s.counts?.evidence_pending ?? 0) });
+      })
+      .catch(() => live && setCounts({}));
+    return () => {
+      live = false;
+    };
+  }, [auditing, engagementId, pulse]);
+
   // Live notices: a client upload badges the auditor's Overview, an evidence
   // request badges the client's Requests tab.
   useEffect(() => {
@@ -442,11 +532,53 @@ export default function App() {
     setTab(next);
     setFocus(nextFocus);
     setBadges((b) => ({ ...b, [next]: 0 }));
+    window.scrollTo(0, 0);
   }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [screen]);
+
+  // Ctrl+K or / opens the palette, wherever the reader is.
+  useEffect(() => {
+    if (screen !== "app" || !identity) return;
+    const onKey = (e: KeyboardEvent) => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement)?.tagName ?? "");
+      if ((e.key === "k" && (e.ctrlKey || e.metaKey)) || (e.key === "/" && !typing)) {
+        e.preventDefault();
+        setPalette(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [screen, identity]);
+
+  const closePalette = useCallback(() => setPalette(false), []);
+
+  const signOut = useCallback(() => {
+    setToken("");
+    setIdentity(null);
+    setEngagements([]);
+    setEngagementsLoaded(false);
+    setScreen("signin");
+  }, []);
+
+  const commands = useMemo<CommandItem[]>(() => {
+    const go: CommandItem[] = tabs.map((t) => ({ id: `go:${t.id}`, group: "Go to", label: t.label, hint: t.hint, icon: <TabIcon id={t.id} />, run: () => goTo(t.id) }));
+    const filters: CommandItem[] = auditing
+      ? [
+          { id: "do:high", group: "Do", label: "Show high-severity findings", hint: "Findings, filtered to High", icon: <TabIcon id="findings" />, run: () => goTo("findings", "f:severity=High") },
+          { id: "do:review", group: "Do", label: "Show findings awaiting review", hint: "Findings the manager has not decided", icon: <TabIcon id="findings" />, run: () => goTo("findings", "f:status=proposed") },
+          { id: "do:attention", group: "Do", label: "Show register rows that do not agree", hint: "Register, filtered to differences", icon: <TabIcon id="register" />, run: () => goTo("register", "status:attention") },
+        ]
+      : [];
+    const general: CommandItem[] = [
+      { id: "do:theme", group: "Do", label: theme === "dark" ? "Switch to the light theme" : "Switch to the dark theme", icon: <TabIcon id="theme" />, run: () => setThemeValue(theme === "dark" ? "light" : "dark") },
+      { id: "do:story", group: "Do", label: "Read how Sanchay works", hint: "The story page", icon: <TabIcon id="story" />, run: () => setScreen("story") },
+      { id: "do:signout", group: "Do", label: "Sign out", icon: <TabIcon id="signout" />, run: signOut },
+    ];
+    return [...go, ...filters, ...general];
+  }, [tabs, auditing, goTo, theme, setThemeValue, signOut]);
 
   if (checking) return null;
 
@@ -476,18 +608,25 @@ export default function App() {
     chooseEngagement(id);
     loadEngagements();
   };
+  const current = engagements.find((x) => x.engagement_id === engagementId);
+
+  // What the badge beside a section says: news first, then work waiting there.
+  const badgeFor = (id: string): { n: number; tone: "news" | "work" | "alert" } | null => {
+    if (badges[id]) return { n: badges[id], tone: "news" };
+    if (id === "findings" && counts.findings) return { n: counts.findings, tone: counts.high ? "alert" : "work" };
+    if (id === "samples" && counts.samples) return { n: counts.samples, tone: "work" };
+    return null;
+  };
+  const badgeClass = { news: "bg-highlight text-spine", work: "bg-white/15 text-spine-ink", alert: "bg-[#e5532f] text-white" };
 
   const engagementSelect =
     auditing && engagements.length > 0 ? (
       <select
         value={engagementId}
         onChange={(e) => chooseEngagement(e.target.value)}
-        className="h-9 w-full truncate rounded-md border border-line bg-paper px-2 text-[13px] text-ink outline-none transition-colors hover:border-ink-3 focus:border-brand"
+        className="h-10 w-full truncate rounded-lg border border-white/15 bg-spine-2 px-2.5 text-[14px] font-semibold text-spine-ink outline-none transition-colors hover:border-white/30 focus:border-highlight"
         aria-label="Engagement"
-        title={(() => {
-          const e = engagements.find((x) => x.engagement_id === engagementId);
-          return e ? `Audit period ${e.period_start} to ${e.period_end}` : undefined;
-        })()}
+        title={current ? `Audit period ${current.period_start} to ${current.period_end}` : undefined}
       >
         {engagements.map((e) => (
           <option key={e.engagement_id} value={e.engagement_id} title={`${e.period_start} to ${e.period_end}`}>
@@ -500,63 +639,66 @@ export default function App() {
       </select>
     ) : null;
 
-  const readOnly = auditing ? (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-md border border-line px-2 py-0.5 text-xs font-medium text-ink-2"
-      title="The audit side can read the client's records but cannot change them. Every attempt is recorded in the trail."
+  const searchButton = (wide: boolean) => (
+    <button
+      onClick={() => setPalette(true)}
+      className={cx(
+        "group inline-flex items-center gap-2.5 rounded-xl border border-line bg-paper text-left text-ink-2 shadow-[0_1px_0_var(--color-line-soft)] transition-colors hover:border-brand/60 hover:text-ink",
+        wide ? "h-11 w-full max-w-[420px] px-4" : "h-9 w-9 justify-center",
+      )}
+      aria-label="Search and jump, Ctrl K"
     >
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <rect x="3" y="7" width="10" height="7" rx="1.5" />
-        <path d="M5.5 7V5a2.5 2.5 0 015 0v2" />
+      <svg className="shrink-0 text-brand" width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+        <circle cx="7" cy="7" r="4.5" />
+        <path d="M10.5 10.5L14 14" />
       </svg>
-      Read-only
-    </span>
-  ) : null;
-
-  const signOut = () => {
-    setToken("");
-    setIdentity(null);
-    setEngagements([]);
-    setEngagementsLoaded(false);
-    setScreen("signin");
-  };
+      {wide && (
+        <>
+          <span className="flex-1 truncate text-[15px]">{auditing ? "Find a page, an action or a finding" : "Find a page or an action"}</span>
+          <kbd>Ctrl</kbd>
+          <kbd>K</kbd>
+        </>
+      )}
+    </button>
+  );
 
   return (
     <div className="flex min-h-full bg-canvas">
-      {/* Sections run down the left on wide screens. */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-line bg-paper lg:flex">
-        <div className="flex h-14 items-center px-5">
+      {/* The ledger's cloth spine: sections down the left on wide screens. */}
+      <aside className="sticky top-0 hidden h-screen w-[264px] shrink-0 flex-col bg-spine text-spine-ink lg:flex">
+        <div className="flex h-[76px] items-center px-5">
           <Wordmark onClick={() => setScreen("story")} />
         </div>
         {engagementSelect && (
-          <div className="px-4 pb-3">{engagementSelect}</div>
+          <div className="px-4 pb-4">
+            <div className="mb-1.5 px-0.5 text-[12px] font-semibold text-spine-ink-2 [@media(max-height:760px)]:hidden">Engagement</div>
+            {engagementSelect}
+          </div>
         )}
         <nav className="thin-scroll flex-1 overflow-y-auto px-3" aria-label="Sections">
-          <ul className="space-y-0.5">
+          <ul className="space-y-1">
             {tabs.map((t) => {
-              const current = t.id === active?.id;
+              const on = t.id === active?.id;
+              const badge = !on ? badgeFor(t.id) : null;
               return (
                 <li key={t.id}>
                   <button
                     onClick={() => goTo(t.id)}
-                    aria-current={current ? "page" : undefined}
+                    aria-current={on ? "page" : undefined}
                     className={cx(
-                      "relative flex w-full items-center gap-3 rounded-md px-3 text-left text-sm transition-colors duration-150",
-                      t.hint ? "py-1.5" : "h-9",
-                      current ? "bg-brand-wash font-semibold text-ink" : "font-medium text-ink-2 hover:bg-wash hover:text-ink",
+                      "relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-150 [@media(max-height:760px)]:py-1.5",
+                      on ? "bg-white/[0.11] text-spine-ink" : "text-spine-ink-2 hover:bg-white/[0.06] hover:text-spine-ink",
                     )}
                   >
-                    <span className={cx("absolute inset-y-2 left-0 w-[3px] rounded-full bg-brand transition-opacity duration-150", current ? "opacity-100" : "opacity-0")} />
-                    <span className={current ? "text-brand" : "text-ink-3"}>
+                    <span className={cx("absolute inset-y-2.5 -left-3 w-1 rounded-r-full bg-highlight transition-opacity duration-150", on ? "opacity-100" : "opacity-0")} />
+                    <span className={cx("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors", on ? "bg-highlight text-spine" : "bg-white/[0.07]")}>
                       <TabIcon id={t.id} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate">{t.label}</span>
-                      {t.hint && <span className="block truncate text-[11px] leading-tight font-normal text-ink-3">{t.hint}</span>}
+                      <span className={cx("block truncate text-[15.5px]", on ? "font-bold" : "font-semibold")}>{t.label}</span>
+                      {t.hint && <span className="block truncate text-[12.5px] leading-tight text-spine-ink-2 [@media(max-height:760px)]:hidden">{t.hint}</span>}
                     </span>
-                    {!!badges[t.id] && !current && (
-                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-on-brand">{badges[t.id]}</span>
-                    )}
+                    {badge && <span className={cx("num inline-flex h-5.5 min-w-5.5 items-center justify-center rounded-full px-1.5 text-[12px] font-bold", badgeClass[badge.tone])}>{badge.n}</span>}
                   </button>
                 </li>
               );
@@ -564,14 +706,17 @@ export default function App() {
           </ul>
         </nav>
         {auditing && <ViewSwitch />}
-        <div className="space-y-2 border-t border-line-soft px-5 py-2.5 text-[13px]">
-          <div className="flex min-w-0 items-center justify-between gap-2" title={identity.user}>
-            <span className="truncate font-medium text-ink">{identity.department_name ?? roleLabel[identity.role]}</span>
-            {readOnly}
+        <div className="border-t border-white/10 px-5 py-4 text-[14px]">
+          <div className="flex min-w-0 items-center gap-3" title={identity.user}>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-highlight text-[14px] font-bold text-spine">{(identity.department_name ?? roleLabel[identity.role]).slice(0, 1)}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-bold">{identity.department_name ?? roleLabel[identity.role]}</span>
+              <span className="block truncate text-[12.5px] text-spine-ink-2">{auditing ? "Can read, cannot change the books" : identity.user}</span>
+            </span>
           </div>
-          <div className="flex items-center gap-4">
-            <ThemeSwitch />
-            <button onClick={signOut} className="font-medium text-ink-2 transition-colors hover:text-ink">
+          <div className="mt-3 flex items-center gap-4 text-spine-ink-2">
+            <ThemeSwitch className="hover:text-spine-ink" />
+            <button onClick={signOut} className="font-semibold transition-colors hover:text-spine-ink">
               Sign out
             </button>
           </div>
@@ -580,38 +725,58 @@ export default function App() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Narrow screens keep a top bar with the sections in a scrolling row. */}
-        <header className="sticky top-0 z-30 border-b border-line bg-paper lg:hidden">
-          <div className="flex h-[52px] items-center gap-3 px-4 text-[13px]">
+        <header className="sticky top-0 z-30 bg-spine text-spine-ink lg:hidden">
+          <div className="flex h-[60px] items-center gap-3 px-4 text-[14px]">
             <Wordmark onClick={() => setScreen("story")} />
             <div className="ml-auto flex min-w-0 items-center gap-3 whitespace-nowrap">
               {engagementSelect && <div className="w-32">{engagementSelect}</div>}
-              <ThemeSwitch />
-              <button onClick={signOut} className="font-medium text-ink-2 transition-colors hover:text-ink">
+              <button onClick={() => setPalette(true)} className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10" aria-label="Search and jump">
+                <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                  <circle cx="7" cy="7" r="4.5" />
+                  <path d="M10.5 10.5L14 14" />
+                </svg>
+              </button>
+              <button onClick={signOut} className="font-semibold text-spine-ink-2 hover:text-spine-ink">
                 Sign out
               </button>
             </div>
           </div>
-          <nav className="thin-scroll flex h-11 items-stretch gap-0.5 overflow-x-auto border-t border-line-soft px-2" aria-label="Sections">
+          <nav className="thin-scroll flex h-12 items-stretch gap-1 overflow-x-auto border-t border-white/10 px-2" aria-label="Sections">
             {tabs.map((t) => {
-              const current = t.id === active?.id;
+              const on = t.id === active?.id;
+              const badge = !on ? badgeFor(t.id) : null;
               return (
                 <button
                   key={t.id}
                   onClick={() => goTo(t.id)}
-                  aria-current={current ? "page" : undefined}
-                  className={cx("relative flex shrink-0 items-center px-3 text-sm whitespace-nowrap transition-colors duration-150", current ? "font-semibold text-ink" : "font-medium text-ink-2 hover:text-ink")}
+                  aria-current={on ? "page" : undefined}
+                  className={cx("relative flex shrink-0 items-center px-3 text-[15px] whitespace-nowrap transition-colors", on ? "font-bold text-spine-ink" : "font-semibold text-spine-ink-2")}
                 >
                   {t.label}
-                  {!!badges[t.id] && !current && (
-                    <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-on-brand">{badges[t.id]}</span>
-                  )}
-                  <span className={cx("absolute inset-x-3 -bottom-px h-0.5 bg-brand transition-opacity duration-150", current ? "opacity-100" : "opacity-0")} />
+                  {badge && <span className={cx("num ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold", badgeClass[badge.tone])}>{badge.n}</span>}
+                  <span className={cx("absolute inset-x-3 bottom-0 h-[3px] rounded-t bg-highlight transition-opacity", on ? "opacity-100" : "opacity-0")} />
                 </button>
               );
             })}
           </nav>
         </header>
-        <main className="mx-auto w-full max-w-[1320px] flex-1 px-4 pt-8 pb-16 sm:px-8">
+
+        {/* The desk's top edge: the engagement in view and the search box. */}
+        <div className="sticky top-0 z-20 hidden items-center gap-4 border-b border-line bg-canvas/90 px-8 py-3 backdrop-blur-md lg:flex">
+          <div className="min-w-0 text-[14px] text-ink-2">
+            {auditing && current ? (
+              <>
+                <span className="font-bold text-ink">{fiscalYear(current.period_start, current.period_end)} revenue audit</span>
+                {current.signed_off ? <span className="ml-2 font-semibold text-pass">Signed off</span> : null}
+              </>
+            ) : (
+              <span className="font-bold text-ink">{identity.department_name ? `${identity.department_name} department` : roleLabel[identity.role]}</span>
+            )}
+          </div>
+          <div className="ml-auto flex w-full max-w-[420px] justify-end">{searchButton(true)}</div>
+        </div>
+
+        <main className="mx-auto w-full max-w-[1320px] flex-1 px-4 pt-7 pb-20 sm:px-8">
           <div key={`${active?.id}:${engagementId}`} className="view">
             <Suspense fallback={null}>
               {!active || !tools || (auditing && !engagementsLoaded) ? null : active.view({ identity, pulse, goTo, focus, engagementId, onEngagement, tools, can })}
@@ -619,6 +784,7 @@ export default function App() {
           </div>
         </main>
       </div>
+      {palette && <CommandPalette onClose={closePalette} items={commands} findings={auditing && !!engagementId} onFinding={(id) => goTo("findings", id)} />}
       <Toasts />
     </div>
   );

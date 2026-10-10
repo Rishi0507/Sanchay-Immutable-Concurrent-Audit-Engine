@@ -257,7 +257,7 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
                 />
               )}
               {agreeing && (
-                <button onClick={() => setStatus(status === "MATCHED" ? "" : "MATCHED")} aria-pressed={status === "MATCHED"} className={cx("mt-4 flex w-full items-center gap-2.5 rounded-md border-t border-line-soft px-2 pt-3 pb-1 text-left text-[13px]", status === "MATCHED" ? "text-ink" : "text-ink-2 hover:text-ink")}>
+                <button onClick={() => setStatus(status === "MATCHED" ? "" : "MATCHED")} aria-pressed={status === "MATCHED"} className={cx("mt-4 flex w-full items-center gap-2.5 rounded-md border-t border-line-soft px-2 pt-3 pb-1 text-left text-[14px]", status === "MATCHED" ? "text-ink" : "text-ink-2 hover:text-ink")}>
                   <Mark tone="good" size={14} />
                   <span className="flex-1">{plural(agreeing.rows, "row")} agree with the books</span>
                   <span className="num font-medium text-ink">{inr(agreeing.value)}</span>
@@ -340,23 +340,23 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
                 <div className="w-full sm:w-72">
                   <SearchBox value={query} onChange={setQuery} label="Search the register" placeholder="Search bill no., customer, amount" />
                 </div>
-                <button onClick={() => setStatus(status === "attention" ? "" : "attention")} aria-pressed={status === "attention"} className={cx("inline-flex h-9 items-center gap-2 rounded-md border px-3 text-[13px] transition-colors", status === "attention" ? "border-ink bg-wash text-ink" : "border-line text-ink-2 hover:text-ink")}>
+                <button onClick={() => setStatus(status === "attention" ? "" : "attention")} aria-pressed={status === "attention"} className={cx("inline-flex h-9 items-center gap-2 rounded-md border px-3 text-[14px] transition-colors", status === "attention" ? "border-ink bg-wash text-ink" : "border-line text-ink-2 hover:text-ink")}>
                   <Swatch color={ink.high} />
                   Only rows needing attention
                 </button>
                 {dayPick && (
-                  <button onClick={() => setDayPick("")} className="inline-flex h-9 items-center gap-2 rounded-md border border-ink bg-wash px-3 text-[13px] text-ink">
+                  <button onClick={() => setDayPick("")} className="inline-flex h-9 items-center gap-2 rounded-md border border-ink bg-wash px-3 text-[14px] text-ink">
                     {day(dayPick)}
                     <span aria-hidden className="text-ink-3">✕</span>
                     <span className="sr-only">Remove the day filter</span>
                   </button>
                 )}
-                <span className="text-[13px] text-ink-2">
+                <span className="text-[14px] text-ink-2">
                   {plural(visible.length, "row")}
                   {filtered ? ` of ${all}` : ""}
                 </span>
                 {filtered && (
-                  <button onClick={clear} className="text-[13px] font-medium text-brand hover:underline">
+                  <button onClick={clear} className="text-[14px] font-medium text-brand hover:underline">
                     Clear filters
                   </button>
                 )}
@@ -397,7 +397,7 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
                             detail: (
                               <>
                                 <FieldGrid fields={[["Row", r.row_no], ...columns.map((c) => [c, r.raw[c] === null || r.raw[c] === undefined ? "" : String(r.raw[c])] as [string, string])]} />
-                                <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line-soft pt-3 text-[13px]">
+                                <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line-soft pt-3 text-[14px]">
                                   <span className="text-ink-3">Auditor&apos;s marks</span>
                                   {r.recon_status && <Status tone={r.recon_status === "MATCHED" ? "good" : "bad"}>{reconLabel[r.recon_status] ?? r.recon_status}</Status>}
                                   {r.rp_tag && <span className="text-ink-2">{r.rp_tag}</span>}
@@ -433,7 +433,7 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
                 ) : (
                   <>
                     <div className="thin-scroll max-h-[560px] overflow-auto">
-                      <table className="w-full text-[13px]">
+                      <table className="w-full text-[14px]">
                         <thead className="sticky top-0 z-10 bg-paper">
                           <tr className="border-b border-line text-left text-xs text-ink-2">
                             <th className="px-3 py-2.5 font-medium">Row</th>

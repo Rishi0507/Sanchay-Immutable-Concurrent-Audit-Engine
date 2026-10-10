@@ -32,10 +32,11 @@ function paletteFor(theme: Theme): Palette {
     background: token("paper"),
     grid: token("line-soft"),
     ice: theme === "dark" ? "#4f86a8" : "#7fb3d3",
-    gold: theme === "dark" ? "#d4a84b" : "#b8891c",
+    // The ledger is drawn in the auditor's green ink, as in the workspace.
+    gold: theme === "dark" ? "#4cc38a" : "#12805c",
     teal: token("pass"),
-    vermilion: theme === "dark" ? "#f2603f" : "#d4472a",
-    violet: theme === "dark" ? "#a98cf0" : "#7d5bd0",
+    vermilion: token("fail"),
+    violet: token("rp"),
     dim: theme === "dark" ? 0.2 : 0.35,
     glow: theme === "dark" ? 1.9 : 1,
   };
@@ -50,7 +51,7 @@ function Poster({ field }: { field: Field }) {
     return totals.map((t) => t / max);
   }, [field]);
   return (
-    <svg className="h-full w-full" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Weekly sales for a year, rising in the last weeks, above a gold ledger line.">
+    <svg className="h-full w-full" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Weekly sales for a year, rising in the last weeks, above a green ledger line.">
       {weeks.map((h, i) => (
         <rect key={i} x={120 + i * (780 / weeks.length)} y={420 - h * 240} width={780 / weeks.length - 4} height={h * 240} fill={i >= weeks.length - 3 ? "var(--color-fail)" : "var(--color-wait)"} opacity={0.5} />
       ))}
