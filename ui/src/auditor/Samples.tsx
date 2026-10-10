@@ -306,13 +306,16 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
                 setReasonPick("");
                 setSelected(null);
               }}
-              className={cx("rounded-lg border bg-paper px-4 py-3 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-brand", on ? "border-ink" : "border-line hover:border-ink-3")}
+              className={cx(
+                "relative rounded-2xl border bg-paper px-5 py-4 text-left transition-[border-color,box-shadow,transform] duration-150 focus-visible:outline-2 focus-visible:outline-brand",
+                on ? "border-brand shadow-[0_0_0_3px_color-mix(in_oklab,var(--color-brand)_18%,transparent)]" : "border-line hover:-translate-y-0.5 hover:border-brand/50",
+              )}
             >
               <span className="flex items-baseline justify-between gap-3">
-                <span className={cx("text-sm font-medium", on ? "text-ink" : "text-ink-2")}>{s.label}</span>
-                <span className="num text-lg font-medium text-ink">{bySheet[s.value] ?? "—"}</span>
+                <span className={cx("text-[16px] font-bold", on ? "text-brand" : "text-ink")}>{s.label}</span>
+                <span className="amount text-[30px] leading-none text-ink">{bySheet[s.value] ?? "—"}</span>
               </span>
-              <span className="mt-0.5 block text-xs text-ink-2">{s.about}</span>
+              <span className="mt-1 block text-[13.5px] text-ink-2">{s.about}</span>
             </button>
           );
         })}

@@ -210,6 +210,21 @@ export function SampleRise({ items, periodEnd, onPick }: { items: RiseItem[]; pe
     }
   }
   const pe = periodEnd && time(periodEnd) > t0 && time(periodEnd) < t1 ? X(periodEnd) : null;
+  // Notes that would cover each other move aside, nearest free place first,
+  // and their stems lean back to the true date on the line.
+  const placed: { it: RiseItem; i: number; x: number; y: number; nx: number; ny: number }[] = [];
+  const order = items.map((it, i) => ({ it, i })).filter(({ it }) => it.date).sort((a, b) => time(a.it.date!) - time(b.it.date!));
+  const tries: [number, number][] = [[0, 0]];
+  for (let r = 1; r <= 8; r++) for (const [dx, dy] of [[0, -26], [34, 0], [-34, 0], [34, -26], [-34, -26], [0, 26], [34, 26], [-34, 26]]) tries.push([dx * r, dy * r]);
+  for (const { it, i } of order) {
+    const x = X(it.date!);
+    const y = Y(it.value);
+    const free = tries
+      .map(([dx, dy]) => [x + dx, y + dy] as const)
+      .find(([nx, ny]) => ny >= 14 && ny <= base - 30 && nx >= 20 && nx <= W - 20 && !placed.some((p) => Math.abs(p.nx - nx) < 32 && Math.abs(p.ny - ny) < 24));
+    const [nx, ny] = free ?? [x, y];
+    placed.push({ it, i, x, y, nx, ny });
+  }
   const shown = items.find((i) => i.key === hover);
 
   if (!dated.length) return null;
@@ -233,20 +248,24 @@ export function SampleRise({ items, periodEnd, onPick }: { items: RiseItem[]; pe
             </text>
           </g>
         )}
-        {items.map((it, i) => {
-          if (!it.date) return null;
-          const x = X(it.date);
-          const y = Y(it.value);
+        {placed.map(({ it, i, x, y, nx, ny }) => {
           const on = hover === it.key;
           return (
             <g key={it.key} className="cursor-pointer" onMouseEnter={() => setHover(it.key)} onMouseLeave={() => setHover(null)} onClick={() => onPick?.(it.key)}>
-              <line x1={x} x2={x} y1={base} y2={y + 11} stroke={it.color} strokeWidth={on ? 2.5 : 1.5} pathLength={1} className="ink-draw" style={{ animationDelay: `${i * 70}ms` }} />
+              {nx === x ? (
+                <line x1={x} x2={x} y1={base} y2={ny + 11} stroke={it.color} strokeWidth={on ? 2.5 : 1.5} pathLength={1} className="ink-draw" style={{ animationDelay: `${i * 70}ms` }} />
+              ) : (
+                // A note moved aside hangs from its date on a light curved thread.
+                <path d={`M${x} ${base} C${x} ${base - 34} ${nx} ${ny + 40} ${nx} ${ny + 11}`} fill="none" stroke={it.color} strokeWidth={on ? 2 : 1} strokeDasharray="3 3" opacity={on ? 1 : 0.45} />
+              )}
               <g className="rise-in" style={{ animationDelay: `${i * 70 + 120}ms`, transformOrigin: `${x}px ${base}px` }}>
-                <rect x={x - 15} y={y - 11} width={30} height={22} rx={5} fill="var(--color-paper)" stroke={it.color} strokeWidth={on ? 2.5 : 1.6} />
-                <foreignObject x={x - 8} y={y - 8} width={16} height={16} style={{ color: it.color }}>
+                <rect x={nx - 15} y={ny - 11} width={30} height={22} rx={5} fill="var(--color-paper)" stroke={it.color} strokeWidth={on ? 2.5 : 1.6} />
+                <foreignObject x={nx - 8} y={ny - 8} width={16} height={16} style={{ color: it.color }}>
                   <Mark tone={it.tone} size={16} draw />
                 </foreignObject>
               </g>
+              {/* A dot on the line marks the true date when the note had to move aside. */}
+              {(nx !== x || ny !== y) && <circle cx={x} cy={base} r={2.5} fill={it.color} />}
             </g>
           );
         })}
