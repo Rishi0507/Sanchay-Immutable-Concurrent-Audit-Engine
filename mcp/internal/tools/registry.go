@@ -27,16 +27,35 @@ type Tool struct {
 	Group       string
 	Description string
 	Roles       []string
+	Departments []string // client departments that may call it; empty means every client employee
 	Fields      []catalogue.Field
 	Write       bool
 	Notify      string
 	Handler     core.Handler
 }
 
-// Allows reports whether a role may call the tool.
-func (t *Tool) Allows(role string) bool {
+// AllowsRole reports whether a role may call the tool.
+func (t *Tool) AllowsRole(role string) bool {
 	for _, r := range t.Roles {
 		if r == role {
+			return true
+		}
+	}
+	return false
+}
+
+// Allows reports whether an identity may call the tool. The role must be
+// listed. A client employee who belongs to a department must also be in one
+// of the tool's departments, when the tool names any.
+func (t *Tool) Allows(id core.Identity) bool {
+	if !t.AllowsRole(id.Role) {
+		return false
+	}
+	if id.Role != core.RoleClient || id.Department == "" || len(t.Departments) == 0 {
+		return true
+	}
+	for _, d := range t.Departments {
+		if d == id.Department {
 			return true
 		}
 	}
@@ -68,6 +87,10 @@ func Build(d *Deps) []*Tool {
 	all = append(all, auditorEngineTools(d)...)
 	all = append(all, auditorReadTools(d)...)
 	all = append(all, sharedTools(d)...)
+	for _, t := range all {
+		t.Departments = toolDepartments[t.Name]
+	}
+	all = append(all, accessPolicyTool(all))
 	sort.SliceStable(all, func(i, j int) bool {
 		if all[i].Group != all[j].Group {
 			return groupOrder(all[i].Group) < groupOrder(all[j].Group)

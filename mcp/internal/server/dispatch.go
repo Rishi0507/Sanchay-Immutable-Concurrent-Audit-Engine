@@ -70,11 +70,11 @@ func New(o Options) *Server {
 	return s
 }
 
-// ToolsFor returns the tools a role may call, in display order (MS-3).
-func (s *Server) ToolsFor(role string) []*tools.Tool {
+// ToolsFor returns the tools an identity may call, in display order (MS-3).
+func (s *Server) ToolsFor(id core.Identity) []*tools.Tool {
 	var out []*tools.Tool
 	for _, t := range s.ordered {
-		if t.Allows(role) {
+		if t.Allows(id) {
 			out = append(out, t)
 		}
 	}
@@ -116,10 +116,15 @@ func (s *Server) run(ctx context.Context, id core.Identity, name string, args ma
 	if !ok {
 		return nil, core.Errf(core.CodeUnknownTool, "List the available tools and pick one of them.", "There is no tool named %s.", name)
 	}
-	if !t.Allows(id.Role) {
+	if !t.AllowsRole(id.Role) {
 		return nil, core.Errf(core.CodePermissionDenied,
 			"Use a tool listed for your role. An auditor identity cannot change business data, and only an audit_manager can confirm findings.",
 			"The %s role may not call %s. It is available to: %s.", id.Role, name, strings.Join(t.Roles, ", "))
+	}
+	if !t.Allows(id) {
+		return nil, core.Errf(core.CodePermissionDenied,
+			"Hand this step to a colleague in that department, or use a tool listed for your own. Call get_access_policy to see who may do what.",
+			"The %s department may not call %s. It belongs to: %s.", id.Department, name, strings.Join(t.Departments, ", "))
 	}
 	clean, problems := catalogue.Normalise(t.Fields, args)
 	if len(problems) > 0 {
@@ -190,7 +195,7 @@ func (s *Server) record(ctx context.Context, id core.Identity, name string, args
 	s.hub.Publish(Notice{
 		Kind:     "activity",
 		Audience: []string{core.RoleAuditor, core.RoleManager},
-		Data:     map[string]any{"tool": name, "user": id.User, "role": id.Role, "status": status, "engagement_id": engagement},
+		Data:     map[string]any{"tool": name, "user": id.User, "role": id.Role, "department": id.Department, "status": status, "engagement_id": engagement},
 	})
 	if terr != nil {
 		return

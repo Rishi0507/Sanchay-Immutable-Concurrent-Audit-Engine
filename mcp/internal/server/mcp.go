@@ -25,6 +25,25 @@ var instructions = map[string]string{
 		"Review each finding with explain_finding before deciding. Amounts are in rupees.",
 }
 
+// instructionsFor is the guidance an agent reads on connecting. A client
+// employee in a department is told what that department does and where the
+// other steps of a sale belong.
+func instructionsFor(id core.Identity) string {
+	text := instructions[id.Role]
+	if id.Role != core.RoleClient || id.Department == "" {
+		return text
+	}
+	for _, d := range core.Departments {
+		if d.ID == id.Department {
+			return "You work in the " + d.Name + " department of the client company. Your department handles: " + d.Duties +
+				" You can read every record, but you can change only what your department owns. Other steps of a sale belong to other departments; " +
+				"call get_access_policy to see who owns each one. " +
+				"Amounts are in rupees. Dates are YYYY-MM-DD. Every write tool needs an idempotency_key; repeating a call with the same key is safe."
+		}
+	}
+	return text
+}
+
 // mcpServers builds one MCP server per identity, so each session lists only
 // the tools of its role and every call carries the right user.
 type mcpServers struct {
@@ -47,10 +66,10 @@ func (m *mcpServers) forIdentity(id core.Identity) *mcp.Server {
 func (s *Server) buildMCP(id core.Identity) *mcp.Server {
 	srv := mcp.NewServer(
 		&mcp.Implementation{Name: "revenue-audit", Title: "Statutory Revenue Audit", Version: serverVersion},
-		&mcp.ServerOptions{Instructions: instructions[id.Role], HasTools: true},
+		&mcp.ServerOptions{Instructions: instructionsFor(id), HasTools: true},
 	)
 	listed := map[string]bool{}
-	for _, t := range s.ToolsFor(id.Role) {
+	for _, t := range s.ToolsFor(id) {
 		name := t.Name
 		listed[name] = true
 		srv.AddTool(&mcp.Tool{

@@ -1,10 +1,12 @@
-import { Suspense, lazy, useCallback, useEffect, useState } from "react";
-import { Identity, Notice, Role, callTool, getEngagement, getToken, setEngagement, setRole, setToken, subscribe, whoami } from "./api";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Identity, Notice, Role, ToolInfo, callTool, getEngagement, getToken, listTools, setEngagement, setRole, setToken, subscribe, whoami } from "./api";
 import { useTheme } from "./theme";
 import { Button, Toasts, cx, inputClass, toast } from "./ui";
 import Upload from "./client/Upload";
 import Requests from "./client/Requests";
 import Records from "./client/Records";
+import NewRecord from "./client/NewRecord";
+import Access from "./client/Access";
 import Overview from "./auditor/Overview";
 import Register from "./auditor/Register";
 import Samples from "./auditor/Samples";
@@ -26,6 +28,10 @@ export interface ViewProps {
   // The engagement in view, or "" when none is open. Auditor views only.
   engagementId: string;
   onEngagement: (id: string) => void;
+  // The tools the server lists for this identity, and a test for one of them.
+  // Client views use them to show a person only what their department owns.
+  tools: ToolInfo[];
+  can: (tool: string) => boolean;
 }
 
 interface EngagementRef {
@@ -36,12 +42,15 @@ interface EngagementRef {
   signed_off?: boolean;
 }
 
-type TabDef = { id: string; label: string; view: (p: ViewProps) => JSX.Element };
+// A tab with `needs` is shown only to an identity that may call one of those tools.
+type TabDef = { id: string; label: string; view: (p: ViewProps) => JSX.Element; needs?: string[] };
 
 const clientTabs: TabDef[] = [
-  { id: "upload", label: "Upload", view: (p) => <Upload {...p} /> },
-  { id: "requests", label: "Requests", view: (p) => <Requests {...p} /> },
+  { id: "upload", label: "Upload", view: (p) => <Upload {...p} />, needs: ["upload_sales_register", "upload_related_parties"] },
+  { id: "requests", label: "Requests", view: (p) => <Requests {...p} />, needs: ["upload_evidence"] },
   { id: "records", label: "Records", view: (p) => <Records {...p} /> },
+  { id: "new", label: "New record", view: (p) => <NewRecord {...p} /> },
+  { id: "access", label: "Access", view: (p) => <Access {...p} /> },
 ];
 
 const auditorTabs: TabDef[] = [
@@ -60,11 +69,21 @@ const roleLabel: Record<Role, string> = {
   audit_manager: "Audit manager",
 };
 
-const demoIdentities: { label: string; does: string; token: string }[] = [
-  { label: "Client", does: "Record sales, upload the register and evidence", token: "client-demo-token" },
+// One demo identity per client department, and the two on the audit side.
+const departments: { label: string; does: string; token: string }[] = [
+  { label: "Sales", does: "Customers and orders", token: "sales-demo-token" },
+  { label: "Dispatch", does: "Goods movement", token: "dispatch-demo-token" },
+  { label: "Accounts", does: "Invoices and cash", token: "accounts-demo-token" },
+  { label: "Admin", does: "Vendors and filings", token: "admin-demo-token" },
+];
+
+const auditIdentities: { label: string; does: string; token: string }[] = [
   { label: "Auditor", does: "Sample, test and raise findings", token: "auditor-demo-token" },
   { label: "Audit manager", does: "Confirm findings and sign off", token: "manager-demo-token" },
 ];
+
+// A client employee who belongs to no department, used to load the business.
+const unrestrictedToken = "client-demo-token";
 
 // The auditor's tick mark, used as the product mark.
 function Wordmark({ large, onClick }: { large?: boolean; onClick?: () => void }) {
@@ -126,10 +145,29 @@ function SignIn({ onSignedIn, onBack }: { onSignedIn: (id: Identity) => void; on
         <div className="w-full max-w-[400px]">
           <Wordmark large />
           <h1 className="serif mt-10 text-[34px] leading-[1.08] font-[430] tracking-[-0.02em]">Sign in</h1>
-          <p className="mt-2 text-sm text-ink-2">Each identity sees only the tools its role allows.</p>
+          <p className="mt-2 text-sm text-ink-2">Each identity sees only what its role and department allow.</p>
 
-          <div className="mt-8 divide-y divide-line-soft border-y border-line">
-            {demoIdentities.map((d) => (
+          <div className="mt-8 mb-2 flex items-baseline justify-between text-xs font-medium text-ink-2">
+            <span>Client company</span>
+            <button onClick={() => signIn(unrestrictedToken)} disabled={!!busy} className="text-ink-3 transition-colors hover:text-brand disabled:opacity-60">
+              All departments
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {departments.map((d) => (
+              <button key={d.token} onClick={() => signIn(d.token)} disabled={!!busy} className="rounded-md border border-line px-3 py-2.5 text-left transition-colors hover:border-brand hover:bg-wash disabled:opacity-60">
+                <span className="flex items-center justify-between text-[15px] font-medium text-ink">
+                  {d.label}
+                  {busy === d.token && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-brand" />}
+                </span>
+                <span className="block text-[13px] text-ink-2">{d.does}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-7 mb-2 text-xs font-medium text-ink-2">Audit firm</div>
+          <div className="divide-y divide-line-soft border-y border-line">
+            {auditIdentities.map((d) => (
               <button key={d.token} onClick={() => signIn(d.token)} disabled={!!busy} className="group flex w-full items-center justify-between gap-4 py-3.5 text-left transition-colors hover:bg-wash disabled:opacity-60 sm:px-2">
                 <span>
                   <span className="block text-[15px] font-medium text-ink">{d.label}</span>
@@ -183,6 +221,7 @@ export default function App() {
   const [engagements, setEngagements] = useState<EngagementRef[]>([]);
   const [engagementId, setEngagementId] = useState("");
   const [engagementsLoaded, setEngagementsLoaded] = useState(false);
+  const [tools, setTools] = useState<ToolInfo[] | null>(null);
 
   useEffect(() => {
     if (!getToken()) {
@@ -199,12 +238,19 @@ export default function App() {
       .finally(() => setChecking(false));
   }, []);
 
-  const tabs = identity?.role === "client_employee" ? clientTabs : auditorTabs;
   const auditing = !!identity && identity.role !== "client_employee";
+  const can = useCallback((tool: string) => !!tools?.some((t) => t.name === tool), [tools]);
+  const tabs = useMemo(() => (auditing ? auditorTabs : tools ? clientTabs.filter((t) => !t.needs || t.needs.some(can)) : []), [auditing, tools, can]);
 
+  // The server lists the tools of this identity. The tabs follow from that list.
   useEffect(() => {
     setRole(identity?.role ?? "");
-    if (identity) setTab(identity.role === "client_employee" ? "upload" : "overview");
+    setTools(null);
+    setTab("");
+    if (!identity) return;
+    listTools()
+      .then(setTools)
+      .catch(() => setTools([]));
   }, [identity]);
 
   const chooseEngagement = useCallback((id: string) => {
@@ -288,7 +334,7 @@ export default function App() {
       </>
     );
 
-  const active = tabs.find((t) => t.id === tab) ?? tabs[0];
+  const active: TabDef | undefined = tabs.find((t) => t.id === tab) ?? tabs[0];
   const onEngagement = (id: string) => {
     chooseEngagement(id);
     loadEngagements();
@@ -303,7 +349,7 @@ export default function App() {
           </div>
           <nav className="flex min-w-0 flex-1 items-stretch gap-0.5" aria-label="Sections">
             {tabs.map((t) => {
-              const current = t.id === active.id;
+              const current = t.id === active?.id;
               return (
                 <button
                   key={t.id}
@@ -339,7 +385,7 @@ export default function App() {
               </select>
             )}
             <span className="hidden text-ink-2 lg:inline" title={identity.user}>
-              <span className="font-medium text-ink">{roleLabel[identity.role]}</span>
+              <span className="font-medium text-ink">{identity.department_name ?? roleLabel[identity.role]}</span>
               <span className="hidden xl:inline">, {identity.user}</span>
             </span>
             <ThemeSwitch />
@@ -359,8 +405,10 @@ export default function App() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-[1320px] flex-1 px-6 pt-8 pb-16">
-        <div key={`${active.id}:${engagementId}`} className="view">
-          <Suspense fallback={null}>{auditing && !engagementsLoaded ? null : active.view({ identity, pulse, goTo, focus, engagementId, onEngagement })}</Suspense>
+        <div key={`${active?.id}:${engagementId}`} className="view">
+          <Suspense fallback={null}>
+            {!active || !tools || (auditing && !engagementsLoaded) ? null : active.view({ identity, pulse, goTo, focus, engagementId, onEngagement, tools, can })}
+          </Suspense>
         </div>
       </main>
       <Toasts />

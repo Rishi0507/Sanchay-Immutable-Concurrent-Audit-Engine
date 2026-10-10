@@ -6,6 +6,21 @@ export type Role = "client_employee" | "auditor" | "audit_manager";
 export interface Identity {
   user: string;
   role: Role;
+  // Set for a client employee who belongs to a department.
+  department?: string;
+  department_name?: string;
+}
+
+// One tool as the server lists it for the signed-in identity.
+export interface ToolInfo {
+  name: string;
+  group: string;
+  description: string;
+  write: boolean;
+  input_schema: {
+    properties: Record<string, { type?: string; format?: string; enum?: string[]; description?: string }>;
+    required?: string[];
+  };
 }
 
 export interface ToolError {
@@ -63,6 +78,13 @@ export async function whoami(token?: string): Promise<Identity> {
     headers: { Authorization: `Bearer ${token ?? getToken()}` },
   });
   return parse<Identity>(res);
+}
+
+// The tools the signed-in identity may call. The server decides, so the
+// interface shows a person only what their role and department allow.
+export async function listTools(): Promise<ToolInfo[]> {
+  const res = await fetch("/api/tools", { headers: headers() });
+  return (await parse<{ tools: ToolInfo[] }>(res)).tools;
 }
 
 // Drops empty values so optional filters do not fail validation.

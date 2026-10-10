@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -42,9 +43,10 @@ func loadIdentities() (map[string]core.Identity, error) {
 			return nil, err
 		}
 		var list []struct {
-			Token string `json:"token"`
-			User  string `json:"user"`
-			Role  string `json:"role"`
+			Token      string `json:"token"`
+			User       string `json:"user"`
+			Role       string `json:"role"`
+			Department string `json:"department"`
 		}
 		if err := json.Unmarshal(raw, &list); err != nil {
 			return nil, fmt.Errorf("parse %s: %w", path, err)
@@ -58,11 +60,19 @@ func loadIdentities() (map[string]core.Identity, error) {
 			if item.Token == "" || item.User == "" {
 				return nil, errors.New("every identity needs a token and a user")
 			}
-			out[item.Token] = core.Identity{User: item.User, Role: item.Role}
+			if item.Department != "" && (item.Role != core.RoleClient || core.DepartmentName(item.Department) == "") {
+				return nil, fmt.Errorf("identity %s has department %q: a department must be one of sales, dispatch, accounts or admin, on a client_employee", item.User, item.Department)
+			}
+			out[item.Token] = core.Identity{User: item.User, Role: item.Role, Department: item.Department}
 		}
 		return out, nil
 	}
 	out[env("TOKEN_CLIENT", "client-demo-token")] = core.Identity{User: env("USER_CLIENT", "client.employee"), Role: core.RoleClient}
+	// One demo employee per client department. The token above belongs to no department and is not restricted.
+	for _, d := range core.Departments {
+		token := env("TOKEN_"+strings.ToUpper(d.ID), d.ID+"-demo-token")
+		out[token] = core.Identity{User: d.ID + ".employee", Role: core.RoleClient, Department: d.ID}
+	}
 	out[env("TOKEN_AUDITOR", "auditor-demo-token")] = core.Identity{User: env("USER_AUDITOR", "auditor.agent"), Role: core.RoleAuditor}
 	out[env("TOKEN_MANAGER", "manager-demo-token")] = core.Identity{User: env("USER_MANAGER", "audit.manager"), Role: core.RoleManager}
 	return out, nil

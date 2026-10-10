@@ -18,10 +18,12 @@ const (
 )
 
 // Identity is who is calling. It is resolved from a bearer token and never
-// taken from tool arguments.
+// taken from tool arguments. Department applies to client employees only and
+// is checked by this server, so it is not sent to the ledger core.
 type Identity struct {
-	User string `json:"user"`
-	Role string `json:"role"`
+	User       string `json:"user"`
+	Role       string `json:"role"`
+	Department string `json:"-"`
 }
 
 // Error codes returned to callers (PRD section 9.2).

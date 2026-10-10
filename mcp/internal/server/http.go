@@ -100,12 +100,23 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleWhoami(w http.ResponseWriter, _ *http.Request, id core.Identity) {
-	writeJSON(w, http.StatusOK, map[string]any{"user": id.User, "role": id.Role})
+	writeJSON(w, http.StatusOK, describe(id))
+}
+
+// describe is the public form of an identity. The department appears only for
+// a client employee who belongs to one.
+func describe(id core.Identity) map[string]any {
+	out := map[string]any{"user": id.User, "role": id.Role}
+	if id.Department != "" {
+		out["department"] = id.Department
+		out["department_name"] = core.DepartmentName(id.Department)
+	}
+	return out
 }
 
 func (s *Server) handleListTools(w http.ResponseWriter, _ *http.Request, id core.Identity) {
 	list := []map[string]any{}
-	for _, t := range s.ToolsFor(id.Role) {
+	for _, t := range s.ToolsFor(id) {
 		list = append(list, map[string]any{
 			"name":         t.Name,
 			"group":        t.Group,
@@ -114,7 +125,9 @@ func (s *Server) handleListTools(w http.ResponseWriter, _ *http.Request, id core
 			"input_schema": catalogue.Schema(t.Fields),
 		})
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"role": id.Role, "tools": list})
+	out := describe(id)
+	out["tools"] = list
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) handleCallTool(w http.ResponseWriter, r *http.Request, id core.Identity) {

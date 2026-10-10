@@ -79,6 +79,10 @@ services:
       TOKEN_CLIENT: ${TOKEN_CLIENT:-client-demo-token}
       TOKEN_AUDITOR: ${TOKEN_AUDITOR:-auditor-demo-token}
       TOKEN_MANAGER: ${TOKEN_MANAGER:-manager-demo-token}
+      TOKEN_SALES: ${TOKEN_SALES:-sales-demo-token}
+      TOKEN_DISPATCH: ${TOKEN_DISPATCH:-dispatch-demo-token}
+      TOKEN_ACCOUNTS: ${TOKEN_ACCOUNTS:-accounts-demo-token}
+      TOKEN_ADMIN: ${TOKEN_ADMIN:-admin-demo-token}
       DEFAULT_ENTITY: ${DEFAULT_ENTITY:-E1}
       OBJECT_STORE: dir
       FILES_DIR: /data/files
