@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { callTool, idempotencyKey, money, uploadFile } from "../api";
 import type { ViewProps } from "../App";
-import { Card, Chip, Empty, ErrorNote, Header, Loading, Pills, toast, useAction, useTool } from "../ui";
+import { Card, Empty, ErrorNote, Header, Loading, Pills, Status, toast, useAction, useTool } from "../ui";
 
 interface Request {
   request_id: string;
@@ -74,13 +74,13 @@ export default function Requests({ pulse }: ViewProps) {
     <>
       <Header
         title="Requests"
-        hint="Documents the auditor needs for its samples."
+        hint="The auditor needs these documents for the sales it is testing."
         action={
           <Pills
             value={filter}
             onChange={setFilter}
             options={[
-              { value: "pending", label: "Pending", count: pendingTotal },
+              { value: "pending", label: "Outstanding", count: pendingTotal },
               { value: "all", label: "All" },
             ]}
           />
@@ -103,21 +103,21 @@ export default function Requests({ pulse }: ViewProps) {
         </Card>
       ) : groups.length === 0 ? (
         <Card>
-          <Empty title={filter === "pending" ? "Nothing pending" : "No requests yet"} hint="Requests appear here when the auditor selects samples." />
+          <Empty title={filter === "pending" ? "Nothing is outstanding" : "No requests yet"} hint="Requests appear here once the auditor selects its samples." />
         </Card>
       ) : (
-        <div className="space-y-3">
+        <Card className="divide-y divide-line-soft">
           {groups.map((g) => {
             const s = g.items[0].subject ?? {};
             return (
-              <Card key={g.sampleId} className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4">
+              <div key={g.sampleId} className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3.5">
                 <div className="min-w-48 flex-1">
                   <div className="font-medium">{s.invoice_no ?? g.sampleId}</div>
-                  <div className="text-sm text-slate-500">
-                    {[s.customer, s.date, s.amount !== undefined ? `₹ ${money(s.amount)}` : null].filter(Boolean).join(" · ")}
+                  <div className="text-sm text-ink-2">
+                    {[s.customer, s.date, s.amount !== undefined ? `₹ ${money(s.amount)}` : null].filter(Boolean).join(", ")}
                   </div>
                 </div>
-                <Chip>{sheetLabel[g.items[0].sheet] ?? g.items[0].sheet}</Chip>
+                <span className="text-[13px] text-ink-2">{sheetLabel[g.items[0].sheet] ?? g.items[0].sheet}</span>
                 <div className="flex flex-wrap gap-2">
                   {g.items.map((r) =>
                     r.status === "pending" ? (
@@ -126,22 +126,22 @@ export default function Requests({ pulse }: ViewProps) {
                         onClick={() => pick(r)}
                         disabled={busy === r.request_id}
                         title={r.note}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-indigo-300 px-3 py-1 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-50 disabled:opacity-50"
+                        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-dashed border-brand/50 px-2.5 text-xs font-medium text-brand transition-colors hover:border-solid hover:bg-brand-wash disabled:opacity-50"
                       >
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 19V5M5 12l7-7 7 7" /></svg>
                         {docLabel[r.document_type] ?? r.document_type}
                       </button>
                     ) : (
-                      <Chip key={r.request_id} tone="good">
-                        {docLabel[r.document_type] ?? r.document_type}
-                      </Chip>
+                      <span key={r.request_id} className="inline-flex h-7 items-center">
+                        <Status tone="good">{docLabel[r.document_type] ?? r.document_type}</Status>
+                      </span>
                     ),
                   )}
                 </div>
-              </Card>
+              </div>
             );
           })}
-        </div>
+        </Card>
       )}
     </>
   );

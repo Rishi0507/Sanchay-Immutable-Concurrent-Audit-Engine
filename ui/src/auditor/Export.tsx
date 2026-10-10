@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { callTool, fileUrl, money, shortHash } from "../api";
 import type { ViewProps } from "../App";
-import { Button, Card, Chip, Header, toast, useAction } from "../ui";
+import { Button, Card, Header, toast, useAction } from "../ui";
 
 interface FileRef {
   file_hash: string;
@@ -13,10 +13,15 @@ function Download({ file }: { file: FileRef }) {
   return (
     <a
       href={fileUrl(file.file_hash, file.file_name)}
-      className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50"
+      className="flex items-center justify-between gap-4 rounded-md border border-line px-3.5 py-2.5 text-sm transition-colors hover:border-brand/50 hover:bg-brand-wash"
     >
-      <span className="font-medium text-slate-800">{file.file_name}</span>
-      <span className="font-mono text-xs text-slate-400">{shortHash(file.file_hash, 10)}</span>
+      <span className="flex min-w-0 items-center gap-2 font-medium text-brand">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M8 2.5v8M4.5 7.5L8 11l3.5-3.5M3 13.5h10" />
+        </svg>
+        <span className="truncate">{file.file_name}</span>
+      </span>
+      <span className="font-mono text-xs text-ink-3" title="SHA-256 of the file">{shortHash(file.file_hash, 10)}</span>
     </a>
   );
 }
@@ -29,51 +34,38 @@ export default function Export(_: ViewProps) {
   const makeWorkpaper = () =>
     run("workpaper", async () => {
       setWorkpaper(await callTool("export_workpaper", {}));
-      toast("Workpaper produced.");
+      toast("Workpaper exported.");
     });
 
   const makeMemo = () =>
     run("memo", async () => {
       setMemo(await callTool("draft_findings_memo", {}));
-      toast("Findings memo produced.");
+      toast("Findings memo drafted.");
     });
 
   return (
     <>
-      <Header title="Export" hint="Outputs are produced from the engagement's snapshot and state the ledger hash they rest on." />
+      <Header title="Export" hint="Both files are produced from the snapshot and state the ledger hash they rest on." />
       <div className="grid gap-5 md:grid-cols-2">
         <Card className="p-6">
-          <div className="mb-1 text-base font-semibold">Workpaper</div>
-          <div className="mb-4 flex flex-wrap gap-1.5">
-            {(workpaper?.sheets ?? ["Sales Register", "Sales TOD", "Sales Cut-off TOD", "Credit Note TOD"]).map((s: string) => (
-              <Chip key={s}>{s}</Chip>
-            ))}
-          </div>
+          <div className="text-base font-semibold">Workpaper</div>
+          <p className="mt-1 mb-5 text-[13px] text-ink-2">Excel file with these sheets: {(workpaper?.sheets ?? ["Sales Register", "Sales TOD", "Sales Cut-off TOD", "Credit Note TOD"]).join(", ")}.</p>
           {workpaper?.file && (
             <div className="mb-4">
               <Download file={workpaper.file} />
             </div>
           )}
           <Button busy={busy === "workpaper"} kind={workpaper ? "ghost" : "primary"} onClick={makeWorkpaper}>
-            {workpaper ? "Produce again" : "Produce workpaper"}
+            {workpaper ? "Export again" : "Export the workpaper"}
           </Button>
         </Card>
         <Card className="p-6">
-          <div className="mb-1 text-base font-semibold">Findings memo</div>
-          <div className="mb-4 flex flex-wrap gap-1.5">
-            {memo ? (
-              <>
-                <Chip>{memo.findings} findings</Chip>
-                <Chip>Adjustment ₹ {money(memo.total_adjustment)}</Chip>
-              </>
-            ) : (
-              <>
-                <Chip>Impact</Chip>
-                <Chip>Proposed adjustments</Chip>
-                <Chip>Integrity statement</Chip>
-              </>
-            )}
-          </div>
+          <div className="text-base font-semibold">Findings memo</div>
+          <p className="mt-1 mb-5 text-[13px] text-ink-2">
+            {memo
+              ? `${memo.findings} findings, with proposed adjustments of ₹ ${money(memo.total_adjustment)} in total.`
+              : "Each finding with its impact, proposed adjusting entry and evidence, and a statement of ledger integrity."}
+          </p>
           {memo?.files?.length > 0 && (
             <div className="mb-4 space-y-2">
               {memo.files.map((f: FileRef) => (
@@ -81,8 +73,8 @@ export default function Export(_: ViewProps) {
               ))}
             </div>
           )}
-          <Button busy={busy === "memo"} kind={memo ? "ghost" : "primary"} onClick={makeMemo}>
-            {memo ? "Produce again" : "Produce memo"}
+          <Button busy={busy === "memo"} kind="ghost" onClick={makeMemo}>
+            {memo ? "Draft again" : "Draft the memo"}
           </Button>
         </Card>
       </div>

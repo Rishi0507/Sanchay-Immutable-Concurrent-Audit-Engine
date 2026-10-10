@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { Component, ReactNode, Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { Identity, Notice, Role, callTool, getEngagement, getToken, setEngagement, setRole, setToken, subscribe, whoami } from "./api";
-import { Button, Card, Chip, Toasts, cx, inputClass, toast } from "./ui";
+import { Button, Toasts, cx, inputClass, toast } from "./ui";
 import Upload from "./client/Upload";
 import Requests from "./client/Requests";
 import Records from "./client/Records";
@@ -8,9 +8,13 @@ import Overview from "./auditor/Overview";
 import Register from "./auditor/Register";
 import Samples from "./auditor/Samples";
 import Findings from "./auditor/Findings";
-import Graph from "./auditor/Graph";
 import Trail from "./auditor/Trail";
 import Export from "./auditor/Export";
+
+// The two heavy libraries load only where they are used: Three.js on the
+// sign-in screen, the graph library on the Graph tab.
+const HashChain = lazy(() => import("./HashChain"));
+const Graph = lazy(() => import("./auditor/Graph"));
 
 export interface ViewProps {
   identity: Identity;
@@ -55,19 +59,42 @@ const roleLabel: Record<Role, string> = {
   audit_manager: "Audit manager",
 };
 
-const demoIdentities: { label: string; token: string }[] = [
-  { label: "Client", token: "client-demo-token" },
-  { label: "Auditor", token: "auditor-demo-token" },
-  { label: "Audit manager", token: "manager-demo-token" },
+const demoIdentities: { label: string; does: string; token: string }[] = [
+  { label: "Client", does: "Record sales, upload the register and evidence", token: "client-demo-token" },
+  { label: "Auditor", does: "Sample, test and raise findings", token: "auditor-demo-token" },
+  { label: "Audit manager", does: "Confirm findings and sign off", token: "manager-demo-token" },
 ];
+
+// The auditor's tick mark, used as the product mark.
+function Wordmark({ large }: { large?: boolean }) {
+  return (
+    <div className={cx("flex shrink-0 items-center font-semibold whitespace-nowrap tracking-[-0.01em] text-ink", large ? "gap-2.5 text-xl" : "gap-2 text-[15px]")}>
+      <svg width={large ? 22 : 18} height={large ? 22 : 18} viewBox="0 0 20 20" fill="none" stroke="var(--color-brand)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M3.5 10.5l4.2 4.2L16.5 5.2" />
+      </svg>
+      Revenue Audit
+    </div>
+  );
+}
+
+// If WebGL is unavailable the sign-in screen simply shows no chain.
+class Quiet extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
 
 function SignIn({ onSignedIn }: { onSignedIn: (id: Identity) => void }) {
   const [token, setValue] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
 
   const signIn = async (t: string) => {
-    setBusy(true);
+    setBusy(t);
     setError("");
     try {
       const id = await whoami(t);
@@ -76,57 +103,67 @@ function SignIn({ onSignedIn }: { onSignedIn: (id: Identity) => void }) {
     } catch {
       setError("That token is not recognised.");
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   };
 
   return (
-    <div className="flex min-h-full items-center justify-center p-6">
-      <Card className="view w-full max-w-md p-8">
-        <div className="mb-6 flex items-center gap-3">
-          <Logo />
-          <div className="text-lg font-semibold tracking-tight">Revenue Audit</div>
-        </div>
-        <div className="mb-4 grid grid-cols-3 gap-2">
+    <div className="grid min-h-full md:grid-cols-[minmax(360px,440px)_1fr]">
+      <div className="flex flex-col justify-center px-8 py-12 sm:px-12">
+        <Wordmark large />
+        <p className="mt-3 max-w-xs text-sm text-ink-2">An AI agent runs the statutory revenue audit. A human auditor confirms every conclusion.</p>
+
+        <h1 className="mt-12 text-sm font-semibold">Sign in as</h1>
+        <div className="mt-3 divide-y divide-line-soft border-y border-line">
           {demoIdentities.map((d) => (
             <button
               key={d.token}
               onClick={() => signIn(d.token)}
-              className="rounded-xl border border-slate-200 px-2 py-3 text-sm font-medium text-slate-700 transition-all duration-150 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+              disabled={!!busy}
+              className="group flex w-full items-center justify-between gap-4 py-3.5 text-left transition-colors hover:bg-wash disabled:opacity-60 sm:px-2"
             >
-              {d.label}
+              <span>
+                <span className="block text-[15px] font-medium text-ink">{d.label}</span>
+                <span className="block text-[13px] text-ink-2">{d.does}</span>
+              </span>
+              {busy === d.token ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-brand" />
+              ) : (
+                <svg className="text-ink-3 transition-colors group-hover:text-brand" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M6 3.5L10.5 8 6 12.5" />
+                </svg>
+              )}
             </button>
           ))}
         </div>
-        <div className="mb-3 flex items-center gap-3 text-xs text-slate-400">
-          <div className="h-px flex-1 bg-slate-200" />
-          or use a token
-          <div className="h-px flex-1 bg-slate-200" />
-        </div>
+
         <form
+          className="mt-8"
           onSubmit={(e) => {
             e.preventDefault();
             if (token) signIn(token);
           }}
-          className="flex gap-2"
         >
-          <input className={inputClass} type="password" placeholder="Identity token" value={token} onChange={(e) => setValue(e.target.value)} />
-          <Button busy={busy} disabled={!token}>
-            Sign in
-          </Button>
+          <label htmlFor="token" className="mb-1.5 block text-xs font-medium text-ink-2">
+            Or sign in with an identity token
+          </label>
+          <div className="flex gap-2">
+            <input id="token" className={inputClass} type="password" autoComplete="off" value={token} onChange={(e) => setValue(e.target.value)} />
+            <Button kind="ghost" busy={!!busy && busy === token} disabled={!token}>
+              Sign in
+            </Button>
+          </div>
+          {error && <p className="mt-2 text-sm text-fail">{error}</p>}
         </form>
-        {error && <div className="mt-3 text-sm text-rose-600">{error}</div>}
-      </Card>
-    </div>
-  );
-}
+      </div>
 
-function Logo() {
-  return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-600 text-white">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 12l5 5L20 6" />
-      </svg>
+      <div className="hidden border-l border-line bg-wash md:block">
+        <Quiet>
+          <Suspense fallback={null}>
+            <HashChain />
+          </Suspense>
+        </Quiet>
+      </div>
     </div>
   );
 }
@@ -232,55 +269,55 @@ export default function App() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/85 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-8 px-6">
-          <div className="flex items-center gap-2.5">
-            <Logo />
-            <span className="text-sm font-semibold tracking-tight">Revenue Audit</span>
+      <header className="sticky top-0 z-30 border-b border-line bg-paper">
+        <div className="mx-auto flex h-[52px] max-w-[1320px] items-stretch gap-8 px-6">
+          <div className="flex items-center">
+            <Wordmark />
           </div>
-          <nav className="flex h-full flex-1 items-stretch gap-1">
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => goTo(t.id)}
-                className={cx(
-                  "relative px-3 text-sm font-medium transition-colors duration-150",
-                  t.id === active.id ? "text-indigo-700" : "text-slate-500 hover:text-slate-900",
-                )}
-              >
-                {t.label}
-                {!!badges[t.id] && t.id !== active.id && (
-                  <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-semibold text-white">{badges[t.id]}</span>
-                )}
-                <span
+          <nav className="flex min-w-0 flex-1 items-stretch gap-0.5" aria-label="Sections">
+            {tabs.map((t) => {
+              const current = t.id === active.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => goTo(t.id)}
+                  aria-current={current ? "page" : undefined}
                   className={cx(
-                    "absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-indigo-600 transition-all duration-200",
-                    t.id === active.id ? "opacity-100 scale-x-100" : "opacity-0 scale-x-50",
+                    "relative flex items-center px-3 text-sm transition-colors duration-150",
+                    current ? "font-semibold text-ink" : "font-medium text-ink-2 hover:text-ink",
                   )}
-                />
-              </button>
-            ))}
+                >
+                  {t.label}
+                  {!!badges[t.id] && !current && (
+                    <span className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-white">{badges[t.id]}</span>
+                  )}
+                  <span className={cx("absolute inset-x-3 -bottom-px h-0.5 bg-brand transition-opacity duration-150", current ? "opacity-100" : "opacity-0")} />
+                </button>
+              );
+            })}
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-4 text-[13px] whitespace-nowrap">
             {auditing && engagements.length > 0 && (
               <select
                 value={engagementId}
                 onChange={(e) => chooseEngagement(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 outline-none transition-shadow focus:ring-4 focus:ring-indigo-100"
-                title="Engagement"
+                className="h-8 max-w-60 truncate rounded-md border border-line bg-paper px-2 text-[13px] text-ink outline-none transition-colors hover:border-ink-3 focus:border-brand"
+                aria-label="Engagement"
               >
                 {engagements.map((e) => (
                   <option key={e.engagement_id} value={e.engagement_id}>
                     {e.period_start} to {e.period_end}
-                    {engagements.length > 1 && e.opened_at ? `, opened ${new Date(e.opened_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : ""}
+                    {engagements.length > 1 && e.opened_at ? ` (${new Date(e.opened_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })})` : ""}
                     {e.signed_off ? " (signed off)" : ""}
                   </option>
                 ))}
                 <option value="">New engagement</option>
               </select>
             )}
-            <Chip tone="accent">{roleLabel[identity.role]}</Chip>
-            <span className="hidden text-sm text-slate-500 sm:inline">{identity.user}</span>
+            <span className="hidden text-ink-2 lg:inline" title={identity.user}>
+              <span className="font-medium text-ink">{roleLabel[identity.role]}</span>
+              <span className="hidden xl:inline">, {identity.user}</span>
+            </span>
             <button
               onClick={() => {
                 setToken("");
@@ -288,16 +325,16 @@ export default function App() {
                 setEngagements([]);
                 setEngagementsLoaded(false);
               }}
-              className="text-sm text-slate-400 transition-colors hover:text-slate-700"
+              className="font-medium text-ink-2 transition-colors hover:text-ink"
             >
               Sign out
             </button>
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-8">
+      <main className="mx-auto w-full max-w-[1320px] flex-1 px-6 pt-8 pb-16">
         <div key={`${active.id}:${engagementId}`} className="view">
-          {auditing && !engagementsLoaded ? null : active.view({ identity, pulse, goTo, focus, engagementId, onEngagement })}
+          <Suspense fallback={null}>{auditing && !engagementsLoaded ? null : active.view({ identity, pulse, goTo, focus, engagementId, onEngagement })}</Suspense>
         </div>
       </main>
       <Toasts />

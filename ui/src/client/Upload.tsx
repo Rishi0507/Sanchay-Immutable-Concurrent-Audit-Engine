@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { callTool, idempotencyKey, uploadFile, when } from "../api";
 import type { ViewProps } from "../App";
-import { Button, Card, Chip, Field, Header, inputClass, toast, useAction, useTool } from "../ui";
+import { Button, Card, Field, Header, Status, inputClass, toast, useAction, useTool } from "../ui";
 
 // Financial year that contains today, April to March.
 function defaultPeriod(): [string, string] {
@@ -99,47 +99,47 @@ export default function Upload({ pulse }: ViewProps) {
 
   return (
     <>
-      <Header title="Upload" hint="Send the sales register and the related-party list to the auditor." />
-      <Card className="mb-5 flex flex-wrap items-end gap-4 p-5">
+      <Header title="Upload" hint="Send the auditor your sales register and your list of related parties for the period." />
+      <div className="mb-6 flex flex-wrap items-end gap-4">
         <Field label="Period start">
           <input type="date" className={inputClass} value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
         </Field>
         <Field label="Period end">
           <input type="date" className={inputClass} value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} />
         </Field>
-      </Card>
+      </div>
       <div className="grid gap-5 md:grid-cols-2">
         <Card className="p-6">
           <div className="mb-1 flex items-center justify-between">
             <div className="text-base font-semibold">Sales register</div>
-            <Chip tone={lastRegister ? "good" : "warn"}>{lastRegister ? "Uploaded" : "Not uploaded"}</Chip>
+            <Status tone={lastRegister ? "good" : "warn"}>{lastRegister ? "Uploaded" : "Not uploaded yet"}</Status>
           </div>
-          <div className="mb-5 min-h-5 text-sm text-slate-500">
-            {lastRegister ? `${lastRegister.data.file_name} · ${when(lastRegister.recorded_at)}` : "Excel or CSV in your usual layout."}
+          <div className="mb-5 min-h-5 text-sm text-ink-2">
+            {lastRegister ? `${lastRegister.data.file_name}, ${when(lastRegister.recorded_at)}` : "Excel or CSV, in the layout you already export."}
           </div>
           <input ref={registerInput} type="file" accept=".xlsx,.csv" hidden onChange={(e) => e.target.files?.[0] && sendRegister(e.target.files[0])} />
           <div className="flex gap-2">
             <Button busy={busy === "register"} onClick={() => registerInput.current?.click()}>
-              Choose file
+              Upload a file
             </Button>
             <Button kind="ghost" busy={busy === "generate"} onClick={generateRegister}>
-              Generate from records
+              Build from the records
             </Button>
           </div>
         </Card>
         <Card className="p-6">
           <div className="mb-1 flex items-center justify-between">
             <div className="text-base font-semibold">Related parties</div>
-            <Chip tone={lastParties ? "good" : "warn"}>{lastParties ? "Uploaded" : "Not uploaded"}</Chip>
+            <Status tone={lastParties ? "good" : "warn"}>{lastParties ? "Uploaded" : "Not uploaded yet"}</Status>
           </div>
-          <div className="mb-5 min-h-5 text-sm text-slate-500">
+          <div className="mb-5 min-h-5 text-sm text-ink-2">
             {lastParties
-              ? `${lastParties.data.parties?.length ?? 0} parties · ${when(lastParties.recorded_at)}`
-              : "CSV with columns name, pan, gstin, relationship, effective_from."}
+              ? `${lastParties.data.parties?.length ?? 0} parties, ${when(lastParties.recorded_at)}`
+              : "CSV with the columns name, pan, gstin, relationship, effective_from."}
           </div>
           <input ref={partiesInput} type="file" accept=".csv" hidden onChange={(e) => e.target.files?.[0] && sendParties(e.target.files[0])} />
           <Button busy={busy === "parties"} onClick={() => partiesInput.current?.click()}>
-            Choose file
+            Upload a file
           </Button>
         </Card>
       </div>

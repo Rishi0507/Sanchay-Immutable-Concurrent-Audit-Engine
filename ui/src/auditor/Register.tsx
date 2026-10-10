@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { callTool } from "../api";
 import type { ViewProps } from "../App";
-import { Button, Card, Chip, Empty, ErrorNote, Header, Loading, Pills, cx, toneFor } from "../ui";
+import { Button, Card, Chip, Empty, ErrorNote, Header, Loading, Pills, Status, cx } from "../ui";
 import { useTool } from "../ui";
 
 interface Row {
@@ -15,16 +15,21 @@ interface Row {
 
 const filters = [
   { value: "", label: "All" },
-  { value: "MATCHED", label: "Matched" },
-  { value: "FIELD_DIFFERENCE", label: "Differences" },
+  { value: "MATCHED", label: "Agrees" },
+  { value: "FIELD_DIFFERENCE", label: "Differs" },
   { value: "NOT_IN_SYSTEM", label: "Not in system" },
   { value: "DUPLICATE_ROW", label: "Duplicates" },
 ] as const;
 
-function reconTone(status?: string) {
-  if (!status) return "neutral" as const;
-  return status === "MATCHED" ? ("good" as const) : ("bad" as const);
-}
+const reconLabel: Record<string, string> = {
+  MATCHED: "Agrees",
+  FIELD_DIFFERENCE: "Differs",
+  NOT_IN_SYSTEM: "Not in system",
+  MISSING_IN_REGISTER: "Missing in register",
+  DUPLICATE_ROW: "Duplicate",
+  ROW_ARITHMETIC: "Does not foot",
+  REVERSED_IN_SYSTEM: "Reversed in system",
+};
 
 export default function Register({ pulse, goTo }: ViewProps) {
   const [status, setStatus] = useState<string>("");
@@ -56,7 +61,7 @@ export default function Register({ pulse, goTo }: ViewProps) {
     <>
       <Header
         title="Register"
-        hint="The client's sales register exactly as provided. Added columns are on the right."
+        hint="The client's register exactly as provided, with the auditor's marks pinned on the right."
         action={<Pills value={status} onChange={setStatus} options={filters.map((f) => ({ value: f.value, label: f.label }))} />}
       />
       <Card>
@@ -65,51 +70,55 @@ export default function Register({ pulse, goTo }: ViewProps) {
         ) : first.error ? (
           <ErrorNote error={first.error} onRetry={first.reload} />
         ) : rows.length === 0 ? (
-          <Empty title="No rows" hint={status ? "No rows have this status." : "Import the register from the Overview tab."} />
+          <Empty title={status ? "No rows have this status" : "The register is not imported yet"} hint={status ? undefined : "Run Import the register on the Overview tab."} />
         ) : (
           <>
             <div className="thin-scroll max-h-[68vh] overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 z-10 bg-white">
-                  <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-3 py-3 font-medium">#</th>
+              <table className="w-full text-[13px]">
+                <thead className="sticky top-0 z-10 bg-paper">
+                  <tr className="border-b border-line text-left text-xs text-ink-2">
+                    <th className="px-3 py-2.5 font-medium">Row</th>
                     {columns.map((c) => (
-                      <th key={c} className="px-3 py-3 font-medium whitespace-nowrap">
+                      <th key={c} className="px-3 py-2.5 font-medium whitespace-nowrap">
                         {c}
                       </th>
                     ))}
-                    <th className="border-l border-slate-200 bg-indigo-50/60 px-3 py-3 font-medium whitespace-nowrap text-indigo-700">Related / Non Related</th>
-                    <th className="bg-indigo-50/60 px-3 py-3 font-medium whitespace-nowrap text-indigo-700">Suggested RP</th>
-                    <th className="bg-indigo-50/60 px-3 py-3 font-medium whitespace-nowrap text-indigo-700">Recon</th>
-                    <th className="bg-indigo-50/60 px-3 py-3 font-medium whitespace-nowrap text-indigo-700">Findings</th>
+                    {/* The auditor's own columns stay pinned, so they are in view
+                        however wide the client's register is. */}
+                    <th className="sticky right-0 border-l border-line bg-brand-wash px-3 py-2.5 font-medium whitespace-nowrap text-brand">Auditor's marks</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
-                    <tr key={r.row_no} className={cx("border-b border-slate-100 last:border-0", r.recon_status && r.recon_status !== "MATCHED" && "bg-amber-50/40")}>
-                      <td className="px-3 py-2 text-slate-400 tabular-nums">{r.row_no}</td>
+                  {rows.map((r) => {
+                    const marked = !!r.recon_status && r.recon_status !== "MATCHED";
+                    return (
+                    <tr key={r.row_no} className={cx("border-b border-line-soft last:border-0", marked && "bg-mark")}>
+                      <td className="px-3 py-2 text-ink-3 tabular-nums">{r.row_no}</td>
                       {columns.map((c) => (
                         <td key={c} className="px-3 py-2 whitespace-nowrap">
                           {r.raw[c] === null || r.raw[c] === undefined ? "" : String(r.raw[c])}
                         </td>
                       ))}
-                      <td className="border-l border-slate-200 px-3 py-2">{r.rp_tag && <Chip tone={toneFor(r.rp_tag)}>{r.rp_tag}</Chip>}</td>
-                      <td className="px-3 py-2">{r.suggested_rp && <Chip tone="warn">{r.suggested_rp}</Chip>}</td>
-                      <td className="px-3 py-2">{r.recon_status && <Chip tone={reconTone(r.recon_status)}>{r.recon_status.replace(/_/g, " ").toLowerCase()}</Chip>}</td>
-                      <td className="px-3 py-2">
-                        {r.finding_ids?.length > 0 && (
-                          <button className="text-xs font-medium text-indigo-600 hover:underline" onClick={() => goTo("findings", r.finding_ids[0])}>
-                            {r.finding_ids.length} finding{r.finding_ids.length === 1 ? "" : "s"}
-                          </button>
-                        )}
+                      <td className={cx("sticky right-0 border-l border-line px-3 py-2", marked ? "bg-mark" : "bg-paper")}>
+                        <div className="flex items-center gap-3 whitespace-nowrap">
+                          <span className="w-[76px]">{r.rp_tag === "Related Party" ? <Chip tone="rp">Related</Chip> : r.rp_tag ? <span className="text-ink-2">Non related</span> : null}</span>
+                          {r.suggested_rp && <Chip tone="warn" title={r.suggested_rp}>Suggested related</Chip>}
+                          {r.recon_status && <Status tone={r.recon_status === "MATCHED" ? "good" : "bad"}>{reconLabel[r.recon_status] ?? r.recon_status.replace(/_/g, " ").toLowerCase()}</Status>}
+                          {r.finding_ids?.length > 0 && (
+                            <button className="text-xs font-medium text-brand hover:underline" onClick={() => goTo("findings", r.finding_ids[0])}>
+                              {r.finding_ids.length} finding{r.finding_ids.length === 1 ? "" : "s"}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-            <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-xs text-slate-400">
-              <span className="tabular-nums">{rows.length} rows shown</span>
+            <div className="flex items-center justify-between border-t border-line-soft px-4 py-3 text-xs text-ink-3">
+              <span className="tabular-nums">{rows.length} rows</span>
               {cursor && (
                 <Button kind="ghost" small busy={more} onClick={loadMore}>
                   Load more

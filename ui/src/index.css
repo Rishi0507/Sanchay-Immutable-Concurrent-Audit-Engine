@@ -1,14 +1,37 @@
 @import "tailwindcss";
 
+/* Design tokens.
+   The palette comes from the auditor's desk. Ink blue is the one action
+   colour. Green, red and amber mean pass, exception and pending and are used
+   for nothing else. Highlighter yellow marks an exception row, as it does on
+   a paper workpaper. Plum marks a related party. */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --color-accent: #4f46e5;
-  --color-accent-soft: #eef2ff;
-  --color-ink: #0f172a;
-  --color-muted: #64748b;
-  --color-line: #e2e8f0;
-  --color-surface: #ffffff;
-  --color-canvas: #f6f7f9;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --color-paper: #ffffff;
+  --color-wash: #f5f6f8;
+  --color-line: #e1e4ea;
+  --color-line-soft: #eef0f4;
+
+  --color-ink: #1a2130;
+  --color-ink-2: #586174;
+  --color-ink-3: #8a93a3;
+
+  --color-brand: #1f4e9e;
+  --color-brand-deep: #183d7d;
+  --color-brand-wash: #ebf1fa;
+
+  --color-pass: #17794a;
+  --color-pass-wash: #e7f4ec;
+  --color-fail: #b3261e;
+  --color-fail-wash: #fcecea;
+  --color-wait: #8a5a00;
+  --color-wait-wash: #fff3d1;
+
+  --color-mark: #fff8c9;
+  --color-rp: #6b3fa0;
+  --color-rp-wash: #f2ecf9;
 }
 
 html,
@@ -18,26 +41,40 @@ body,
 }
 
 body {
-  background: var(--color-canvas);
+  background: var(--color-paper);
   color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum" 0;
 }
 
-/* One motion language: short, soft transitions on tab change and panel open. */
-@keyframes rise {
+/* Figures line up in columns wherever numbers are compared. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Motion answers an action: a tab opening, a panel sliding in. Nothing moves
+   on its own in the working screens. */
+@keyframes appear {
   from {
     opacity: 0;
-    transform: translateY(6px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 @keyframes slide-in {
   from {
-    transform: translateX(24px);
+    transform: translateX(20px);
     opacity: 0;
   }
   to {
@@ -46,25 +83,27 @@ body {
   }
 }
 
-@keyframes fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 .view {
-  animation: rise 0.22s ease-out;
+  animation: appear 0.16s ease-out;
 }
 
 .drawer {
-  animation: slide-in 0.22s ease-out;
+  animation: slide-in 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .scrim {
-  animation: fade 0.18s ease-out;
+  animation: appear 0.16s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .view,
+  .drawer,
+  .scrim {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 .thin-scroll::-webkit-scrollbar {
@@ -73,6 +112,6 @@ body {
 }
 
 .thin-scroll::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cfd4dc;
   border-radius: 8px;
 }

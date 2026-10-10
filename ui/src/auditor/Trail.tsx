@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { callTool, fileUrl, shortHash, when } from "../api";
 import type { ViewProps } from "../App";
-import { Button, Card, Chip, Column, Empty, ErrorNote, Header, Loading, Table, toneFor, useAction, useTool } from "../ui";
+import { Button, Card, Column, Empty, ErrorNote, Header, Loading, Status, Table, useAction, useTool } from "../ui";
 
 interface Entry {
   trail_seq: number;
@@ -15,7 +15,8 @@ interface Entry {
   hash: string;
 }
 
-const roleLabel: Record<string, string> = { client_employee: "Client", auditor: "Auditor", audit_manager: "Manager" };
+const roleLabel: Record<string, string> = { client_employee: "Client", auditor: "Auditor", audit_manager: "Audit manager" };
+const resultLabel: Record<string, string> = { ok: "Done", permission_denied: "Denied", validation_failed: "Rejected input", no_engagement: "No engagement", not_found: "Not found" };
 
 export default function Trail({ pulse }: ViewProps) {
   const [rows, setRows] = useState<Entry[]>([]);
@@ -52,29 +53,27 @@ export default function Trail({ pulse }: ViewProps) {
   const v = first.data?.verification;
 
   const columns: Column<Entry>[] = [
-    { key: "seq", label: "#", render: (e) => <span className="text-slate-400 tabular-nums">{e.trail_seq}</span>, width: "64px" },
+    { key: "seq", label: "Entry", render: (e) => <span className="text-ink-3 tabular-nums">{e.trail_seq}</span>, width: "64px" },
     { key: "ts", label: "Time", render: (e) => <span className="whitespace-nowrap">{when(e.ts)}</span> },
-    { key: "user", label: "Identity", render: (e) => e.user },
-    { key: "role", label: "Role", render: (e) => <Chip tone={e.role === "client_employee" ? "neutral" : "accent"}>{roleLabel[e.role] ?? e.role}</Chip> },
-    { key: "tool", label: "Tool", render: (e) => <span className="font-mono text-xs">{e.tool}</span> },
-    { key: "status", label: "Result", render: (e) => <Chip tone={e.status === "ok" ? "good" : e.status === "permission_denied" ? "bad" : "warn"}>{e.status.replace(/_/g, " ")}</Chip> },
-    { key: "hash", label: "Hash", render: (e) => <span className="font-mono text-xs text-slate-500" title={e.hash}>{shortHash(e.hash, 12)}</span> },
+    { key: "user", label: "Who", render: (e) => e.user },
+    { key: "role", label: "Role", render: (e) => <span className="text-ink-2">{roleLabel[e.role] ?? e.role}</span> },
+    { key: "tool", label: "Action", render: (e) => <span className="font-mono text-xs">{e.tool}</span> },
+    { key: "status", label: "Result", render: (e) => <Status tone={e.status === "ok" ? "good" : e.status === "permission_denied" ? "bad" : "warn"}>{resultLabel[e.status] ?? e.status.replace(/_/g, " ")}</Status> },
+    { key: "hash", label: "Hash", render: (e) => <span className="font-mono text-xs text-ink-2" title={e.hash}>{shortHash(e.hash, 12)}</span> },
   ];
 
   return (
     <>
       <Header
         title="Trail"
-        hint="Every tool call by every identity, chained by hash."
+        hint="Every action by every identity, each chained to the one before by its hash."
         action={
           <div className="flex items-center gap-3">
             {v && (
-              <Chip tone={toneFor(v.ok ? "ok" : "failed")}>
-                {v.ok ? `Chain verified · ${v.checked} entries` : `Chain broken at ${v.first_bad_seq}`}
-              </Chip>
+              <Status tone={v.ok ? "good" : "bad"}>{v.ok ? `All ${v.checked} entries verify` : `Chain broken at entry ${v.first_bad_seq}`}</Status>
             )}
             <Button kind="ghost" busy={busy === "export"} onClick={exportTrail}>
-              Export
+              Export the trail
             </Button>
           </div>
         }
@@ -88,9 +87,9 @@ export default function Trail({ pulse }: ViewProps) {
           <Empty title="No entries yet" />
         ) : (
           <>
-            <Table columns={columns} rows={rows} rowKey={(e) => String(e.trail_seq)} />
+            <Table columns={columns} rows={rows} rowKey={(e) => String(e.trail_seq)} marked={(e) => e.status === "permission_denied"} />
             {cursor && (
-              <div className="flex justify-center border-t border-slate-100 py-3">
+              <div className="flex justify-center border-t border-line-soft py-3">
                 <Button kind="ghost" small busy={more} onClick={loadMore}>
                   Load more
                 </Button>
