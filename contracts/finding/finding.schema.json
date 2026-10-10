@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://elev05/contracts/finding.schema.json",
+  "title": "Finding",
+  "description": "PRD section 15.1. Produced by the audit engine. Amounts in paise.",
+  "type": "object",
+  "required": [
+    "finding_id", "engagement_id", "detector_id", "category", "subtype", "severity", "title", "subject",
+    "amount_impact", "period_effect", "proposed_adjustment", "standard_refs", "lineage", "reason",
+    "sample_ids", "status", "created_at"
+  ],
+  "properties": {
+    "finding_id": {"type": "string", "pattern": "^F-[0-9a-f]{16}$", "description": "F- followed by the first 16 hex characters of SHA256(engagement_id|category|subtype|subject.type|subject.id)."},
+    "engagement_id": {"type": "string"},
+    "detector_id": {"enum": ["D-01", "D-02", "D-03", "D-04", "D-05", "D-06", "D-07", "D-08", "D-09", "D-10", "D-11", "D-12", "D-13", "D-14", "D-15", "D-16"]},
+    "category": {"enum": [
+      "REGISTER_MISMATCH", "RP_UNDISCLOSED", "RP_MID_PERIOD", "CIRCULAR_TRADING", "NO_MOVEMENT", "CUTOFF",
+      "PERIOD_END_CONCENTRATION", "DOC_TAX_MISMATCH", "NON_SALE_REVENUE", "EVIDENCE_SUSPECT", "CREDIT_NOTE",
+      "PROMOTION_DISCOUNT", "SETTLEMENT", "DOCUMENT_INTEGRITY", "POST_TESTING_CHANGE", "LEDGER_INTEGRITY"
+    ]},
+    "subtype": {"type": "string", "description": "Upper snake case. See engine/audit_engine/findings.py SUBTYPES."},
+    "severity": {"enum": ["High", "Medium", "Low"]},
+    "title": {"type": "string"},
+    "subject": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": {"enum": ["invoice", "register_row", "customer", "credit_note", "journal", "cycle", "sample", "receipt", "event", "chain", "period", "gstr1_line", "eway_bill", "lr", "vehicle", "order", "upload"]},
+        "id": {"type": "string"},
+        "label": {"type": ["string", "null"]}
+      }
+    },
+    "amount_impact": {"type": "integer"},
+    "period_effect": {"enum": ["Overstated", "Understated", "None"]},
+    "proposed_adjustment": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["account", "debit", "credit", "narration"],
+        "properties": {
+          "account": {"type": "string"},
+          "debit": {"type": "integer"},
+          "credit": {"type": "integer"},
+          "narration": {"type": "string"}
+        }
+      }
+    },
+    "standard_refs": {"type": "array", "items": {"type": "string"}},
+    "lineage": {
+      "type": "object",
+      "required": ["event_seqs", "document_ids", "evidence_hashes", "rule_id", "thresholds"],
+      "properties": {
+        "event_seqs": {"type": "array", "items": {"type": "integer"}},
+        "document_ids": {"type": "array", "items": {"type": "string"}},
+        "evidence_hashes": {"type": "array", "items": {"type": "string"}},
+        "rule_id": {"type": "string"},
+        "thresholds": {"type": "object"},
+        "facts": {"type": "object", "description": "Values compared by the rule, for the explanation."}
+      }
+    },
+    "reason": {"type": "string"},
+    "sample_ids": {"type": "array", "items": {"type": "string"}},
+    "status": {"enum": ["proposed", "confirmed", "rejected", "needs_info"]},
+    "decided_by": {"type": ["string", "null"]},
+    "created_at": {"type": "string"}
+  }
+}

@@ -1,0 +1,2041 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://elev05/contracts/events.schema.json",
+  "title": "Business event",
+  "type": "object",
+  "required": [
+    "seq",
+    "event_type",
+    "entity_id",
+    "aggregate_id",
+    "aggregate_version",
+    "sale_id",
+    "payload",
+    "business_date",
+    "recorded_at",
+    "identity",
+    "idempotency_key",
+    "prev_hash",
+    "hash"
+  ],
+  "properties": {
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "event_type": {
+      "enum": [
+        "CustomerCreated",
+        "CustomerUpdated",
+        "VendorCreated",
+        "VendorUpdated",
+        "CompanyOfficerRecorded",
+        "PriceSet",
+        "PromotionCreated",
+        "EnquiryRecorded",
+        "SalesOrderCreated",
+        "DispatchRecorded",
+        "EWayBillGenerated",
+        "LorryReceiptRecorded",
+        "DeliveryRecorded",
+        "InvoiceIssued",
+        "Gstr1Filed",
+        "ReceiptRecorded",
+        "BankStatementImported",
+        "CreditNoteIssued",
+        "SalesReturnRecorded",
+        "PurchaseInvoiceRecorded",
+        "GoodsReceiptRecorded",
+        "PaymentMade",
+        "JournalPosted",
+        "DocumentReversed",
+        "SalesRegisterUploaded",
+        "RelatedPartyListUploaded",
+        "EvidenceUploaded"
+      ]
+    },
+    "entity_id": {
+      "type": "string"
+    },
+    "aggregate_id": {
+      "type": "string"
+    },
+    "aggregate_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sale_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "payload": {
+      "type": "object"
+    },
+    "business_date": {
+      "$ref": "#/$defs/date"
+    },
+    "recorded_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "identity": {
+      "$ref": "#/$defs/identity"
+    },
+    "idempotency_key": {
+      "type": "string"
+    },
+    "prev_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "CustomerCreated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_CustomerCreated"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "CustomerUpdated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_CustomerUpdated"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "VendorCreated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_VendorCreated"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "VendorUpdated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_VendorUpdated"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "CompanyOfficerRecorded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_CompanyOfficerRecorded"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "PriceSet"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_PriceSet"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "PromotionCreated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_PromotionCreated"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "EnquiryRecorded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_EnquiryRecorded"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "SalesOrderCreated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_SalesOrderCreated"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "DispatchRecorded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_DispatchRecorded"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "EWayBillGenerated"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_EWayBillGenerated"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "LorryReceiptRecorded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_LorryReceiptRecorded"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "DeliveryRecorded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_DeliveryRecorded"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "InvoiceIssued"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_InvoiceIssued"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "Gstr1Filed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_Gstr1Filed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "ReceiptRecorded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_ReceiptRecorded"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "BankStatementImported"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_BankStatementImported"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "CreditNoteIssued"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_CreditNoteIssued"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "SalesReturnRecorded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_SalesReturnRecorded"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "PurchaseInvoiceRecorded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_PurchaseInvoiceRecorded"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "GoodsReceiptRecorded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_GoodsReceiptRecorded"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "PaymentMade"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_PaymentMade"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "JournalPosted"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_JournalPosted"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "DocumentReversed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_DocumentReversed"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "SalesRegisterUploaded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_SalesRegisterUploaded"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "RelatedPartyListUploaded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_RelatedPartyListUploaded"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "EvidenceUploaded"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/$defs/payload_EvidenceUploaded"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "datetime": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "address": {
+      "type": "object",
+      "required": [
+        "line1",
+        "city",
+        "state_code",
+        "pincode"
+      ],
+      "properties": {
+        "line1": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state_code": {
+          "type": "string",
+          "pattern": "^[0-9]{2}$"
+        },
+        "pincode": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "address_kind": {
+      "type": "object",
+      "required": [
+        "kind",
+        "line1",
+        "city",
+        "state_code",
+        "pincode"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "billing",
+            "shipping"
+          ]
+        },
+        "line1": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state_code": {
+          "type": "string",
+          "pattern": "^[0-9]{2}$"
+        },
+        "pincode": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "bank_account": {
+      "type": "object",
+      "required": [
+        "account_no",
+        "ifsc"
+      ],
+      "properties": {
+        "account_no": {
+          "type": "string"
+        },
+        "ifsc": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "director": {
+      "type": "object",
+      "required": [
+        "name",
+        "pan",
+        "din"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "pan": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "din": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "identity": {
+      "type": "object",
+      "required": [
+        "user",
+        "role"
+      ],
+      "properties": {
+        "user": {
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "client_employee",
+            "auditor",
+            "audit_manager"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_CustomerCreated": {
+      "type": "object",
+      "required": [
+        "customer_id",
+        "name",
+        "gstin",
+        "pan",
+        "addresses",
+        "phone",
+        "email",
+        "bank_accounts",
+        "directors",
+        "effective_from"
+      ],
+      "properties": {
+        "customer_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "gstin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pan": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "addresses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/address_kind"
+          }
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bank_accounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/bank_account"
+          }
+        },
+        "directors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/director"
+          }
+        },
+        "effective_from": {
+          "$ref": "#/$defs/date"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_CustomerUpdated": {
+      "type": "object",
+      "required": [
+        "customer_id",
+        "changes",
+        "effective_from"
+      ],
+      "properties": {
+        "customer_id": {
+          "type": "string"
+        },
+        "changes": {
+          "type": "object"
+        },
+        "effective_from": {
+          "$ref": "#/$defs/date"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_VendorCreated": {
+      "type": "object",
+      "required": [
+        "vendor_id",
+        "name",
+        "gstin",
+        "pan",
+        "addresses",
+        "phone",
+        "email",
+        "bank_accounts",
+        "directors",
+        "effective_from"
+      ],
+      "properties": {
+        "vendor_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "gstin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pan": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "addresses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/address_kind"
+          }
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bank_accounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/bank_account"
+          }
+        },
+        "directors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/director"
+          }
+        },
+        "effective_from": {
+          "$ref": "#/$defs/date"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_VendorUpdated": {
+      "type": "object",
+      "required": [
+        "vendor_id",
+        "changes",
+        "effective_from"
+      ],
+      "properties": {
+        "vendor_id": {
+          "type": "string"
+        },
+        "changes": {
+          "type": "object"
+        },
+        "effective_from": {
+          "$ref": "#/$defs/date"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_CompanyOfficerRecorded": {
+      "type": "object",
+      "required": [
+        "officer_id",
+        "name",
+        "pan",
+        "din",
+        "role",
+        "phone",
+        "email",
+        "address",
+        "bank_accounts",
+        "effective_from",
+        "effective_to"
+      ],
+      "properties": {
+        "officer_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "pan": {
+          "type": "string"
+        },
+        "din": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "role": {
+          "type": "string"
+        },
+        "phone": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "address": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/address"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bank_accounts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/bank_account"
+          }
+        },
+        "effective_from": {
+          "$ref": "#/$defs/date"
+        },
+        "effective_to": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/date"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_PriceSet": {
+      "type": "object",
+      "required": [
+        "item",
+        "rate",
+        "effective_from"
+      ],
+      "properties": {
+        "item": {
+          "type": "string"
+        },
+        "rate": {
+          "type": "integer"
+        },
+        "effective_from": {
+          "$ref": "#/$defs/date"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_PromotionCreated": {
+      "type": "object",
+      "required": [
+        "scheme_id",
+        "discount_bp",
+        "valid_from",
+        "valid_to",
+        "eligible_customers",
+        "approver"
+      ],
+      "properties": {
+        "scheme_id": {
+          "type": "string"
+        },
+        "discount_bp": {
+          "type": "integer"
+        },
+        "valid_from": {
+          "$ref": "#/$defs/date"
+        },
+        "valid_to": {
+          "$ref": "#/$defs/date"
+        },
+        "eligible_customers": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "approver": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_EnquiryRecorded": {
+      "type": "object",
+      "required": [
+        "enquiry_id",
+        "customer_id",
+        "date",
+        "channel",
+        "items"
+      ],
+      "properties": {
+        "enquiry_id": {
+          "type": "string"
+        },
+        "customer_id": {
+          "type": "string"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "channel": {
+          "type": "string"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "item",
+              "qty"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "qty": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_SalesOrderCreated": {
+      "type": "object",
+      "required": [
+        "order_id",
+        "enquiry_id",
+        "customer_id",
+        "order_date",
+        "items",
+        "scheme_id",
+        "delivery_terms",
+        "approver",
+        "bu",
+        "unit"
+      ],
+      "properties": {
+        "order_id": {
+          "type": "string"
+        },
+        "enquiry_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "customer_id": {
+          "type": "string"
+        },
+        "order_date": {
+          "$ref": "#/$defs/date"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "item",
+              "qty",
+              "rate",
+              "discount_bp"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "qty": {
+                "type": "integer"
+              },
+              "rate": {
+                "type": "integer"
+              },
+              "discount_bp": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "scheme_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "delivery_terms": {
+          "enum": [
+            "EX_WORKS",
+            "DELIVERED"
+          ]
+        },
+        "approver": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bu": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_DispatchRecorded": {
+      "type": "object",
+      "required": [
+        "dispatch_id",
+        "order_id",
+        "dispatched_at",
+        "items",
+        "vehicle_no",
+        "from_address",
+        "to_address",
+        "distance_km"
+      ],
+      "properties": {
+        "dispatch_id": {
+          "type": "string"
+        },
+        "order_id": {
+          "type": "string"
+        },
+        "dispatched_at": {
+          "$ref": "#/$defs/datetime"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "item",
+              "qty"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "qty": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "vehicle_no": {
+          "type": "string"
+        },
+        "from_address": {
+          "type": "string"
+        },
+        "to_address": {
+          "type": "string"
+        },
+        "distance_km": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_EWayBillGenerated": {
+      "type": "object",
+      "required": [
+        "ewb_no",
+        "invoice_no",
+        "dispatch_id",
+        "value",
+        "supplier_gstin",
+        "recipient_gstin",
+        "vehicle_no",
+        "distance_km",
+        "generated_at",
+        "valid_until"
+      ],
+      "properties": {
+        "ewb_no": {
+          "type": "string"
+        },
+        "invoice_no": {
+          "type": "string"
+        },
+        "dispatch_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "type": "integer"
+        },
+        "supplier_gstin": {
+          "type": "string"
+        },
+        "recipient_gstin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "vehicle_no": {
+          "type": "string"
+        },
+        "distance_km": {
+          "type": "integer"
+        },
+        "generated_at": {
+          "$ref": "#/$defs/datetime"
+        },
+        "valid_until": {
+          "$ref": "#/$defs/datetime"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_LorryReceiptRecorded": {
+      "type": "object",
+      "required": [
+        "lr_no",
+        "dispatch_id",
+        "transporter",
+        "vehicle_no",
+        "date",
+        "consignee"
+      ],
+      "properties": {
+        "lr_no": {
+          "type": "string"
+        },
+        "dispatch_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "transporter": {
+          "type": "string"
+        },
+        "vehicle_no": {
+          "type": "string"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "consignee": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_DeliveryRecorded": {
+      "type": "object",
+      "required": [
+        "dispatch_id",
+        "delivered_at",
+        "receiver",
+        "pod_ref"
+      ],
+      "properties": {
+        "dispatch_id": {
+          "type": "string"
+        },
+        "delivered_at": {
+          "$ref": "#/$defs/datetime"
+        },
+        "receiver": {
+          "type": "string"
+        },
+        "pod_ref": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_InvoiceIssued": {
+      "type": "object",
+      "required": [
+        "invoice_no",
+        "invoice_date",
+        "customer_id",
+        "customer_name",
+        "customer_gstin",
+        "order_id",
+        "dispatch_id",
+        "items",
+        "taxable_value",
+        "discount",
+        "packing",
+        "freight",
+        "insurance",
+        "cgst",
+        "sgst",
+        "igst",
+        "tcs",
+        "round_off",
+        "gross",
+        "place_of_supply",
+        "tax_rate_bp",
+        "irn",
+        "ledger_account",
+        "bu",
+        "unit"
+      ],
+      "properties": {
+        "invoice_no": {
+          "type": "string"
+        },
+        "invoice_date": {
+          "$ref": "#/$defs/date"
+        },
+        "customer_id": {
+          "type": "string"
+        },
+        "customer_name": {
+          "type": "string"
+        },
+        "customer_gstin": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "order_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dispatch_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "item",
+              "qty",
+              "rate",
+              "discount_bp",
+              "amount"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "qty": {
+                "type": "integer"
+              },
+              "rate": {
+                "type": "integer"
+              },
+              "discount_bp": {
+                "type": "integer"
+              },
+              "amount": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "taxable_value": {
+          "type": "integer"
+        },
+        "discount": {
+          "type": "integer"
+        },
+        "packing": {
+          "type": "integer"
+        },
+        "freight": {
+          "type": "integer"
+        },
+        "insurance": {
+          "type": "integer"
+        },
+        "cgst": {
+          "type": "integer"
+        },
+        "sgst": {
+          "type": "integer"
+        },
+        "igst": {
+          "type": "integer"
+        },
+        "tcs": {
+          "type": "integer"
+        },
+        "round_off": {
+          "type": "integer"
+        },
+        "gross": {
+          "type": "integer"
+        },
+        "place_of_supply": {
+          "type": "string"
+        },
+        "tax_rate_bp": {
+          "type": "integer"
+        },
+        "irn": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ledger_account": {
+          "type": "string"
+        },
+        "bu": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_Gstr1Filed": {
+      "type": "object",
+      "required": [
+        "return_period",
+        "supplier_gstin",
+        "lines"
+      ],
+      "properties": {
+        "return_period": {
+          "type": "string",
+          "pattern": "^[0-9]{4}-[0-9]{2}$"
+        },
+        "supplier_gstin": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "invoice_no",
+              "invoice_date",
+              "gstin",
+              "taxable_value",
+              "cgst",
+              "sgst",
+              "igst",
+              "place_of_supply"
+            ],
+            "properties": {
+              "invoice_no": {
+                "type": "string"
+              },
+              "invoice_date": {
+                "$ref": "#/$defs/date"
+              },
+              "gstin": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "taxable_value": {
+                "type": "integer"
+              },
+              "cgst": {
+                "type": "integer"
+              },
+              "sgst": {
+                "type": "integer"
+              },
+              "igst": {
+                "type": "integer"
+              },
+              "place_of_supply": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_ReceiptRecorded": {
+      "type": "object",
+      "required": [
+        "receipt_id",
+        "customer_id",
+        "invoice_refs",
+        "amount",
+        "date",
+        "payer_name",
+        "payer_account",
+        "utr"
+      ],
+      "properties": {
+        "receipt_id": {
+          "type": "string"
+        },
+        "customer_id": {
+          "type": "string"
+        },
+        "invoice_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "amount": {
+          "type": "integer"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "payer_name": {
+          "type": "string"
+        },
+        "payer_account": {
+          "type": "string"
+        },
+        "utr": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_BankStatementImported": {
+      "type": "object",
+      "required": [
+        "statement_id",
+        "account_no",
+        "lines"
+      ],
+      "properties": {
+        "statement_id": {
+          "type": "string"
+        },
+        "account_no": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "date",
+              "amount",
+              "direction",
+              "counterparty_name",
+              "counterparty_account",
+              "utr"
+            ],
+            "properties": {
+              "date": {
+                "$ref": "#/$defs/date"
+              },
+              "amount": {
+                "type": "integer"
+              },
+              "direction": {
+                "enum": [
+                  "CR",
+                  "DR"
+                ]
+              },
+              "counterparty_name": {
+                "type": "string"
+              },
+              "counterparty_account": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "utr": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_CreditNoteIssued": {
+      "type": "object",
+      "required": [
+        "credit_note_no",
+        "date",
+        "original_invoice_no",
+        "customer_id",
+        "reason",
+        "taxable_value",
+        "cgst",
+        "sgst",
+        "igst",
+        "gross",
+        "approver"
+      ],
+      "properties": {
+        "credit_note_no": {
+          "type": "string"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "original_invoice_no": {
+          "type": "string"
+        },
+        "customer_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "taxable_value": {
+          "type": "integer"
+        },
+        "cgst": {
+          "type": "integer"
+        },
+        "sgst": {
+          "type": "integer"
+        },
+        "igst": {
+          "type": "integer"
+        },
+        "gross": {
+          "type": "integer"
+        },
+        "approver": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_SalesReturnRecorded": {
+      "type": "object",
+      "required": [
+        "credit_note_no",
+        "inward_date",
+        "items",
+        "vehicle_no"
+      ],
+      "properties": {
+        "credit_note_no": {
+          "type": "string"
+        },
+        "inward_date": {
+          "$ref": "#/$defs/date"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "item",
+              "qty"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "qty": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "vehicle_no": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_PurchaseInvoiceRecorded": {
+      "type": "object",
+      "required": [
+        "purchase_id",
+        "vendor_id",
+        "invoice_no",
+        "date",
+        "items",
+        "taxable_value",
+        "cgst",
+        "sgst",
+        "igst",
+        "gross"
+      ],
+      "properties": {
+        "purchase_id": {
+          "type": "string"
+        },
+        "vendor_id": {
+          "type": "string"
+        },
+        "invoice_no": {
+          "type": "string"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "item",
+              "qty",
+              "rate",
+              "amount"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "qty": {
+                "type": "integer"
+              },
+              "rate": {
+                "type": "integer"
+              },
+              "amount": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "taxable_value": {
+          "type": "integer"
+        },
+        "cgst": {
+          "type": "integer"
+        },
+        "sgst": {
+          "type": "integer"
+        },
+        "igst": {
+          "type": "integer"
+        },
+        "gross": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_GoodsReceiptRecorded": {
+      "type": "object",
+      "required": [
+        "purchase_id",
+        "date",
+        "items",
+        "vehicle_no"
+      ],
+      "properties": {
+        "purchase_id": {
+          "type": "string"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "item",
+              "qty"
+            ],
+            "properties": {
+              "item": {
+                "type": "string"
+              },
+              "qty": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "vehicle_no": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_PaymentMade": {
+      "type": "object",
+      "required": [
+        "payment_id",
+        "vendor_id",
+        "amount",
+        "date",
+        "payee_account",
+        "utr",
+        "purchase_refs"
+      ],
+      "properties": {
+        "payment_id": {
+          "type": "string"
+        },
+        "vendor_id": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "integer"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "payee_account": {
+          "type": "string"
+        },
+        "utr": {
+          "type": "string"
+        },
+        "purchase_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_JournalPosted": {
+      "type": "object",
+      "required": [
+        "journal_id",
+        "date",
+        "narration",
+        "lines",
+        "approver"
+      ],
+      "properties": {
+        "journal_id": {
+          "type": "string"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "narration": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "account",
+              "debit",
+              "credit",
+              "ref"
+            ],
+            "properties": {
+              "account": {
+                "type": "string"
+              },
+              "debit": {
+                "type": "integer"
+              },
+              "credit": {
+                "type": "integer"
+              },
+              "ref": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "approver": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_DocumentReversed": {
+      "type": "object",
+      "required": [
+        "target_aggregate_id",
+        "reason"
+      ],
+      "properties": {
+        "target_aggregate_id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_SalesRegisterUploaded": {
+      "type": "object",
+      "required": [
+        "file_hash",
+        "file_name",
+        "row_count",
+        "period_start",
+        "period_end"
+      ],
+      "properties": {
+        "file_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "row_count": {
+          "type": "integer"
+        },
+        "period_start": {
+          "$ref": "#/$defs/date"
+        },
+        "period_end": {
+          "$ref": "#/$defs/date"
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_RelatedPartyListUploaded": {
+      "type": "object",
+      "required": [
+        "file_hash",
+        "file_name",
+        "parties"
+      ],
+      "properties": {
+        "file_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "parties": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "pan",
+              "gstin",
+              "relationship",
+              "effective_from"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "pan": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "gstin": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "relationship": {
+                "type": "string"
+              },
+              "effective_from": {
+                "$ref": "#/$defs/date"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "payload_EvidenceUploaded": {
+      "type": "object",
+      "required": [
+        "sample_id",
+        "request_id",
+        "document_type",
+        "file_hash",
+        "file_name"
+      ],
+      "properties": {
+        "sample_id": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "document_type": {
+          "enum": [
+            "invoice",
+            "eway_bill",
+            "lr",
+            "credit_note",
+            "return_document",
+            "other"
+          ]
+        },
+        "file_hash": {
+          "$ref": "#/$defs/sha256"
+        },
+        "file_name": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

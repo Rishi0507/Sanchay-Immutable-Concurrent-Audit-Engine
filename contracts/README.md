@@ -41,3 +41,15 @@ Shared definitions that every component follows. A change here affects more than
 | `sale` | `new` starts a sale. `inherit` takes the `sale_id` of a referenced document. `inherit_or_new` inherits when a reference is given and otherwise starts a sale. `none` carries no `sale_id`. |
 | `posts` | Whether the ledger core derives postings for the event. |
 | `business_date` | The payload field that supplies the event's business date. |
+
+## Person B drafts, to be reconciled
+
+The audit engine and data generator were built against the drafts below before the files above were pushed. They differ from the files above in identifier format, error envelope and payload layout. Until the two are reconciled, the files above are authoritative.
+
+| Path | Content |
+|---|---|
+| `events/README.md`, `events/events.schema.json` | Event envelope, payload schemas, hash chain rule and the simulated clock used for seeding |
+| `events/chain-vectors.json` | Hash chain and Merkle test vectors |
+| `events/read-model.md` | `business.events` and `business.postings` columns the engine reads |
+| `finding/finding.schema.json` | Finding record as produced by the engine |
+| `engine-api/README.md` | Engine endpoints as implemented in `engine/audit_engine/api.py` |
