@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ViewProps } from "../App";
 import { Button, Card, Chip, Empty, ErrorNote, Mark, Pills, Status, cx, useTool } from "../ui";
 import { Calendar, Columns, DayCell, Donut, Pareto, Swatch, ink } from "./charts";
-import { ChartSkeleton, FieldGrid, LedgerRows, PageBrief, Panel, RegisterRow, spotlight, SearchBox, Term, ViewHead, dateKey, day, inr, monthKey, monthLabel, monthRange, num, plural, registerFields, scaleFor, useRegisterAll } from "./kit";
+import { ChartSkeleton, FieldGrid, LedgerRows, MoreBar, PageBrief, Panel, RegisterRow, spotlight, SearchBox, Term, ViewHead, dateKey, day, inr, monthKey, monthLabel, monthRange, num, plural, registerFields, scaleFor, useRegisterAll } from "./kit";
 
 const statuses = [
   { value: "MATCHED", label: "Agrees with the books", color: "color-mix(in oklab, var(--color-brand) 42%, transparent)" },
@@ -266,9 +266,11 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
             </Panel>
           </div>
 
+          <MoreBar group="rg" title="More analysis" items="A calendar of sales by day, and how concentrated revenue is among customers." />
           {calendar.days.size > 0 && periodStart && periodEnd && (
             <Panel
               id="rg-days"
+              more="rg"
               className="mb-5"
               title="Which days carried the sales, and which had rows not agreeing?"
               takeaway={calendarTakeaway}
@@ -286,6 +288,7 @@ export default function Register({ pulse, goTo, focus, engagementId }: ViewProps
 
           <Panel
             id="rg-customers"
+            more="rg"
             className="mb-5"
             title="How concentrated is revenue among customers?"
             takeaway={concentrationTakeaway}

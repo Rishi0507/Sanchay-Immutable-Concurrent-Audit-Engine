@@ -2,7 +2,7 @@ import { useState } from "react";
 import { callTool, fileUrl, money, shortHash } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Mark, Status, toast, useAction, useTool } from "../ui";
-import { EmailAction, FindingLite, Kpi, PageBrief, Panel, ReviewProgress, spotlight, Term, ViewHead, day, dedupe, inr, plural, sum } from "./kit";
+import { EmailAction, FindingLite, Kpi, MoreBar, PageBrief, Panel, ReviewProgress, spotlight, Term, ViewHead, day, dedupe, inr, plural, sum } from "./kit";
 
 interface FileRef {
   file_hash: string;
@@ -126,8 +126,9 @@ export default function Export({ pulse, engagementId, identity, can }: ViewProps
         ]}
       />
 
+      {findings.length > 0 && <MoreBar group="ex" title="Review progress" items="How many findings the manager has reviewed, and the confirmed and potential amounts." />}
       {findings.length > 0 && (
-        <div id="ex-review" className="mb-6 grid gap-5 lg:grid-cols-[1.2fr_1fr]">
+        <div id="ex-review" data-more="ex" className="mb-6 grid gap-5 lg:grid-cols-[1.2fr_1fr]">
           <Panel
             title="How much of the pack has the manager reviewed?"
             takeaway={

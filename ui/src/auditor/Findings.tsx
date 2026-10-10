@@ -3,7 +3,7 @@ import { callTool, money, when } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Pills, Section, Status, Table, cx, inputClass, toast, toneFor, useAction, useTool } from "../ui";
 import { Ranked, RiskMap, Swatch, ink } from "./charts";
-import { EmailAction, FindingLite, ListSkeleton, PageBrief, dedupe, Panel, SearchBox, Severity, SeverityBadge, SeverityIcon, Tally, Term, ViewHead, byPriority, catColor, category, findingStatus, inr, plural, sevFill, severities, sum } from "./kit";
+import { EmailAction, FindingLite, ListSkeleton, MoreBar, PageBrief, dedupe, Panel, SearchBox, Severity, SeverityBadge, SeverityIcon, Tally, Term, ViewHead, byPriority, catColor, category, findingStatus, inr, plural, sevFill, severities, sum } from "./kit";
 
 interface Finding extends FindingLite {
   explanation?: string;
@@ -541,9 +541,10 @@ export default function Findings({ identity, pulse, focus, goTo, can }: ViewProp
         />
       )}
 
+      {everything.length > 0 && <MoreBar group="fd" title="More analysis" items="Every finding plotted by size and severity, and the areas that carry the most money." />}
       {/* Charts: where each finding sits by value, and which areas carry the most. */}
       {everything.length > 0 && (
-        <div className="mb-6 grid gap-5 xl:grid-cols-[1fr_380px]">
+        <div data-more="fd" className="mb-6 grid gap-5 xl:grid-cols-[1fr_380px]">
           <div id="fd-risk" className="min-w-0">
           <Panel title="Which findings are both severe and large?" takeaway={riskTakeaway} meta={<span className="text-xs">Each dot is a finding; value on a log scale</span>}>
             <RiskMap

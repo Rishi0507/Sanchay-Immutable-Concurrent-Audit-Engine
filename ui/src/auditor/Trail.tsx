@@ -3,7 +3,7 @@ import { callTool, fileUrl, shortHash, when } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Card, Column, Empty, ErrorNote, Mark, Pills, Status, Table, cx, useAction, useTool } from "../ui";
 import { Columns, ink } from "./charts";
-import { FieldGrid, LedgerRows, ListSkeleton, PageBrief, Panel, SearchBox, ViewHead, plural, spotlight } from "./kit";
+import { FieldGrid, LedgerRows, ListSkeleton, MoreBar, PageBrief, Panel, SearchBox, ViewHead, plural, spotlight } from "./kit";
 
 interface Entry {
   trail_seq: number;
@@ -236,8 +236,9 @@ export default function Trail({ pulse }: ViewProps) {
         </div>
       )}
 
+      {rows.length > 0 && <MoreBar group="tr" title="More analysis" items="When the activity happened, and each identity with its own count of actions and refusals." />}
       {rows.length > 0 && (
-        <div id="tr-activity" className="mb-5 grid gap-5 xl:grid-cols-[1fr_380px]">
+        <div id="tr-activity" data-more="tr" className="mb-5 grid gap-5 xl:grid-cols-[1fr_380px]">
           <Panel
             title={hourly ? "When did the activity happen?" : "Which days were busiest?"}
             takeaway={busiest ? `${busiest.label} was the busiest ${hourly ? "hour" : "day"}, with ${plural(busiest.n, "entry", "entries")}.` : undefined}

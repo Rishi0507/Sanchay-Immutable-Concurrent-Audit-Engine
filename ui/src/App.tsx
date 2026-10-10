@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react
 import { Identity, Notice, Role, ToolInfo, callTool, getEngagement, getToken, listTools, setEngagement, setRole, setToken, subscribe, whoami } from "./api";
 import { useTheme } from "./theme";
 import { BrandMark, Button, Toasts, cx, inputClass, toast } from "./ui";
+import { setFullDetail, useDetail } from "./auditor/kit";
 import Upload from "./client/Upload";
 import Requests from "./client/Requests";
 import Records from "./client/Records";
@@ -43,7 +44,9 @@ interface EngagementRef {
 }
 
 // A tab with `needs` is shown only to an identity that may call one of those tools.
-type TabDef = { id: string; label: string; view: (p: ViewProps) => JSX.Element; needs?: string[] };
+type TabDef = {
+  // A few plain words under the section name, for readers new to audit.
+  hint?: string; id: string; label: string; view: (p: ViewProps) => JSX.Element; needs?: string[] };
 
 const clientTabs: TabDef[] = [
   { id: "upload", label: "Upload", view: (p) => <Upload {...p} />, needs: ["upload_sales_register", "upload_related_parties"] },
@@ -54,13 +57,13 @@ const clientTabs: TabDef[] = [
 ];
 
 const auditorTabs: TabDef[] = [
-  { id: "overview", label: "Overview", view: (p) => <Overview {...p} /> },
-  { id: "register", label: "Register", view: (p) => <Register {...p} /> },
-  { id: "samples", label: "Samples", view: (p) => <Samples {...p} /> },
-  { id: "findings", label: "Findings", view: (p) => <Findings {...p} /> },
-  { id: "graph", label: "Graph", view: (p) => <Graph {...p} /> },
-  { id: "trail", label: "Trail", view: (p) => <Trail {...p} /> },
-  { id: "export", label: "Export", view: (p) => <Export {...p} /> },
+  { id: "overview", hint: "The answer on one page", label: "Overview", view: (p) => <Overview {...p} /> },
+  { id: "register", hint: "The client's list of sales", label: "Register", view: (p) => <Register {...p} /> },
+  { id: "samples", hint: "Invoices checked against documents", label: "Samples", view: (p) => <Samples {...p} /> },
+  { id: "findings", hint: "Problems found, to review", label: "Findings", view: (p) => <Findings {...p} /> },
+  { id: "graph", hint: "Money going round in circles", label: "Graph", view: (p) => <Graph {...p} /> },
+  { id: "trail", hint: "Every action, sealed", label: "Trail", view: (p) => <Trail {...p} /> },
+  { id: "export", hint: "Reports, files and emails", label: "Export", view: (p) => <Export {...p} /> },
 ];
 
 const roleLabel: Record<Role, string> = {
@@ -94,6 +97,35 @@ function fiscalYear(start: string, end: string) {
     return `FY ${s.getFullYear()}-${String(e.getFullYear()).slice(2)}`;
   }
   return `${start} to ${end}`;
+}
+
+// Simple view folds each page's secondary analysis; full detail shows it all.
+function ViewSwitch() {
+  const d = useDetail();
+  return (
+    <div className="border-t border-line-soft px-4 py-2.5">
+      <div
+        className="grid grid-cols-2 rounded-md border border-line bg-wash p-0.5"
+        role="group"
+        aria-label="How much to show"
+        title={d.full ? "Every chart and table is shown." : "Main points first. Each page folds its extra analysis into one bar you can open."}
+      >
+        {[
+          { full: false, label: "Simple" },
+          { full: true, label: "Full detail" },
+        ].map((o) => (
+          <button
+            key={o.label}
+            onClick={() => setFullDetail(o.full)}
+            aria-pressed={d.full === o.full}
+            className={cx("h-7 rounded-[5px] text-[13px] font-medium transition-colors", d.full === o.full ? "bg-paper text-ink shadow-[0_0_0_1px_var(--color-line)]" : "text-ink-2 hover:text-ink")}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // One small line icon per section, for the side navigation.
@@ -497,10 +529,7 @@ export default function App() {
           <Wordmark onClick={() => setScreen("story")} />
         </div>
         {engagementSelect && (
-          <div className="px-4 pb-4">
-            <div className="mb-1.5 text-xs font-medium text-ink-3">Engagement</div>
-            {engagementSelect}
-          </div>
+          <div className="px-4 pb-3">{engagementSelect}</div>
         )}
         <nav className="thin-scroll flex-1 overflow-y-auto px-3" aria-label="Sections">
           <ul className="space-y-0.5">
@@ -512,7 +541,8 @@ export default function App() {
                     onClick={() => goTo(t.id)}
                     aria-current={current ? "page" : undefined}
                     className={cx(
-                      "relative flex h-9 w-full items-center gap-3 rounded-md px-3 text-left text-sm transition-colors duration-150",
+                      "relative flex w-full items-center gap-3 rounded-md px-3 text-left text-sm transition-colors duration-150",
+                      t.hint ? "py-1.5" : "h-9",
                       current ? "bg-brand-wash font-semibold text-ink" : "font-medium text-ink-2 hover:bg-wash hover:text-ink",
                     )}
                   >
@@ -520,7 +550,10 @@ export default function App() {
                     <span className={current ? "text-brand" : "text-ink-3"}>
                       <TabIcon id={t.id} />
                     </span>
-                    <span className="flex-1 truncate">{t.label}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{t.label}</span>
+                      {t.hint && <span className="block truncate text-[11px] leading-tight font-normal text-ink-3">{t.hint}</span>}
+                    </span>
                     {!!badges[t.id] && !current && (
                       <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-semibold text-on-brand">{badges[t.id]}</span>
                     )}
@@ -530,11 +563,11 @@ export default function App() {
             })}
           </ul>
         </nav>
-        <div className="space-y-2.5 border-t border-line-soft px-5 py-3 text-[13px]">
-          {readOnly}
-          <div className="min-w-0" title={identity.user}>
-            <div className="truncate font-medium text-ink">{identity.department_name ?? roleLabel[identity.role]}</div>
-            <div className="truncate text-xs text-ink-2">{identity.user}</div>
+        {auditing && <ViewSwitch />}
+        <div className="space-y-2 border-t border-line-soft px-5 py-2.5 text-[13px]">
+          <div className="flex min-w-0 items-center justify-between gap-2" title={identity.user}>
+            <span className="truncate font-medium text-ink">{identity.department_name ?? roleLabel[identity.role]}</span>
+            {readOnly}
           </div>
           <div className="flex items-center gap-4">
             <ThemeSwitch />

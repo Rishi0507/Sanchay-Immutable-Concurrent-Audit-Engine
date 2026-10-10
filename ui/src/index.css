@@ -470,3 +470,13 @@ html.lenis body {
     box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-brand) 55%, transparent);
   }
 }
+
+/* Simple view: secondary analysis folds behind one bar per page until opened. */
+html[data-detail="simple"]:not([data-open~="ov"]) [data-more="ov"],
+html[data-detail="simple"]:not([data-open~="rg"]) [data-more="rg"],
+html[data-detail="simple"]:not([data-open~="sm"]) [data-more="sm"],
+html[data-detail="simple"]:not([data-open~="fd"]) [data-more="fd"],
+html[data-detail="simple"]:not([data-open~="tr"]) [data-more="tr"],
+html[data-detail="simple"]:not([data-open~="ex"]) [data-more="ex"] {
+  display: none;
+}

@@ -3,7 +3,7 @@ import { callTool, money } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Mark, Pills, Section, Status, Table, cx, toast, toneFor, useAction, useTool } from "../ui";
 import { Columns, CutoffItem, CutoffTimeline, Donut, Ranked, ink } from "./charts";
-import { EmailAction, LedgerRows, ListSkeleton, PageBrief, Panel, SearchBox, Tally, Term, ViewHead, inr, monthKey, monthLabel, monthRange, plural, scaleFor } from "./kit";
+import { EmailAction, LedgerRows, ListSkeleton, MoreBar, PageBrief, Panel, SearchBox, Tally, Term, ViewHead, inr, monthKey, monthLabel, monthRange, plural, scaleFor } from "./kit";
 
 type Sheet = "sales_tod" | "cutoff_tod" | "credit_note_tod";
 
@@ -308,8 +308,9 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
         })}
       </div>
 
+      {samples.length > 0 && <MoreBar group="sm" title="More analysis" items="Test results as a chart, when the sampled sales were booked, and why each one was picked." />}
       {samples.length > 0 && (
-        <div id="sm-results" className="mb-5 grid gap-5 lg:grid-cols-2 xl:grid-cols-[340px_1.3fr_1fr]">
+        <div id="sm-results" data-more="sm" className="mb-5 grid gap-5 lg:grid-cols-2 xl:grid-cols-[340px_1.3fr_1fr]">
           <Panel
             title="Did the samples pass their tests?"
             takeaway={

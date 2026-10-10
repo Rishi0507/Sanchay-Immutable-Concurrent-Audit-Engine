@@ -3,7 +3,7 @@ import { callTool, shortHash, when } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Card, ErrorNote, Field, KeyValues, Mark, Pills, Status, cx, inputClass, toast, useAction, useTool } from "../ui";
 import { Bridge, BridgeStep, ColumnDatum, Columns, Swatch, ink } from "./charts";
-import { ChartSkeleton, FindingLite, PageBrief, dedupe, ListSkeleton, Panel, ReviewProgress, Ring, SeverityBadge, Skeleton, Term, ViewHead, byPriority, catColor, category, day, inr, monthKey, monthLabel, monthRange, num, plural, registerFields, scaleFor, sum, useRegisterAll } from "./kit";
+import { ChartSkeleton, FindingLite, MoreBar, PageBrief, dedupe, ListSkeleton, Panel, ReviewProgress, Ring, SeverityBadge, Skeleton, Term, ViewHead, byPriority, catColor, category, day, inr, monthKey, monthLabel, monthRange, num, plural, registerFields, scaleFor, sum, useRegisterAll } from "./kit";
 
 interface Step {
   step: string;
@@ -572,7 +572,8 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement }: Vi
 
       </div>
 
-      <div id="ov-plan" className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr]">
+      <MoreBar group="ov" title="Behind the scenes" items="The audit plan step by step, recent activity, the frozen snapshot and the ledger check." />
+      <div id="ov-plan" data-more="ov" className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[1.2fr_1fr_1fr]">
         <Panel title="Audit plan" meta={`${done} of ${steps.length} done`}>
           <div className="mb-3 flex items-center gap-4">
             <Ring done={done} total={steps.length} size={56} />

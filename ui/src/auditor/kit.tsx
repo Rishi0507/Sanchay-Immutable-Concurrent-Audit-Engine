@@ -2,7 +2,7 @@
 // lakh and crore, num tiles and bar lists. Every num they show is passed
 // in from a tool result; nothing here makes up a number.
 
-import { CSSProperties, KeyboardEvent as RKeyboardEvent, ReactNode, useEffect, useState } from "react";
+import { CSSProperties, KeyboardEvent as RKeyboardEvent, ReactNode, useEffect, useState, useSyncExternalStore } from "react";
 import { callTool, money } from "../api";
 import { Button, Mark, cx, toast, useAction } from "../ui";
 
@@ -188,6 +188,7 @@ export function Kpi({
 // A titled panel: the workspace's basic surface.
 export function Panel({
   id,
+  more,
   title,
   takeaway,
   meta,
@@ -197,6 +198,8 @@ export function Panel({
   flush,
 }: {
   id?: string;
+  // The folded group this panel belongs to in simple view.
+  more?: string;
   title: ReactNode;
   // One plain sentence, computed from the data, saying what the chart shows.
   takeaway?: ReactNode;
@@ -207,7 +210,7 @@ export function Panel({
   flush?: boolean;
 }) {
   return (
-    <section id={id} className={cx("rounded-lg border border-line bg-paper", className)}>
+    <section id={id} data-more={more} className={cx("rounded-lg border border-line bg-paper", className)}>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-line-soft px-5 py-3.5">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold text-ink">{title}</h2>
@@ -625,6 +628,11 @@ const briefTone = { bad: "text-fail", good: "text-pass", warn: "text-wait", acce
 // Scrolls to a part of the page and lights it briefly, so a reader can see
 // where each part of the summary comes from.
 export function spotlight(id: string) {
+  // A step that points into folded analysis opens it first, then lights it.
+  if (revealFor(id)) {
+    window.setTimeout(() => spotlight(id), 60);
+    return;
+  }
   const el = document.getElementById(id);
   if (!el) return;
   const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
@@ -921,4 +929,101 @@ export function EmailAction({
       )}
     </span>
   );
+}
+
+// ---------------------------------------------------------------- Simple and full views
+
+// Simple view shows each page's summary, its main visual and its list; the
+// other analysis folds into one bar per page that opens in place. Full view
+// shows everything. The choice is kept per browser; folded groups reset on reload.
+const DETAIL_KEY = "sanchay-detail";
+
+interface DetailState {
+  full: boolean;
+  open: string[];
+}
+
+let detail: DetailState = {
+  full: (() => {
+    try {
+      return localStorage.getItem(DETAIL_KEY) === "full";
+    } catch {
+      return false;
+    }
+  })(),
+  open: [],
+};
+const detailSubs = new Set<() => void>();
+
+function applyDetail() {
+  const html = document.documentElement;
+  html.dataset.detail = detail.full ? "full" : "simple";
+  html.dataset.open = detail.open.join(" ");
+  detailSubs.forEach((f) => f());
+}
+if (typeof document !== "undefined") applyDetail();
+
+export function setFullDetail(full: boolean) {
+  detail = { ...detail, full };
+  try {
+    localStorage.setItem(DETAIL_KEY, full ? "full" : "simple");
+  } catch {
+    /* the choice just lasts for this visit */
+  }
+  applyDetail();
+}
+
+export function openGroup(group: string, open?: boolean) {
+  const has = detail.open.includes(group);
+  const want = open ?? !has;
+  if (want === has) return;
+  detail = { ...detail, open: want ? [...detail.open, group] : detail.open.filter((g) => g !== group) };
+  applyDetail();
+}
+
+export function useDetail(): DetailState {
+  return useSyncExternalStore(
+    (f) => {
+      detailSubs.add(f);
+      return () => detailSubs.delete(f);
+    },
+    () => detail,
+  );
+}
+
+// The bar that stands in for a page's folded analysis in simple view.
+export function MoreBar({ group, title, items }: { group: string; title: string; items: string }) {
+  const d = useDetail();
+  if (d.full) return null;
+  const open = d.open.includes(group);
+  return (
+    <button
+      onClick={() => openGroup(group)}
+      aria-expanded={open}
+      className={cx(
+        "group mb-5 flex w-full items-center gap-4 rounded-lg border border-dashed px-5 py-3 text-left transition-colors",
+        open ? "border-line bg-paper" : "border-line bg-paper/60 hover:border-ink-3 hover:bg-paper",
+      )}
+    >
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-wash text-ink-2">
+        <svg className={cx("transition-transform duration-200", open && "rotate-180")} width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M3.5 6l4.5 4.5L12.5 6" />
+        </svg>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold text-ink">{open ? `Hide ${title.toLowerCase()}` : title}</span>
+        <span className="block text-[13px] text-ink-2">{items}</span>
+      </span>
+      <span className="hidden text-xs text-ink-3 sm:block">{open ? "Showing" : "Show"}</span>
+    </button>
+  );
+}
+
+// Opens the folded group an element sits in, so a guided step can reach it.
+function revealFor(id: string): boolean {
+  const el = document.getElementById(id);
+  const group = el?.closest<HTMLElement>("[data-more]")?.dataset.more;
+  if (!group || detail.full || detail.open.includes(group)) return false;
+  openGroup(group, true);
+  return true;
 }
