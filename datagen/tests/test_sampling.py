@@ -14,7 +14,9 @@ def test_sales_tod_rules(planted_engine):
     rows = planted_engine.repo.select(samples, engagement_id=eid, sheet="sales")
     assert any(x["data"]["related_kind"] for x in rows) and any(not x["data"]["related_kind"] for x in rows)
     reqs = planted_engine.repo.select(evidence_requests, engagement_id=eid)
-    assert len([q for q in reqs if q["sample_id"].endswith(tuple(f"SAL-{i:03d}" for i in range(1, 40)))]) == 3 * r["count"]
+    sal = [q for q in reqs if "-SAL-" in q["sample_id"]]
+    assert {q["document_type"] for q in sal} == {"invoice", "eway_bill", "lr"}
+    assert len({q["sample_id"] for q in sal}) == r["count"]
 
 
 def test_selection_is_stored_not_reselected(planted_engine):

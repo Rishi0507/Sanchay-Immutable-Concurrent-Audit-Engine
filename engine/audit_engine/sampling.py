@@ -92,6 +92,17 @@ def system_tests(ctx, inv: dict | None, sheet: str = "sales") -> dict[str, str]:
     }
 
 
+def docs_for(ctx, inv: dict | None) -> list[str]:
+    """Documents to request for an invoice sample. An e-way bill only where one is required or exists."""
+    if inv is None:
+        return ["invoice"]
+    need = (inv.get("gross") or 0) > ctx.th["d05"]["eway_bill_threshold"]
+    dispatch = ctx.snap.dispatch_for_invoice(inv)
+    has = bool(ctx.snap.ewbs_by_invoice.get(str(inv["invoice_no"])) or
+               (dispatch and ctx.snap.ewbs_by_dispatch.get(dispatch.get("dispatch_id"))))
+    return ["invoice", "eway_bill", "lr"] if (need or has) else ["invoice", "lr"]
+
+
 def overall(tests: dict[str, str]) -> str:
     vals = set(tests.values())
     if "Exception" in vals:
@@ -115,7 +126,7 @@ def _store(ctx, sheet: str, rows: list[dict], meta: dict) -> dict:
                        "reason_codes": r["codes"], "score": r.get("score", 0), "data": r["data"]})
         tests_rows.append({"sample_id": sid, "engagement_id": eid, "tests": r["tests"], "flags": [],
                            "cause": "selection", "at": ctx.eng["opened_at"]})
-        for doc in DOCS[sheet]:
+        for doc in r.get("docs") or DOCS[sheet]:
             reqs.append({"request_id": f"{sid}-{doc}", "engagement_id": eid, "sample_id": sid, "document_type": doc,
                          "note": f"{doc.replace('_', ' ')} copy for {r['subject_id']}",
                          "created_by": ctx.identity.get("user") or "engine", "created_at": ctx.eng["opened_at"]})
@@ -302,7 +313,7 @@ def select_sales_tod(ctx) -> dict:
                 "finding_refs": sorted({f["finding_id"] for f in finding_index(ctx).get(x["no"], [])})}
         rows.append({"subject_type": "invoice" if inv else "register_row", "subject_id": x["no"],
                      "reason": "; ".join(notes) + ".", "codes": codes[x["key"]], "score": x["score"], "data": data,
-                     "tests": tests})
+                     "tests": tests, "docs": docs_for(ctx, inv)})
     strata = {"by_quarter": dict(Counter(quarter_of(x["date"], ctx.start) for x in items)),
               "by_bu": dict(Counter(x["bu"] or "none" for x in items)),
               "related": sum(1 for x in items if x["related"]), "non_related": sum(1 for x in items if not x["related"]),
@@ -339,7 +350,7 @@ def select_cutoff_tod(ctx, after_count: int | None = None) -> dict:
             tests["Period"] = "Exception" if a["ok"] is not True else "Pass"
             rows.append({"subject_type": "invoice", "subject_id": str(inv["invoice_no"]),
                          "reason": f"CUTOFF_{side.upper()} ({pos_text}).", "codes": [f"CUTOFF_{side.upper()}"],
-                         "score": 0, "tests": tests,
+                         "score": 0, "tests": tests, "docs": docs_for(ctx, inv),
                          "data": {"unit": inv.get("unit") or "", "quarter": quarter_of(inv_date(inv), ctx.start),
                                   "month": inv_date(inv).strftime("%b-%y"), "bill_no": str(inv["invoice_no"]),
                                   "date": inv.get("invoice_date"), "job_no": inv.get("order_id") or "",
