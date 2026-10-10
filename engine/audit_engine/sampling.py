@@ -20,12 +20,11 @@ from .money import rupees
 from .repo import evidence_requests, indicators, register_recon, register_rows, sample_meta, sample_tests, samples
 from .snapshot import d
 
-SHEETS = {"sales": "Sales TOD", "cutoff": "Sales Cut-off TOD", "credit_notes": "Credit Note TOD"}
-CODES = {"sales": "SAL", "cutoff": "CUT", "credit_notes": "CRN"}
+SHEETS = {"sales_tod": "Sales TOD", "cutoff_tod": "Sales Cut-off TOD", "credit_note_tod": "Credit Note TOD"}
 TESTS = ["Occurrence", "Amount", "Party", "Ledger account", "Period", "Tax", "Evidence"]
 HIT_DETECTORS = ("D-01", "D-05", "D-06", "D-08", "D-12", "D-13", "D-14")
-DOCS = {"sales": ["invoice", "eway_bill", "lr"], "cutoff": ["invoice", "eway_bill", "lr"],
-        "credit_notes": ["credit_note", "return_document"]}
+DOCS = {"sales_tod": ["invoice", "eway_bill", "lr_copy"], "cutoff_tod": ["invoice", "eway_bill", "lr_copy"],
+        "credit_note_tod": ["credit_note", "sales_return"]}
 
 
 def rng_for(ctx, sheet: str) -> random.Random:
@@ -65,7 +64,7 @@ def _related_text(ctx, cust_id: str, on: dt.date) -> tuple[str | None, str]:
     return kind, f"suggested: {sig} with {anchor}"
 
 
-def system_tests(ctx, inv: dict | None, sheet: str = "sales") -> dict[str, str]:
+def system_tests(ctx, inv: dict | None, sheet: str = "sales_tod") -> dict[str, str]:
     """Tests from the system of record. Evidence stays pending until verify_evidence."""
     if inv is None:
         return {t: "Exception" for t in TESTS[:-1]} | {"Evidence": "Pending evidence"}
@@ -100,7 +99,7 @@ def docs_for(ctx, inv: dict | None) -> list[str]:
     dispatch = ctx.snap.dispatch_for_invoice(inv)
     has = bool(ctx.snap.ewbs_by_invoice.get(str(inv["invoice_no"])) or
                (dispatch and ctx.snap.ewbs_by_dispatch.get(dispatch.get("dispatch_id"))))
-    return ["invoice", "eway_bill", "lr"] if (need or has) else ["invoice", "lr"]
+    return ["invoice", "eway_bill", "lr_copy"] if (need or has) else ["invoice", "lr_copy"]
 
 
 def overall(tests: dict[str, str]) -> str:
@@ -119,7 +118,7 @@ def _store(ctx, sheet: str, rows: list[dict], meta: dict) -> dict:
     eid = ctx.eid
     stored, reqs, tests_rows = [], [], []
     for pos, r in enumerate(rows, 1):
-        sid = f"{eid}-{CODES[sheet]}-{pos:03d}"
+        sid = "smp_" + hashlib.sha256(f"{eid}|{sheet}|{r['subject_id']}|{pos}".encode()).hexdigest()[:16]
         r["sample_id"] = sid
         stored.append({"sample_id": sid, "engagement_id": eid, "sheet": sheet, "position": pos,
                        "subject_type": r["subject_type"], "subject_id": r["subject_id"], "reason": r["reason"],
@@ -127,7 +126,7 @@ def _store(ctx, sheet: str, rows: list[dict], meta: dict) -> dict:
         tests_rows.append({"sample_id": sid, "engagement_id": eid, "tests": r["tests"], "flags": [],
                            "cause": "selection", "at": ctx.eng["opened_at"]})
         for doc in r.get("docs") or DOCS[sheet]:
-            reqs.append({"request_id": f"{sid}-{doc}", "engagement_id": eid, "sample_id": sid, "document_type": doc,
+            reqs.append({"request_id": "req_" + hashlib.sha256(f"{sid}|{doc}".encode()).hexdigest()[:16], "engagement_id": eid, "sample_id": sid, "document_type": doc,
                          "note": f"{doc.replace('_', ' ')} copy for {r['subject_id']}",
                          "created_by": ctx.identity.get("user") or "engine", "created_at": ctx.eng["opened_at"]})
     repo.insert(samples, stored)
@@ -155,10 +154,12 @@ def _meta(ctx, sheet: str, population: int, strata: dict, extra: dict | None = N
 
 # Sales TOD (12.2)
 
-def select_sales_tod(ctx) -> dict:
-    th = ctx.th["sampling"]
+def select_sales_tod(ctx, target: int | None = None) -> dict:
+    th = dict(ctx.th["sampling"])
+    if target:
+        th["sales_target"] = max(th["sales_min"], min(th["sales_max"], int(target)))
     snap = ctx.snap
-    rng = rng_for(ctx, "sales")
+    rng = rng_for(ctx, "sales_tod")
     invs = sorted(period_invoices(ctx), key=lambda i: (str(i["invoice_no"]), i["_seq"]))
     idx = finding_index(ctx)
     ind = {r["subject_id"]: r["detail"]["indicators"] for r in ctx.engine.repo.select(indicators, engagement_id=ctx.eid)}
@@ -178,7 +179,7 @@ def select_sales_tod(ctx) -> dict:
                           "bu": p.get("bu") or "", "unit": "", "register_row": rr["row_no"]})
     items.sort(key=lambda x: (x["no"], x["key"]))
     if not items:
-        return _store(ctx, "sales", [], _meta(ctx, "sales", 0, {}))
+        return _store(ctx, "sales_tod", [], _meta(ctx, "sales_tod", 0, {}))
     values = sorted(x["taxable"] for x in items)
     p95 = values[min(len(values) - 1, int(0.95 * (len(values) - 1) + 0.5))]
     last_start = ctx.end - dt.timedelta(days=th["last_days"] - 1)
@@ -319,15 +320,17 @@ def select_sales_tod(ctx) -> dict:
               "related": sum(1 for x in items if x["related"]), "non_related": sum(1 for x in items if not x["related"]),
               "selected_by_code": dict(Counter(c for k in chosen for c in codes[k])),
               "p95_taxable": p95, "distinct_customers_selected": len(distinct())}
-    return _store(ctx, "sales", rows, _meta(ctx, "sales", len(items), strata,
+    return _store(ctx, "sales_tod", rows, _meta(ctx, "sales_tod", len(items), strata,
                                             {"population_value": sum(x["taxable"] for x in items)}))
 
 
 # Sales cut-off TOD (12.3)
 
-def select_cutoff_tod(ctx, after_count: int | None = None) -> dict:
-    th = ctx.th["sampling"]
+def select_cutoff_tod(ctx, after_count: int | None = None, before_count: int | None = None) -> dict:
+    th = dict(ctx.th["sampling"])
     after_n = max(10, min(15, after_count or th["cutoff_after"]))
+    if before_count:
+        th["cutoff_before"] = max(1, min(30, int(before_count)))
     invs = [i for i in ctx.snap.invoices if not i["_reversed"] and ctx.in_scope(i) and inv_date(i)]
     invs.sort(key=lambda i: (inv_date(i), str(i["invoice_no"]), i["_seq"]))
     before = [i for i in invs if inv_date(i) <= ctx.end][-th["cutoff_before"]:]
@@ -346,7 +349,7 @@ def select_cutoff_tod(ctx, after_count: int | None = None) -> dict:
                 concl = "Recorded in the correct period"
             pos_text = (f"{len(group) - k + 1} of last {th['cutoff_before']} on or before {ctx.end}" if side == "before"
                         else f"{k} of first {after_n} after {ctx.end}")
-            tests = system_tests(ctx, inv, "cutoff")
+            tests = system_tests(ctx, inv, "cutoff_tod")
             tests["Period"] = "Exception" if a["ok"] is not True else "Pass"
             rows.append({"subject_type": "invoice", "subject_id": str(inv["invoice_no"]),
                          "reason": f"CUTOFF_{side.upper()} ({pos_text}).", "codes": [f"CUTOFF_{side.upper()}"],
@@ -364,7 +367,7 @@ def select_cutoff_tod(ctx, after_count: int | None = None) -> dict:
                                   "conclusion": concl, "side": side, "aggregate_id": inv["_aggregate_id"],
                                   "sale_id": inv["_sale_id"], "finding_refs": refs}})
     strata = {"before": len(before), "after": len(after), "after_count_requested": after_n}
-    return _store(ctx, "cutoff", rows, _meta(ctx, "cutoff", len(invs), strata,
+    return _store(ctx, "cutoff_tod", rows, _meta(ctx, "cutoff_tod", len(invs), strata,
                                              {"note": "Selection is fully determined by the snapshot. The seed is "
                                                       "recorded but not used (CO-3)."}))
 
@@ -373,7 +376,7 @@ def select_cutoff_tod(ctx, after_count: int | None = None) -> dict:
 
 def select_credit_note_tod(ctx) -> dict:
     th = ctx.th["sampling"]
-    rng = rng_for(ctx, "credit_notes")
+    rng = rng_for(ctx, "credit_note_tod")
     cns = sorted(in_scope_credit_notes(ctx), key=lambda c: (str(c.get("credit_note_no")), c["_seq"]))
     after = [c for c in cns if (d(c.get("date")) or ctx.end) > ctx.end]
     within = [c for c in cns if (d(c.get("date")) or ctx.end) <= ctx.end]
@@ -443,4 +446,4 @@ def select_credit_note_tod(ctx) -> dict:
     strata = {"after_period_end": len(after), "within_period": len(within),
               "selected_after": sum(1 for c in chosen if codes[id(c)] == ["POST_PERIOD"]),
               "selected_within": sum(1 for c in chosen if codes[id(c)] == ["MUS"])}
-    return _store(ctx, "credit_notes", rows, _meta(ctx, "credit_notes", len(cns), strata))
+    return _store(ctx, "credit_note_tod", rows, _meta(ctx, "credit_note_tod", len(cns), strata))

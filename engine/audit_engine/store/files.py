@@ -22,7 +22,10 @@ class DirFileStore:
     def _path(self, h: str) -> Path:
         return self.root / h[:2] / h
 
-    def put(self, data: bytes) -> str:
+    def put(self, data: bytes, name: str | None = None, content_type: str | None = None) -> str:
+        """Store by hash. The <hash>.json sidecar is the layout shared with the MCP server."""
+        import json
+
         h = hashlib.sha256(data).hexdigest()
         p = self._path(h)
         if not p.exists():
@@ -30,6 +33,11 @@ class DirFileStore:
             tmp = p.with_suffix(".tmp")
             tmp.write_bytes(data)
             tmp.replace(p)
+        meta = p.parent / f"{h}.json"
+        if name and not meta.exists():
+            meta.write_text(json.dumps({"file_hash": h, "file_name": name,
+                                        "content_type": content_type or "application/octet-stream",
+                                        "size": len(data)}), encoding="utf-8")
         return h
 
     def get(self, file_hash: str) -> bytes:
@@ -58,12 +66,14 @@ class MinioFileStore:
         self.client = Minio(f"{u.hostname}:{u.port or 9000}", access_key=u.username, secret_key=u.password,
                             secure=False)
 
-    def put(self, data: bytes) -> str:
+    def put(self, data: bytes, name: str | None = None, content_type: str | None = None) -> str:
         h = hashlib.sha256(data).hexdigest()
         if not self.exists(h):
             if not self.client.bucket_exists(self.bucket):
                 self.client.make_bucket(self.bucket)
-            self.client.put_object(self.bucket, h, io.BytesIO(data), len(data))
+            self.client.put_object(self.bucket, h, io.BytesIO(data), len(data),
+                                   content_type=content_type or "application/octet-stream",
+                                   metadata={"file-name": name} if name else None)
         return h
 
     def get(self, file_hash: str) -> bytes:

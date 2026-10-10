@@ -53,7 +53,7 @@ REASONS = {
 
 def finding_id(engagement_id: str, category: str, subtype: str, subject_type: str, subject_id: str) -> str:
     raw = f"{engagement_id}|{category}|{subtype}|{subject_type}|{subject_id}"
-    return "F-" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+    return "fnd_" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
 
 def severity(category: str, amount_impact: int, revenue: int, related_party: bool, cfg: dict) -> str:

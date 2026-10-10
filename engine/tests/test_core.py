@@ -69,7 +69,7 @@ def test_chain_vectors_match():
 def test_repo_append_only(tmp_path):
     repo = AuditRepo(f"sqlite:///{tmp_path / 'a.db'}")
     repo.create_all()
-    rec = {"finding_id": "F-0000000000000001", "engagement_id": "E", "detector_id": "D-01",
+    rec = {"finding_id": "fnd_0000000000000001", "engagement_id": "E", "detector_id": "D-01",
            "category": "REGISTER_MISMATCH", "severity": "Low", "created_at": "x"}
     assert repo.add_findings([rec]) == 1
     assert repo.add_findings([rec]) == 0  # DT-4: no duplicate

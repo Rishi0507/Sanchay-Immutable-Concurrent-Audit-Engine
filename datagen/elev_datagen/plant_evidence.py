@@ -14,13 +14,20 @@ from .evidence import EvidenceFactory
 def upload_all(client, requests: list[dict], samples: dict[str, dict], snap, company: dict,
                plant: bool = True) -> list[dict]:
     fac = EvidenceFactory(snap, company)
-    sales = sorted([s for s in samples.values() if s["sheet"] == "sales" and s["subject_type"] == "invoice"],
+    sales = sorted([s for s in samples.values() if s["sheet"] == "sales_tod" and s["subject_type"] == "invoice"],
                    key=lambda s: s["sample_id"])
     key: list[dict] = []
     tamper: dict[tuple[str, str], dict] = {}
     reuse = None
     if plant and len(sales) >= 8:
-        picks = sales[1::3][:6]  # spread, deterministic
+        # Each forgery needs the document it forges to have been requested.
+        wanted = {}
+        for r in requests:
+            wanted.setdefault(r["sample_id"], set()).add(r["document_type"])
+        full = [x for x in sales if {"invoice", "eway_bill", "lr_copy"} <= wanted.get(x["sample_id"], set())]
+        rest = [x for x in sales if x not in full]
+        pool = full + rest
+        picks = [pool[1], full[0] if full else pool[0]] + [x for x in pool[2:] if x is not (full[0] if full else None)][:4]
 
         def note(s, check, text):
             key.append({"detector": "D-10", "category": "EVIDENCE_SUSPECT", "subtype": check, "subject_type": "invoice",
@@ -32,7 +39,7 @@ def upload_all(client, requests: list[dict], samples: dict[str, dict], snap, com
         note(picks[1], "E-5", "E-way bill validity shortened to six hours.")
         tamper[(picks[2]["sample_id"], "invoice")] = {"producer": "Adobe Photoshop 25.1 (Windows)"}
         note(picks[2], "E-7", "Invoice copy produced by an image editor.")
-        tamper[(picks[3]["sample_id"], "lr")] = {"vehicle": "MH14ZZ0001"}
+        tamper[(picks[3]["sample_id"], "lr_copy")] = {"vehicle": "MH14ZZ0001"}
         note(picks[3], "E-2", "LR copy shows a different vehicle.")
         reuse = (picks[4]["sample_id"], picks[5]["sample_id"])
         note(picks[5], "E-3", "Invoice copy of another sample uploaded again.")
@@ -49,7 +56,11 @@ def upload_all(client, requests: list[dict], samples: dict[str, dict], snap, com
             tamper[(scan["sample_id"], "invoice")] = {"scan": True}
     made_files = {}
     uploaded = 0
-    for r in sorted(requests, key=lambda r: r["request_id"]):
+    def order(r):
+        last = bool(reuse and r["sample_id"] == reuse[1] and r["document_type"] == "invoice")
+        return (last, r["request_id"])
+
+    for r in sorted(requests, key=order):
         s = samples[r["sample_id"]]
         made = fac.make(s, r["document_type"], tamper.get((r["sample_id"], r["document_type"])))
         if not made:

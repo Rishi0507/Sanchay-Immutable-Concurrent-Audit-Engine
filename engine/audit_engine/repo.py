@@ -24,7 +24,7 @@ def _now() -> str:
 
 
 engagements = Table(
-    "engagements", metadata,
+    "eng_engagements", metadata,
     Column("engagement_id", String(64), primary_key=True),
     Column("client_name", Text),
     Column("period_start", Date, nullable=False),
@@ -41,7 +41,7 @@ engagements = Table(
 )
 
 engagement_events = Table(
-    "engagement_events", metadata,
+    "eng_engagement_events", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("engagement_id", String(64), nullable=False, index=True),
     Column("kind", String(32), nullable=False),  # step_done, closed
@@ -52,7 +52,7 @@ engagement_events = Table(
 )
 
 register_imports = Table(
-    "register_imports", metadata,
+    "eng_register_imports", metadata,
     Column("engagement_id", String(64), primary_key=True),
     Column("file_hash", String(64), nullable=False),
     Column("file_name", Text),
@@ -65,7 +65,7 @@ register_imports = Table(
 )
 
 register_rows = Table(
-    "register_rows", metadata,
+    "eng_register_rows", metadata,
     Column("engagement_id", String(64), primary_key=True),
     Column("row_no", Integer, primary_key=True),
     Column("raw", JSON, nullable=False),
@@ -73,7 +73,7 @@ register_rows = Table(
 )
 
 register_recon = Table(
-    "register_recon", metadata,
+    "eng_register_recon", metadata,
     Column("engagement_id", String(64), primary_key=True),
     Column("row_no", Integer, primary_key=True),
     Column("status", Text, nullable=False),
@@ -81,7 +81,7 @@ register_recon = Table(
 )
 
 rp_tags = Table(
-    "rp_tags", metadata,
+    "eng_rp_tags", metadata,
     Column("engagement_id", String(64), primary_key=True),
     Column("customer_id", String(128), primary_key=True),
     Column("tag", String(32), nullable=False),
@@ -89,7 +89,7 @@ rp_tags = Table(
 )
 
 samples = Table(
-    "samples", metadata,
+    "eng_samples", metadata,
     Column("sample_id", String(64), primary_key=True),
     Column("engagement_id", String(64), nullable=False, index=True),
     Column("sheet", String(32), nullable=False),
@@ -103,14 +103,14 @@ samples = Table(
 )
 
 sample_meta = Table(
-    "sample_meta", metadata,
+    "eng_sample_meta", metadata,
     Column("engagement_id", String(64), primary_key=True),
     Column("sheet", String(32), primary_key=True),
     Column("detail", JSON),
 )
 
 sample_tests = Table(
-    "sample_tests", metadata,
+    "eng_sample_tests", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("sample_id", String(64), nullable=False, index=True),
     Column("engagement_id", String(64), nullable=False, index=True),
@@ -121,7 +121,7 @@ sample_tests = Table(
 )
 
 evidence_requests = Table(
-    "evidence_requests", metadata,
+    "eng_evidence_requests", metadata,
     Column("request_id", String(64), primary_key=True),
     Column("engagement_id", String(64), nullable=False, index=True),
     Column("sample_id", String(64), nullable=False),
@@ -132,7 +132,7 @@ evidence_requests = Table(
 )
 
 evidence_results = Table(
-    "evidence_results", metadata,
+    "eng_evidence_results", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("engagement_id", String(64), nullable=False, index=True),
     Column("request_id", String(64), nullable=False),
@@ -145,14 +145,14 @@ evidence_results = Table(
 )
 
 extraction_cache = Table(
-    "extraction_cache", metadata,
+    "eng_extraction_cache", metadata,
     Column("file_hash", String(64), primary_key=True),
     Column("document_type", String(32), primary_key=True),
     Column("result", JSON),
 )
 
 findings = Table(
-    "findings", metadata,
+    "eng_findings", metadata,
     Column("finding_id", String(32), primary_key=True),
     Column("engagement_id", String(64), nullable=False, index=True),
     Column("detector_id", String(8), nullable=False),
@@ -163,7 +163,7 @@ findings = Table(
 )
 
 finding_decisions = Table(
-    "finding_decisions", metadata,
+    "eng_finding_decisions", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("finding_id", String(32), nullable=False, index=True),
     Column("engagement_id", String(64), nullable=False, index=True),
@@ -175,21 +175,21 @@ finding_decisions = Table(
 )
 
 change_matches = Table(
-    "change_matches", metadata,
+    "eng_change_matches", metadata,
     Column("engagement_id", String(64), primary_key=True),
     Column("seq", BigInteger, primary_key=True),
     Column("detail", JSON),
 )
 
 indicators = Table(
-    "indicators", metadata,
+    "eng_indicators", metadata,
     Column("engagement_id", String(64), primary_key=True),
     Column("subject_id", String(128), primary_key=True),
     Column("detail", JSON),
 )
 
 outputs = Table(
-    "outputs", metadata,
+    "eng_outputs", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("engagement_id", String(64), nullable=False, index=True),
     Column("kind", String(16), nullable=False),
@@ -198,6 +198,17 @@ outputs = Table(
     Column("head_hash", String(64)),
     Column("at", String(32)),
 )
+
+
+# The shared audit tables (db/migrations/004_audit.sql) that the MCP server reads.
+# The engine keeps its own working tables above and mirrors these rows into them.
+SHARED_ENGAGEMENT_SQL = (
+    "INSERT INTO audit.engagements (engagement_id, entity_ids, period_start, period_end, seed, snapshot_seq, "
+    "snapshot_hash, merkle_root, opened_by) VALUES (:engagement_id, :entity_ids, :period_start, :period_end, :seed, "
+    ":snapshot_seq, :snapshot_hash, :merkle_root, :opened_by) ON CONFLICT (engagement_id) DO NOTHING")
+SHARED_SIGN_OFF_SQL = (
+    "INSERT INTO audit.sign_offs (engagement_id, signed_by, note) VALUES (:engagement_id, :signed_by, :note) "
+    "ON CONFLICT (engagement_id) DO NOTHING")
 
 
 class AuditRepo:
@@ -282,6 +293,21 @@ class AuditRepo:
     def first(self, table: Table, **eq) -> dict | None:
         rows = self.select(table, **eq)
         return rows[0] if rows else None
+
+    # Shared tables
+
+    def mirror(self, sql: str, params: dict) -> bool:
+        """Write a row the other services read. Skipped where the shared schema does not exist (tests)."""
+        if self.is_sqlite:
+            return False
+        from sqlalchemy import text
+
+        with self.engine.begin() as c:
+            exists = c.execute(text("SELECT to_regclass('audit.engagements')")).scalar()
+            if not exists:
+                return False
+            c.execute(text(sql), params)
+        return True
 
     # Engagements
 

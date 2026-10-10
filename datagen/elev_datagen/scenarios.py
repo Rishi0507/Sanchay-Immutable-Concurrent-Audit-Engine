@@ -16,7 +16,7 @@ from .evidence import EvidenceFactory
 def post_testing_changes(client, samples: dict[str, dict], snap: Snapshot, company: dict,
                          verified_requests: list[dict]) -> list[dict]:
     key = []
-    sales = sorted([s for s in samples.values() if s["sheet"] == "sales" and s["subject_type"] == "invoice"],
+    sales = sorted([s for s in samples.values() if s["sheet"] == "sales_tod" and s["subject_type"] == "invoice"],
                    key=lambda s: s["sample_id"])
     if len(sales) < 6:
         return key

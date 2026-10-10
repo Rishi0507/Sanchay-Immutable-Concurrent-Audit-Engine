@@ -176,7 +176,7 @@ class Engine:
                               "Call open_engagement with period_start and period_end.")
         if len(open_) > 1:
             ids = ", ".join(e["engagement_id"] for e in open_)
-            raise EngineError("VALIDATION_FAILED", f"Several engagements are open: {ids}.",
+            raise EngineError("NO_ENGAGEMENT", f"Several engagements are open: {ids}.",
                               "Pass engagement_id.")
         return open_[0]
 
@@ -211,7 +211,7 @@ class Engine:
             entity_ids = [reg[-1]["entity_id"]]
         seed = str(seed) if seed not in (None, "") else secrets.token_hex(8)
         raw = f"{ps}|{pe}|{','.join(sorted(entity_ids))}|{head_seq}|{seed}"
-        eid = "ENG-" + hashlib.sha256(raw.encode()).hexdigest()[:12]
+        eid = "eng_" + hashlib.sha256(raw.encode()).hexdigest()[:16]
         existing = self.repo.first(engagements, engagement_id=eid)
         if existing:
             return self._engagement_view(existing)
@@ -225,6 +225,12 @@ class Engine:
             "opened_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
         }
         self.repo.insert(engagements, row)
+        from .repo import SHARED_ENGAGEMENT_SQL
+
+        self.repo.mirror(SHARED_ENGAGEMENT_SQL, {
+            "engagement_id": eid, "entity_ids": list(entity_ids), "period_start": ps, "period_end": pe, "seed": seed,
+            "snapshot_seq": head_seq, "snapshot_hash": head_hash, "merkle_root": row["merkle_root"],
+            "opened_by": (identity or {}).get("user") or "engine"})
         self.repo.mark_step(eid, "open_engagement", {"snapshot_seq": head_seq}, (identity or {}).get("user"))
         return self._engagement_view(self.repo.first(engagements, engagement_id=eid))
 

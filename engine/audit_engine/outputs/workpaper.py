@@ -190,7 +190,7 @@ def _sample_rows(ctx, sheet: str) -> list[dict]:
 
 
 def _sales_sheet(ws, ctx, tests_latest, changed) -> None:
-    meta = ctx.engine.repo.first(sample_meta, engagement_id=ctx.eid, sheet="sales")
+    meta = ctx.engine.repo.first(sample_meta, engagement_id=ctx.eid, sheet="sales_tod")
     pop = (meta or {}).get("detail", {}).get("population", 0)
     r0 = _header_block(ws, ctx, "Revenue: Sales (test of details)",
                        "To verify occurrence, accuracy, cut-off and classification of sales invoices recorded in the period.",
@@ -206,7 +206,7 @@ def _sales_sheet(ws, ctx, tests_latest, changed) -> None:
     headers = ["Sr No.", "Unit", "Quarter", "Month", "Bill no.", "Date", "Job No.", "Customer", "BU",
                "Related / Non Related", "Total Taxable Value", "Selection Reason"] + TESTS + ["Result", "Finding Refs"]
     rows = []
-    for i, s in enumerate(_sample_rows(ctx, "sales"), 1):
+    for i, s in enumerate(_sample_rows(ctx, "sales_tod"), 1):
         data = s["data"]
         t = (tests_latest.get(s["sample_id"]) or {}).get("tests") or {}
         result = "Changed after testing" if s["sample_id"] in changed else overall(t)
@@ -231,7 +231,7 @@ def _evidence_refs(ctx, sample_id: str) -> list[dict]:
 
 
 def _cutoff_sheet(ws, ctx, changed) -> None:
-    rows_db = _sample_rows(ctx, "cutoff")
+    rows_db = _sample_rows(ctx, "cutoff_tod")
     r0 = _header_block(ws, ctx, "Revenue: Sales cut-off",
                        "To verify that sales around the period end are recorded in the period in which control passed.",
                        [f"Selected the last {sum(1 for s in rows_db if s['data']['side'] == 'before')} invoices dated on "
@@ -256,7 +256,7 @@ def _cutoff_sheet(ws, ctx, changed) -> None:
 
 
 def _cn_sheet(ws, ctx, tests_latest, changed) -> None:
-    rows_db = _sample_rows(ctx, "credit_notes")
+    rows_db = _sample_rows(ctx, "credit_note_tod")
     r0 = _header_block(ws, ctx, "Revenue: Credit notes",
                        "To verify that credit notes, in particular those issued after the period end, are genuine, "
                        "approved and recorded in the correct period.",

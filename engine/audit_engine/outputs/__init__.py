@@ -10,8 +10,13 @@ from ..integrity import verify_ledger_integrity
 from ..repo import outputs
 
 
+CONTENT_TYPES = {"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                 "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                 "md": "text/markdown"}
+
+
 def _store(ctx, kind: str, data: bytes, name: str) -> dict:
-    h = ctx.engine.files.put(data)
+    h = ctx.engine.files.put(data, name, CONTENT_TYPES[kind])
     out_dir = Path(ctx.engine.settings.output_dir) / ctx.eid
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / name
@@ -20,7 +25,8 @@ def _store(ctx, kind: str, data: bytes, name: str) -> dict:
     ctx.engine.repo.insert(outputs, {"engagement_id": ctx.eid, "kind": kind, "file_hash": h, "path": str(path),
                                      "head_hash": head,
                                      "at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")})
-    return {"format": kind, "file_hash": h, "path": str(path), "file_name": name, "bytes": len(data)}
+    return {"format": kind, "file_hash": h, "path": str(path), "file_name": name, "content_type": CONTENT_TYPES[kind],
+            "size": len(data), "head_hash": head}
 
 
 def export_workpaper(ctx) -> dict:

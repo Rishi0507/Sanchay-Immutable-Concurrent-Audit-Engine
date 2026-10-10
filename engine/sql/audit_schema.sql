@@ -3,15 +3,15 @@ CREATE SCHEMA IF NOT EXISTS audit;
 CREATE OR REPLACE FUNCTION audit.forbid_change() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN RAISE EXCEPTION '% on %.% is not allowed: append-only', TG_OP, TG_TABLE_SCHEMA, TG_TABLE_NAME; END $$;
 
-CREATE TABLE audit.change_matches (
+CREATE TABLE audit.eng_change_matches (
 	engagement_id VARCHAR(64) NOT NULL, 
 	seq BIGINT NOT NULL, 
 	detail JSON, 
 	PRIMARY KEY (engagement_id, seq)
 );
-CREATE TRIGGER change_matches_append_only BEFORE UPDATE OR DELETE ON audit.change_matches FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE TRIGGER eng_change_matches_append_only BEFORE UPDATE OR DELETE ON audit.eng_change_matches FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.engagement_events (
+CREATE TABLE audit.eng_engagement_events (
 	id SERIAL NOT NULL, 
 	engagement_id VARCHAR(64) NOT NULL, 
 	kind VARCHAR(32) NOT NULL, 
@@ -21,10 +21,10 @@ CREATE TABLE audit.engagement_events (
 	at VARCHAR(32), 
 	PRIMARY KEY (id)
 );
-CREATE INDEX ix_audit_engagement_events_engagement_id ON audit.engagement_events (engagement_id);
-CREATE TRIGGER engagement_events_append_only BEFORE UPDATE OR DELETE ON audit.engagement_events FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE INDEX ix_audit_eng_engagement_events_engagement_id ON audit.eng_engagement_events (engagement_id);
+CREATE TRIGGER eng_engagement_events_append_only BEFORE UPDATE OR DELETE ON audit.eng_engagement_events FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.engagements (
+CREATE TABLE audit.eng_engagements (
 	engagement_id VARCHAR(64) NOT NULL, 
 	client_name TEXT, 
 	period_start DATE NOT NULL, 
@@ -40,9 +40,9 @@ CREATE TABLE audit.engagements (
 	opened_at VARCHAR(32), 
 	PRIMARY KEY (engagement_id)
 );
-CREATE TRIGGER engagements_append_only BEFORE UPDATE OR DELETE ON audit.engagements FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE TRIGGER eng_engagements_append_only BEFORE UPDATE OR DELETE ON audit.eng_engagements FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.evidence_requests (
+CREATE TABLE audit.eng_evidence_requests (
 	request_id VARCHAR(64) NOT NULL, 
 	engagement_id VARCHAR(64) NOT NULL, 
 	sample_id VARCHAR(64) NOT NULL, 
@@ -52,10 +52,10 @@ CREATE TABLE audit.evidence_requests (
 	created_at VARCHAR(32), 
 	PRIMARY KEY (request_id)
 );
-CREATE INDEX ix_audit_evidence_requests_engagement_id ON audit.evidence_requests (engagement_id);
-CREATE TRIGGER evidence_requests_append_only BEFORE UPDATE OR DELETE ON audit.evidence_requests FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE INDEX ix_audit_eng_evidence_requests_engagement_id ON audit.eng_evidence_requests (engagement_id);
+CREATE TRIGGER eng_evidence_requests_append_only BEFORE UPDATE OR DELETE ON audit.eng_evidence_requests FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.evidence_results (
+CREATE TABLE audit.eng_evidence_results (
 	id SERIAL NOT NULL, 
 	engagement_id VARCHAR(64) NOT NULL, 
 	request_id VARCHAR(64) NOT NULL, 
@@ -67,18 +67,18 @@ CREATE TABLE audit.evidence_results (
 	at VARCHAR(32), 
 	PRIMARY KEY (id)
 );
-CREATE INDEX ix_audit_evidence_results_engagement_id ON audit.evidence_results (engagement_id);
-CREATE TRIGGER evidence_results_append_only BEFORE UPDATE OR DELETE ON audit.evidence_results FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE INDEX ix_audit_eng_evidence_results_engagement_id ON audit.eng_evidence_results (engagement_id);
+CREATE TRIGGER eng_evidence_results_append_only BEFORE UPDATE OR DELETE ON audit.eng_evidence_results FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.extraction_cache (
+CREATE TABLE audit.eng_extraction_cache (
 	file_hash VARCHAR(64) NOT NULL, 
 	document_type VARCHAR(32) NOT NULL, 
 	result JSON, 
 	PRIMARY KEY (file_hash, document_type)
 );
-CREATE TRIGGER extraction_cache_append_only BEFORE UPDATE OR DELETE ON audit.extraction_cache FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE TRIGGER eng_extraction_cache_append_only BEFORE UPDATE OR DELETE ON audit.eng_extraction_cache FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.finding_decisions (
+CREATE TABLE audit.eng_finding_decisions (
 	id SERIAL NOT NULL, 
 	finding_id VARCHAR(32) NOT NULL, 
 	engagement_id VARCHAR(64) NOT NULL, 
@@ -89,11 +89,11 @@ CREATE TABLE audit.finding_decisions (
 	at VARCHAR(32), 
 	PRIMARY KEY (id)
 );
-CREATE INDEX ix_audit_finding_decisions_engagement_id ON audit.finding_decisions (engagement_id);
-CREATE INDEX ix_audit_finding_decisions_finding_id ON audit.finding_decisions (finding_id);
-CREATE TRIGGER finding_decisions_append_only BEFORE UPDATE OR DELETE ON audit.finding_decisions FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE INDEX ix_audit_eng_finding_decisions_finding_id ON audit.eng_finding_decisions (finding_id);
+CREATE INDEX ix_audit_eng_finding_decisions_engagement_id ON audit.eng_finding_decisions (engagement_id);
+CREATE TRIGGER eng_finding_decisions_append_only BEFORE UPDATE OR DELETE ON audit.eng_finding_decisions FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.findings (
+CREATE TABLE audit.eng_findings (
 	finding_id VARCHAR(32) NOT NULL, 
 	engagement_id VARCHAR(64) NOT NULL, 
 	detector_id VARCHAR(8) NOT NULL, 
@@ -103,18 +103,18 @@ CREATE TABLE audit.findings (
 	created_at VARCHAR(32), 
 	PRIMARY KEY (finding_id)
 );
-CREATE INDEX ix_audit_findings_engagement_id ON audit.findings (engagement_id);
-CREATE TRIGGER findings_append_only BEFORE UPDATE OR DELETE ON audit.findings FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE INDEX ix_audit_eng_findings_engagement_id ON audit.eng_findings (engagement_id);
+CREATE TRIGGER eng_findings_append_only BEFORE UPDATE OR DELETE ON audit.eng_findings FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.indicators (
+CREATE TABLE audit.eng_indicators (
 	engagement_id VARCHAR(64) NOT NULL, 
 	subject_id VARCHAR(128) NOT NULL, 
 	detail JSON, 
 	PRIMARY KEY (engagement_id, subject_id)
 );
-CREATE TRIGGER indicators_append_only BEFORE UPDATE OR DELETE ON audit.indicators FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE TRIGGER eng_indicators_append_only BEFORE UPDATE OR DELETE ON audit.eng_indicators FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.outputs (
+CREATE TABLE audit.eng_outputs (
 	id SERIAL NOT NULL, 
 	engagement_id VARCHAR(64) NOT NULL, 
 	kind VARCHAR(16) NOT NULL, 
@@ -124,10 +124,10 @@ CREATE TABLE audit.outputs (
 	at VARCHAR(32), 
 	PRIMARY KEY (id)
 );
-CREATE INDEX ix_audit_outputs_engagement_id ON audit.outputs (engagement_id);
-CREATE TRIGGER outputs_append_only BEFORE UPDATE OR DELETE ON audit.outputs FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE INDEX ix_audit_eng_outputs_engagement_id ON audit.eng_outputs (engagement_id);
+CREATE TRIGGER eng_outputs_append_only BEFORE UPDATE OR DELETE ON audit.eng_outputs FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.register_imports (
+CREATE TABLE audit.eng_register_imports (
 	engagement_id VARCHAR(64) NOT NULL, 
 	file_hash VARCHAR(64) NOT NULL, 
 	file_name TEXT, 
@@ -139,44 +139,44 @@ CREATE TABLE audit.register_imports (
 	at VARCHAR(32), 
 	PRIMARY KEY (engagement_id)
 );
-CREATE TRIGGER register_imports_append_only BEFORE UPDATE OR DELETE ON audit.register_imports FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE TRIGGER eng_register_imports_append_only BEFORE UPDATE OR DELETE ON audit.eng_register_imports FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.register_recon (
+CREATE TABLE audit.eng_register_recon (
 	engagement_id VARCHAR(64) NOT NULL, 
 	row_no INTEGER NOT NULL, 
 	status TEXT NOT NULL, 
 	finding_refs JSON, 
 	PRIMARY KEY (engagement_id, row_no)
 );
-CREATE TRIGGER register_recon_append_only BEFORE UPDATE OR DELETE ON audit.register_recon FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE TRIGGER eng_register_recon_append_only BEFORE UPDATE OR DELETE ON audit.eng_register_recon FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.register_rows (
+CREATE TABLE audit.eng_register_rows (
 	engagement_id VARCHAR(64) NOT NULL, 
 	row_no INTEGER NOT NULL, 
 	raw JSON NOT NULL, 
 	parsed JSON NOT NULL, 
 	PRIMARY KEY (engagement_id, row_no)
 );
-CREATE TRIGGER register_rows_append_only BEFORE UPDATE OR DELETE ON audit.register_rows FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE TRIGGER eng_register_rows_append_only BEFORE UPDATE OR DELETE ON audit.eng_register_rows FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.rp_tags (
+CREATE TABLE audit.eng_rp_tags (
 	engagement_id VARCHAR(64) NOT NULL, 
 	customer_id VARCHAR(128) NOT NULL, 
 	tag VARCHAR(32) NOT NULL, 
 	detail JSON, 
 	PRIMARY KEY (engagement_id, customer_id)
 );
-CREATE TRIGGER rp_tags_append_only BEFORE UPDATE OR DELETE ON audit.rp_tags FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE TRIGGER eng_rp_tags_append_only BEFORE UPDATE OR DELETE ON audit.eng_rp_tags FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.sample_meta (
+CREATE TABLE audit.eng_sample_meta (
 	engagement_id VARCHAR(64) NOT NULL, 
 	sheet VARCHAR(32) NOT NULL, 
 	detail JSON, 
 	PRIMARY KEY (engagement_id, sheet)
 );
-CREATE TRIGGER sample_meta_append_only BEFORE UPDATE OR DELETE ON audit.sample_meta FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE TRIGGER eng_sample_meta_append_only BEFORE UPDATE OR DELETE ON audit.eng_sample_meta FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.sample_tests (
+CREATE TABLE audit.eng_sample_tests (
 	id SERIAL NOT NULL, 
 	sample_id VARCHAR(64) NOT NULL, 
 	engagement_id VARCHAR(64) NOT NULL, 
@@ -186,11 +186,11 @@ CREATE TABLE audit.sample_tests (
 	at VARCHAR(32), 
 	PRIMARY KEY (id)
 );
-CREATE INDEX ix_audit_sample_tests_sample_id ON audit.sample_tests (sample_id);
-CREATE INDEX ix_audit_sample_tests_engagement_id ON audit.sample_tests (engagement_id);
-CREATE TRIGGER sample_tests_append_only BEFORE UPDATE OR DELETE ON audit.sample_tests FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE INDEX ix_audit_eng_sample_tests_sample_id ON audit.eng_sample_tests (sample_id);
+CREATE INDEX ix_audit_eng_sample_tests_engagement_id ON audit.eng_sample_tests (engagement_id);
+CREATE TRIGGER eng_sample_tests_append_only BEFORE UPDATE OR DELETE ON audit.eng_sample_tests FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
-CREATE TABLE audit.samples (
+CREATE TABLE audit.eng_samples (
 	sample_id VARCHAR(64) NOT NULL, 
 	engagement_id VARCHAR(64) NOT NULL, 
 	sheet VARCHAR(32) NOT NULL, 
@@ -203,8 +203,8 @@ CREATE TABLE audit.samples (
 	data JSON, 
 	PRIMARY KEY (sample_id)
 );
-CREATE INDEX ix_audit_samples_engagement_id ON audit.samples (engagement_id);
-CREATE TRIGGER samples_append_only BEFORE UPDATE OR DELETE ON audit.samples FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
+CREATE INDEX ix_audit_eng_samples_engagement_id ON audit.eng_samples (engagement_id);
+CREATE TRIGGER eng_samples_append_only BEFORE UPDATE OR DELETE ON audit.eng_samples FOR EACH ROW EXECUTE FUNCTION audit.forbid_change();
 
 GRANT USAGE ON SCHEMA audit TO engine_audit, mcp_read;
 GRANT INSERT, SELECT ON ALL TABLES IN SCHEMA audit TO engine_audit;

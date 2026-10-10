@@ -11,11 +11,12 @@ def test_sales_tod_rules(planted_engine):
     reasons = " ".join(s["reason"] for s in r["samples"])
     assert "RELATED_PARTY" in reasons and "KEY_ITEM" in reasons
     eid = planted_engine.resolve(None)["engagement_id"]
-    rows = planted_engine.repo.select(samples, engagement_id=eid, sheet="sales")
+    rows = planted_engine.repo.select(samples, engagement_id=eid, sheet="sales_tod")
     assert any(x["data"]["related_kind"] for x in rows) and any(not x["data"]["related_kind"] for x in rows)
     reqs = planted_engine.repo.select(evidence_requests, engagement_id=eid)
-    sal = [q for q in reqs if "-SAL-" in q["sample_id"]]
-    assert {q["document_type"] for q in sal} == {"invoice", "eway_bill", "lr"}
+    sales_ids = {x["sample_id"] for x in rows}
+    sal = [q for q in reqs if q["sample_id"] in sales_ids]
+    assert {q["document_type"] for q in sal} == {"invoice", "eway_bill", "lr_copy"}
     assert len({q["sample_id"] for q in sal}) == r["count"]
 
 

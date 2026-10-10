@@ -14,7 +14,8 @@ def _ledger(ctx, path: str) -> dict | None:
     try:
         import httpx
 
-        r = httpx.get(url.rstrip("/") + path, timeout=30)
+        headers = {"X-Service-Token": ctx.engine.settings.service_token} if ctx.engine.settings.service_token else {}
+        r = httpx.get(url.rstrip("/") + path, timeout=60, headers=headers)
         r.raise_for_status()
         return r.json()
     except Exception as e:
@@ -24,6 +25,20 @@ def _ledger(ctx, path: str) -> dict | None:
 def verify_ledger_integrity(ctx, ledger_result: dict | None = None) -> dict:
     """Recompute the business chain, compare the snapshot hash and Merkle root, and take the trail result
     from the ledger core (directly or as passed by the MCP server)."""
+    if getattr(ctx.engine.business, "catalogue_format", False):
+        # The ledger core owns the canonical hashing of catalogue events: ask it.
+        biz = (ledger_result or {}).get("business_chain") or _ledger(ctx, f"/verify?at={ctx.eng['snapshot_seq']}") or {}
+        trail = (ledger_result or {}).get("trail_chain") or _ledger(ctx, "/trail/verify") or {}
+        at = (biz.get("at") or {}).get("hash")
+        match = (ledger_result or {}).get("snapshot_match")
+        if match is None and at:
+            match = at.strip() == ctx.eng["snapshot_hash"].strip()
+        rep = integrity_report(ctx, biz, trail, match)
+        return {"business": {"ok": biz.get("ok"), "first_bad_seq": biz.get("first_bad_seq"),
+                             "head_seq": biz.get("head_seq"), "head_hash": biz.get("head_hash"),
+                             "reason": biz.get("reason")},
+                "trail": trail, "snapshot_hash_ok": match, "merkle_root": ctx.eng.get("merkle_root"),
+                "merkle_ok": None, "findings_raised": rep["findings_created"]}
     events = list(ctx.engine.business.events())
     biz = chain.verify_chain(events)
     by_seq = {e["seq"]: e for e in events}
@@ -73,3 +88,39 @@ def verify_ledger_integrity(ctx, ledger_result: dict | None = None) -> dict:
             "ledger_core": ledger_biz, "trail": trail or {"ok": None, "note": "Trail verified by the ledger core; not configured here."},
             "snapshot_hash_ok": snapshot_hash_ok and prefix_ok, "merkle_root": merkle_now, "merkle_ok": merkle_ok,
             "findings_raised": len(findings), "checked_at": now}
+
+
+def integrity_report(ctx, business_chain: dict | None, trail_chain: dict | None, snapshot_match) -> dict:
+    """Record the ledger core's verification results, as passed by the MCP server (engine-api integrity/report).
+
+    The ledger core hashes events in its own canonical form, so the engine does not recompute the chain
+    here; it records what the ledger core found and the snapshot comparison.
+    """
+    findings = []
+    biz = business_chain or {}
+    trail = trail_chain or {}
+    if biz.get("ok") is False:
+        findings.append(ctx.finding(
+            category="LEDGER_INTEGRITY", subtype="BUSINESS_CHAIN_BROKEN", subject_type="chain",
+            subject_id=f"business:{biz.get('first_bad_seq')}",
+            title=f"Business chain breaks at sequence {biz.get('first_bad_seq')}",
+            event_seqs=[biz.get("first_bad_seq")] if biz.get("first_bad_seq") else [], facts=biz,
+            reason=(f"The ledger core's recomputation of the business chain fails at sequence {biz.get('first_bad_seq')} "
+                    f"({biz.get('reason') or 'hash mismatch'}). A stored event was altered after it was appended.")))
+    if trail.get("ok") is False:
+        findings.append(ctx.finding(
+            category="LEDGER_INTEGRITY", subtype="TRAIL_CHAIN_BROKEN", subject_type="chain",
+            subject_id=f"trail:{trail.get('first_bad_seq')}", title=f"Audit trail breaks at {trail.get('first_bad_seq')}",
+            facts=trail, reason=f"The audit trail chain fails verification at {trail.get('first_bad_seq')} "
+                                f"({trail.get('reason') or 'hash mismatch'})."))
+    if snapshot_match is False:
+        findings.append(ctx.finding(
+            category="LEDGER_INTEGRITY", subtype="SNAPSHOT_ALTERED", subject_type="chain",
+            subject_id=f"snapshot:{ctx.eng['snapshot_seq']}",
+            title=f"History before the snapshot at {ctx.eng['snapshot_seq']} has changed",
+            event_seqs=[ctx.eng["snapshot_seq"]], facts={"snapshot_seq": ctx.eng["snapshot_seq"],
+                                                          "stored_snapshot_hash": ctx.eng["snapshot_hash"]},
+            reason=(f"The hash recomputed at the snapshot sequence {ctx.eng['snapshot_seq']} differs from the hash "
+                    f"recorded when the engagement opened (TE-4). Events tested by the audit were changed afterwards.")))
+    ctx.engine.save_findings(findings)
+    return {"findings_created": len(findings), "business": biz, "trail": trail, "snapshot_match": snapshot_match}

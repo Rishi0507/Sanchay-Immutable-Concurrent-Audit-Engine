@@ -28,21 +28,26 @@ class Settings:
     ollama_url: str | None = None
     ollama_model: str = "llama3.2:3b"
     detector_workers: int = 0
+    service_token: str | None = None
     company: dict = field(default_factory=dict)
 
     @classmethod
     def from_env(cls) -> "Settings":
+        db = os.environ.get("DATABASE_URL")
+        files_dir = os.environ.get("FILES_DIR")
         s = cls(
-            audit_db_url=os.environ.get("ENGINE_AUDIT_DB", cls.audit_db_url),
-            business_source=os.environ.get("ENGINE_BUSINESS_SOURCE", cls.business_source),
-            files=os.environ.get("ENGINE_FILES", cls.files),
+            audit_db_url=os.environ.get("ENGINE_AUDIT_DB") or db or cls.audit_db_url,
+            business_source=os.environ.get("ENGINE_BUSINESS_SOURCE") or db or cls.business_source,
+            files=os.environ.get("ENGINE_FILES") or (f"dir:{files_dir}" if files_dir else cls.files),
+            service_token=os.environ.get("SERVICE_TOKEN") or None,
             output_dir=os.environ.get("ENGINE_OUTPUT_DIR", cls.output_dir),
             ledger_url=os.environ.get("LEDGER_URL") or None,
             ollama_url=os.environ.get("OLLAMA_URL") or None,
             ollama_model=os.environ.get("OLLAMA_MODEL", cls.ollama_model),
             detector_workers=int(os.environ.get("ENGINE_DETECTOR_WORKERS", "0")),
         )
-        company_file = os.environ.get("ENGINE_COMPANY_FILE")
+        company_file = os.environ.get("ENGINE_COMPANY_FILE") or (
+            os.path.join(files_dir, "company.toml") if files_dir else None)
         if company_file and Path(company_file).exists():
             with open(company_file, "rb") as fh:
                 s.company = tomllib.load(fh)

@@ -194,7 +194,7 @@ class EvidenceFactory:
                 valid = (ts(e["generated_at"]) + dt.timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%S")
             return (render_pdf(self.ewb_lines(e, valid), "E-WAY BILL", tamper.get("producer") or "NIC E-Way Bill System",
                                ts(e["generated_at"])), f"ewb_{e['ewb_no']}.pdf")
-        if doc_type == "lr":
+        if doc_type in ("lr", "lr_copy"):
             lrs = self.snap.lrs_by_dispatch.get(ds.get("dispatch_id"), []) if ds else []
             if not lrs:
                 return None

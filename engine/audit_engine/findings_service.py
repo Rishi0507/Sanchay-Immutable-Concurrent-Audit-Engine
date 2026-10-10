@@ -108,7 +108,8 @@ def confirm_finding(ctx, finding_id: str, decision: str, note: str = "") -> dict
         "finding_id": finding_id, "engagement_id": ctx.eid, "decision": decision, "note": note,
         "identity": ctx.identity.get("user"), "role": ctx.identity.get("role"),
         "at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")})
-    return {"finding_id": finding_id, "status": decision}
+    return {"finding_id": finding_id, "status": decision, "decided_by": ctx.identity.get("user"),
+            "decided_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
 
 
 def sign_off(ctx) -> dict:
@@ -121,6 +122,10 @@ def sign_off(ctx) -> dict:
         return {"closed": False, "undecided": undecided,
                 "next_step": "Call confirm_finding with confirmed or rejected for each listed finding."}
     if not ctx.engine.repo.is_closed(ctx.eid):
+        from .repo import SHARED_SIGN_OFF_SQL
+
+        ctx.engine.repo.mirror(SHARED_SIGN_OFF_SQL, {"engagement_id": ctx.eid, "signed_by": ctx.identity.get("user"),
+                                                     "note": ctx.identity.get("note")})
         ctx.engine.repo.insert(engagement_events, {
             "engagement_id": ctx.eid, "kind": "closed", "step": "sign_off_engagement", "detail": {},
             "identity": ctx.identity.get("user"),

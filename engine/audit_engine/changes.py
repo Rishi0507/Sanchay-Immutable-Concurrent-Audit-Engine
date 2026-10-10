@@ -161,13 +161,17 @@ def check_post_testing_changes(ctx) -> dict:
                               "cause": f"post_testing_change:{ev['seq']}",
                               "at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")})
             latest[sid] = new_tests[-1]
-        new_rows.append({"engagement_id": ctx.eid, "seq": ev["seq"], "detail": {"matched": True, "finding": f["finding_id"]}})
+        new_rows.append({"engagement_id": ctx.eid, "seq": ev["seq"], "detail": {
+            "matched": True, "finding": f["finding_id"], "event_type": ev["event_type"],
+            "identity_user": ident.get("user"), "recorded_at": ev["recorded_at"], "sample_ids": sorted(hit),
+            "finding_ids": [f["finding_id"]] + affected_findings, "why": why}})
     ctx.engine.save_findings(findings)
     repo.insert(sample_tests, new_tests)
     repo.insert(change_matches, new_rows)
     changed = sorted({sid for m in matches for sid in m["sample_ids"]})
+    head = ctx.engine.business.head()[0]
     return {"events_examined": examined, "new_matches": matches, "findings_raised": len(findings),
-            "samples_changed_after_testing": changed}
+            "samples_changed_after_testing": changed, "head_seq": head}
 
 
 def _amount(ev: dict) -> int:

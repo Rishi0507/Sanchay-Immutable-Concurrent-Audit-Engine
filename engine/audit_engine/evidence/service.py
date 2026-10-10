@@ -39,14 +39,15 @@ def request_status(ctx, sample_id: str | None = None) -> list[dict]:
         reqs = [r for r in reqs if r["sample_id"] == sample_id]
     ups = defaultdict(list)
     for u in uploads(ctx):
-        key = u.get("request_id") or f"{u.get('sample_id')}-{u.get('document_type')}"
-        ups[key].append(u)
+        if u.get("request_id"):
+            ups[u["request_id"]].append(u)
+        ups[(u.get("sample_id"), u.get("document_type"))].append(u)
     verified = defaultdict(set)
     for r in ctx.engine.repo.select(evidence_results, engagement_id=ctx.eid):
         verified[r["request_id"]].add(r["upload_seq"])
     out = []
     for r in reqs:
-        u = ups.get(r["request_id"], [])
+        u = ups.get(r["request_id"]) or ups.get((r["sample_id"], r["document_type"]), [])
         latest = u[-1] if u else None
         if not latest:
             status = "requested"
@@ -79,7 +80,9 @@ def request_evidence(ctx, sample_id: str, document_type: str, note: str = "") ->
         raise EngineError("NOT_FOUND", f"Sample {sample_id} does not exist.", "Call get_evidence_status to list samples.")
     existing = [r for r in ctx.engine.repo.select(evidence_requests, engagement_id=ctx.eid, sample_id=sample_id)
                 if r["document_type"] == document_type]
-    rid = f"{sample_id}-{document_type}" + (f"-{len(existing) + 1}" if existing else "")
+    import hashlib
+
+    rid = "req_" + hashlib.sha256(f"{sample_id}|{document_type}|{len(existing)}".encode()).hexdigest()[:16]
     ctx.engine.repo.insert(evidence_requests, {
         "request_id": rid, "engagement_id": ctx.eid, "sample_id": sample_id, "document_type": document_type,
         "note": note or f"Follow-up request for {document_type}", "created_by": ctx.identity.get("user"),
@@ -291,9 +294,9 @@ def _content_checks(ctx, s, sor, docs, fail, th) -> None:
     tol = th["amount_tolerance"]
     inv_ex = (docs.get("invoice") or (None, None))[1]
     ewb_ex = (docs.get("eway_bill") or (None, None))[1]
-    lr_ex = (docs.get("lr") or (None, None))[1]
+    lr_ex = (docs.get("lr_copy") or (None, None))[1]
     cn_ex = (docs.get("credit_note") or (None, None))[1]
-    ret_ex = (docs.get("return_document") or (None, None))[1]
+    ret_ex = (docs.get("sales_return") or (None, None))[1]
     if s["subject_type"] == "credit_note":
         if sor and cn_ex:
             if _v(cn_ex, "credit_note_no") and str(_v(cn_ex, "credit_note_no")).upper() != str(sor.get("credit_note_no")).upper():
@@ -307,7 +310,7 @@ def _content_checks(ctx, s, sor, docs, fail, th) -> None:
                                            f"from {sor.get('original_invoice_no')}")
         if sor and ret_ex and _v(ret_ex, "credit_note_no") and \
                 str(_v(ret_ex, "credit_note_no")).upper() != str(sor.get("credit_note_no")).upper():
-            fail("E-2", "return_document", f"return document refers to {_v(ret_ex, 'credit_note_no')}, not "
+            fail("E-2", "sales_return", f"return document refers to {_v(ret_ex, 'credit_note_no')}, not "
                                            f"{sor.get('credit_note_no')}")
         return
     inv_no = str(sor.get("invoice_no")) if sor else str(s["subject_id"])
@@ -374,18 +377,18 @@ def _content_checks(ctx, s, sor, docs, fail, th) -> None:
             sys_lrs = [l for l in snap.lrs if str(l.get("lr_no")) == str(lno)]
             if sys_lrs and dispatch and not any(l.get("dispatch_id") == dispatch.get("dispatch_id") for l in sys_lrs):
                 other = next((i for i in snap.invoices if i.get("dispatch_id") == sys_lrs[0].get("dispatch_id")), {})
-                fail("E-4", "lr", f"LR {lno} belongs to {other.get('invoice_no') or sys_lrs[0].get('dispatch_id')} in "
+                fail("E-4", "lr_copy", f"LR {lno} belongs to {other.get('invoice_no') or sys_lrs[0].get('dispatch_id')} in "
                                   f"the system, not {inv_no}")
     # E-2 across the set: vehicle and dates.
-    vehicles = {k: _v(x, "vehicle_no") for k, x in (("invoice", inv_ex), ("eway_bill", ewb_ex), ("lr", lr_ex)) if x}
+    vehicles = {k: _v(x, "vehicle_no") for k, x in (("invoice", inv_ex), ("eway_bill", ewb_ex), ("lr_copy", lr_ex)) if x}
     vs = {k: v for k, v in vehicles.items() if v}
     if len(set(vs.values())) > 1:
-        fail("E-2", "lr" if "lr" in vs else "eway_bill",
+        fail("E-2", "lr_copy" if "lr_copy" in vs else "eway_bill",
              "vehicle numbers differ across documents: " + ", ".join(f"{k.replace('_', ' ')} {v}" for k, v in vs.items()))
     lr_date = d(_v(lr_ex, "date")) if lr_ex else None
     inv_date = d(_v(inv_ex, "invoice_date")) if inv_ex else d((sor or {}).get("invoice_date"))
     if lr_date and inv_date and abs((lr_date - inv_date).days) > 3:
-        fail("E-2", "lr", f"LR dated {lr_date} is {abs((lr_date - inv_date).days)} days from the invoice date {inv_date}")
+        fail("E-2", "lr_copy", f"LR dated {lr_date} is {abs((lr_date - inv_date).days)} days from the invoice date {inv_date}")
     # E-6 delivery feasible for the stated distance.
     if dispatch and delivery:
         dist = (_v(ewb_ex, "distance_km") if ewb_ex else None) or dispatch.get("distance_km")
@@ -393,6 +396,6 @@ def _content_checks(ctx, s, sor, docs, fail, th) -> None:
         if dist and t0 and t1:
             hours = (t1 - t0).total_seconds() / 3600
             if hours <= 0 or dist / hours > th["max_speed_kmph"]:
-                fail("E-6", "lr" if lr_ex else ("eway_bill" if ewb_ex else "invoice"),
+                fail("E-6", "lr_copy" if lr_ex else ("eway_bill" if ewb_ex else "invoice"),
                      f"{dist} km delivered in {hours:.1f} hours ({dist / max(hours, 0.01):.0f} km per hour, limit "
                      f"{th['max_speed_kmph']})")

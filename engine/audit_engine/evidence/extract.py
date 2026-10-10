@@ -22,17 +22,17 @@ SCHEMA = {
                 "cgst", "sgst", "igst", "gross", "vehicle_no", "ewb_no"],
     "eway_bill": ["ewb_no", "invoice_no", "invoice_date", "value", "supplier_gstin", "recipient_gstin", "vehicle_no",
                   "distance_km", "generated_at", "valid_until"],
-    "lr": ["lr_no", "date", "vehicle_no", "consignee", "invoice_no", "transporter"],
+    "lr_copy": ["lr_no", "date", "vehicle_no", "consignee", "invoice_no", "transporter"],
     "credit_note": ["credit_note_no", "date", "original_invoice_no", "customer_gstin", "taxable_value", "gross"],
-    "return_document": ["credit_note_no", "inward_date", "vehicle_no"],
+    "sales_return": ["credit_note_no", "inward_date", "vehicle_no"],
     "other": [],
 }
 REQUIRED = {
     "invoice": ["invoice_no", "invoice_date", "customer_gstin", "taxable_value", "gross"],
     "eway_bill": ["ewb_no", "invoice_no", "value", "vehicle_no", "valid_until"],
-    "lr": ["lr_no", "date", "vehicle_no"],
+    "lr_copy": ["lr_no", "date", "vehicle_no"],
     "credit_note": ["credit_note_no", "date", "original_invoice_no", "taxable_value"],
-    "return_document": ["credit_note_no", "inward_date"],
+    "sales_return": ["credit_note_no", "inward_date"],
     "other": [],
 }
 MONEY = {"taxable_value", "cgst", "sgst", "igst", "gross", "value"}
