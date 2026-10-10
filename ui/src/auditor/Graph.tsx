@@ -1,14 +1,21 @@
 import cytoscape, { Core } from "cytoscape";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { money } from "../api";
 import type { ViewProps } from "../App";
 import { token, useTheme } from "../theme";
-import { Card, Empty, ErrorNote, Header, Loading, cx, useTool } from "../ui";
+import { Card, Empty, ErrorNote, Header, Loading, Pills, cx, useTool } from "../ui";
+import type { GraphData } from "./Graph3D";
 
-interface GraphData {
-  nodes: { id: string; label: string; kind: string; related?: boolean }[];
-  edges: { source: string; target: string; kind: string; value: number; count?: number }[];
-  cycles: { finding_id?: string; path: string[]; value: number }[];
+// The 3D view is the default. The flat view stays for small screens and for printing.
+const Graph3D = lazy(() => import("./Graph3D"));
+
+function webgl(): boolean {
+  try {
+    const c = document.createElement("canvas");
+    return !!(c.getContext("webgl2") || c.getContext("webgl"));
+  } catch {
+    return false;
+  }
 }
 
 // Colours are read from the design tokens when the graph is drawn, so they
@@ -33,9 +40,10 @@ export default function Graph({ pulse, goTo }: ViewProps) {
   const cy = useRef<Core | null>(null);
   const [active, setActive] = useState<number | null>(null);
   const [theme] = useTheme();
+  const [mode, setMode] = useState<"3d" | "2d">(() => (webgl() ? "3d" : "2d"));
 
   useEffect(() => {
-    if (!holder.current || !data?.nodes?.length) return;
+    if (mode !== "2d" || !holder.current || !data?.nodes?.length) return;
     const c = colours();
     const nodeColor: Record<string, string> = { company: c.company, entity: c.company, customer: c.customer, vendor: c.vendor, cluster: c.related };
     const instance = cytoscape({
@@ -90,12 +98,12 @@ export default function Graph({ pulse, goTo }: ViewProps) {
       instance.destroy();
       cy.current = null;
     };
-  }, [data, theme]);
+  }, [data, theme, mode]);
 
   // Highlights one cycle and dims everything else.
   useEffect(() => {
     const instance = cy.current;
-    if (!instance || !data) return;
+    if (mode !== "2d" || !instance || !data) return;
     instance.elements().removeClass("dim hot");
     if (active === null) return;
     const path = data.cycles[active]?.path ?? [];
@@ -111,7 +119,7 @@ export default function Graph({ pulse, goTo }: ViewProps) {
     }
     const hot = instance.elements(".hot");
     if (hot.length) instance.animate({ fit: { eles: hot, padding: 80 }, duration: 350 });
-  }, [active, data]);
+  }, [active, data, mode]);
 
   const labelOf = (id: string) => data?.nodes.find((n) => n.id === id)?.label ?? id;
 
@@ -121,7 +129,8 @@ export default function Graph({ pulse, goTo }: ViewProps) {
         title="Graph"
         hint="Goods and money between the company and its counterparties."
         action={
-          <div className="flex items-center gap-3 text-xs text-ink-2">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-ink-2">
+            <Pills options={[{ value: "3d", label: "3D" }, { value: "2d", label: "Flat" }]} value={mode} onChange={(v) => setMode(v as "3d" | "2d")} />
             <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-brand" />Company</span>
             <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-wait" />Customer</span>
             <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-warm" />Vendor</span>
@@ -144,7 +153,13 @@ export default function Graph({ pulse, goTo }: ViewProps) {
       ) : (
         <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
           <Card className="overflow-hidden">
-            <div ref={holder} className="h-[66vh] w-full" />
+            {mode === "3d" ? (
+              <Suspense fallback={<div className="h-[66vh] w-full" />}>
+                <Graph3D key={theme} data={data} active={active} onPickCycle={setActive} />
+              </Suspense>
+            ) : (
+              <div ref={holder} className="h-[66vh] w-full" />
+            )}
           </Card>
           <Card className="thin-scroll max-h-[66vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
