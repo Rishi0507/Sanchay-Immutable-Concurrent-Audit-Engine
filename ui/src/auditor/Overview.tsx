@@ -388,6 +388,24 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement }: Vi
     return { key: st.key, label: st.label, state, detail, note: st.note };
   });
 
+  // What the audit covered, shown under the stages so the panel carries facts down to its foot.
+  const bySheet = (s.counts?.samples_by_sheet ?? {}) as Record<string, number>;
+  const sampled = Object.values(bySheet).reduce((a, b) => a + Number(b || 0), 0);
+  const medium = findings.filter((f) => f.severity === "Medium").length;
+  const low = findings.filter((f) => f.severity === "Low").length;
+  const covered: { label: string; value: string | number; note: string; bad?: boolean; onClick: () => void }[] = [
+    { label: "Register rows checked", value: register.loading && !register.rows.length ? "…" : register.rows.length.toLocaleString("en-IN"), note: "Each one compared with the books", onClick: () => goTo("register") },
+    { label: "Samples tested", value: sampled, note: `${bySheet.sales_tod ?? 0} sales, ${bySheet.cutoff_tod ?? 0} cut-off, ${bySheet.credit_note_tod ?? 0} credit notes`, onClick: () => goTo("samples") },
+    { label: "Findings raised", value: findings.length, note: `${view.high.length} high, ${medium} medium, ${low} low`, onClick: () => goTo("findings") },
+    {
+      label: "Trap requests for documents that should not exist",
+      value: controls?.sent ?? 0,
+      note: !controls?.sent ? "None sent yet" : controls.supplied > 0 ? `${controls.supplied} answered with a made-up document` : "All answered honestly",
+      bad: !!controls && controls.supplied > 0,
+      onClick: () => goTo("samples"),
+    },
+  ];
+
   const topArea = view.byCategory[0];
   const notInQuestion = Math.max(0, timeline.total - view.exposure);
   const bridgeScale = scaleFor(timeline.total);
@@ -442,7 +460,7 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement }: Vi
 
       <div className="mb-6 grid gap-6 xl:grid-cols-[1fr_400px]">
         {/* Where the audit stands. */}
-        <section id="ov-progress" className="rounded-lg border border-line bg-paper px-5 py-5" aria-label="Audit progress">
+        <section id="ov-progress" className="flex flex-col rounded-lg border border-line bg-paper px-5 py-5" aria-label="Audit progress">
           <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-sm font-semibold text-ink">How far has the audit got?</h2>
             <span className="text-[13px] text-ink-2">
@@ -453,6 +471,20 @@ export default function Overview({ pulse, goTo, engagementId, onEngagement }: Vi
           {findings.length > 0 && (
             <div className="mt-5 border-t border-line-soft pt-4">
               <ReviewProgress findings={findings} />
+            </div>
+          )}
+          {!!s.engagement_id && (
+            <div className="mt-5 flex flex-1 flex-col border-t border-line-soft pt-4">
+              <h3 className="mb-3 text-[13px] font-medium text-ink-2">What the audit covered</h3>
+              <div className="grid flex-1 gap-3 sm:grid-cols-2">
+                {covered.map((c) => (
+                  <button key={c.label} onClick={c.onClick} className="flex flex-col justify-center rounded-md border border-line-soft px-4 py-3.5 text-left transition-colors hover:border-brand/50 hover:bg-wash focus-visible:border-brand focus-visible:outline-none">
+                    <span className="text-xs text-ink-2">{c.label}</span>
+                    <span className={cx("num mt-1 text-[26px] leading-tight font-medium", c.bad ? "text-fail" : "text-ink")}>{c.value}</span>
+                    <span className={cx("mt-0.5 text-xs", c.bad ? "text-fail" : "text-ink-2")}>{c.note}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </section>
