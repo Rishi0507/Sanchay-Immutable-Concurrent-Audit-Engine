@@ -427,6 +427,7 @@ The engagement reads a frozen snapshot. Any client event recorded after it is co
 | Findings memo | `draft_findings_memo` | `.md`, `.docx` | Every finding with its impact, proposed adjusting entry, standard references and evidence, the changes after testing began, and a statement of ledger integrity. |
 | Summary report | `export_summary_report` | `.pdf` | One page for the engagement partner. It can be produced at any point. |
 | Audit trail | `get_audit_trail` | data, or a stored file | Every tool call by every identity, with the result of recomputing the chain. |
+| Report email | `send_report_email` | email | A report sent to a fixed audience through Twilio SendGrid. See below. |
 
 The summary report shows the findings by severity and by area, the five largest by amount, the proposed adjustment to revenue, the samples and their results, the documents requested and received, and the state of each safeguard. It also grades the revenue of the period by the record behind each invoice:
 
@@ -492,7 +493,7 @@ Auditor tools change no business data. They write only to the `audit` schema, th
 | Evidence | `get_evidence_status`, `request_evidence`, `verify_evidence` |
 | Integrity | `check_post_testing_changes`, `verify_ledger_integrity`, `verify_sampling_seal`, `get_merkle_proof` |
 | Findings and investigation | `get_findings`, `explain_finding`, `get_counterparty_graph`, `query_records`, `get_sale_chain`, `get_ledger_entries` |
-| Outputs | `draft_findings_memo`, `export_workpaper`, `export_summary_report`, `get_audit_trail` |
+| Outputs | `draft_findings_memo`, `export_workpaper`, `export_summary_report`, `get_audit_trail`, `send_report_email` |
 | Other | `get_access_policy` |
 | Audit manager only | `confirm_finding`, `sign_off_engagement` |
 
@@ -653,6 +654,18 @@ The system runs in full with no model. A model is optional in two places and req
 
 The engine accepts a local Ollama server (`OLLAMA_URL`), which keeps every request inside the deployment, or a hosted service that speaks the chat completions format (`LLM_URL`, `LLM_API_KEY`, `LLM_MODEL`). `LLM_MODEL` is a separate switch from `AGENT_MODEL`: while it is empty, no step in the application calls a model and only the agent spends tokens. Model readings and accepted wording are cached, so repeating a step needs no model.
 
+### Report emails
+
+`send_report_email` sends one of three reports. The kind decides the audience; addresses come from the server's configuration and never from the call.
+
+| Kind | Goes to | Who can send | Contents |
+|---|---|---|---|
+| `findings_review` | Audit manager, and the partner when one is named | Auditor, audit manager | Findings awaiting review by severity, the potential misstatement before review, and the largest high-severity findings. Marked for the audit team only. |
+| `evidence_reminder` | The client's staff | Auditor, audit manager | Every document still awaited, by sample, with a pointer to the Requests page. Refused when nothing is awaited. |
+| `findings_memo` | The client's management | Audit manager, after sign-off | The confirmed findings and their total impact, and the memo's SHA-256 when its `file_hash` is passed. |
+
+Potential findings never reach the client: the only email to the client's management is the memo, and only once the engagement is signed off. Every email states the snapshot hash it rests on. The tool call is recorded in the trail like any other, and its result, which holds the recipients, subject and SendGrid message id, is hashed into the chain. Without `SENDGRID_API_KEY` and `EMAIL_FROM` the tool returns the email as a preview and sends nothing.
+
 ## Configuration
 
 | Variable | Service | Default | Meaning |
@@ -672,6 +685,9 @@ The engine accepts a local Ollama server (`OLLAMA_URL`), which keeps every reque
 | `OBJECT_STORE` | mcp | `dir` | `dir` for a directory, `s3` for MinIO or another S3-compatible store |
 | `FILES_DIR` | mcp, engine | `./data/files` | Directory for the `dir` store |
 | `MCP_STATEFUL` | mcp | `false` | Set `true` to keep MCP sessions between requests |
+| `SENDGRID_API_KEY` | mcp | unset | Twilio SendGrid API key with Mail Send access. Unset means report emails are previewed, not sent. |
+| `EMAIL_FROM`, `EMAIL_FROM_NAME` | mcp | unset, `Revenue Audit` | Sender of report emails. The address or its domain must be verified in SendGrid. |
+| `EMAIL_TO_MANAGER`, `EMAIL_TO_PARTNER`, `EMAIL_TO_AUDITOR`, `EMAIL_TO_CLIENT`, `EMAIL_TO_CLIENT_MANAGEMENT` | mcp | unset | Comma-separated recipients for each audience of `send_report_email` |
 | `ENGINE_OUTPUT_DIR` | engine | `var/outputs` | Where exported files are also written |
 | `ENGINE_THRESHOLDS` | engine | `audit_engine/thresholds.toml` | Alternative thresholds file |
 | `OLLAMA_URL`, `OLLAMA_MODEL` | engine | unset, `llama3.2:3b` | Optional local model for evidence reading and memo wording |

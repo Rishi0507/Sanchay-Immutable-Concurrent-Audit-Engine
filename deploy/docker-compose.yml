@@ -87,6 +87,15 @@ services:
       OBJECT_STORE: dir
       FILES_DIR: /data/files
       SIM_CLOCK: ${SIM_CLOCK:-0}
+      # Report emails through Twilio SendGrid. Without a key and sender, emails are previewed, not sent.
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      EMAIL_FROM_NAME: ${EMAIL_FROM_NAME:-Revenue Audit}
+      EMAIL_TO_MANAGER: ${EMAIL_TO_MANAGER:-}
+      EMAIL_TO_PARTNER: ${EMAIL_TO_PARTNER:-}
+      EMAIL_TO_AUDITOR: ${EMAIL_TO_AUDITOR:-}
+      EMAIL_TO_CLIENT: ${EMAIL_TO_CLIENT:-}
+      EMAIL_TO_CLIENT_MANAGEMENT: ${EMAIL_TO_CLIENT_MANAGEMENT:-}
     volumes:
       - files:/data/files
     ports:

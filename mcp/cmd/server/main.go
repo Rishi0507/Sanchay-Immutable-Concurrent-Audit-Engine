@@ -20,6 +20,7 @@ import (
 	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/engine"
 	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/files"
 	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/ledger"
+	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/mail"
 	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/server"
 	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/store"
 	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/tools"
@@ -130,12 +131,34 @@ func run(logger *slog.Logger, stdio bool, token string) error {
 	ledgerClient := ledger.New(env("LEDGER_URL", "http://localhost:7001"), serviceToken)
 	engineClient := engine.New(env("ENGINE_URL", "http://localhost:7002"), serviceToken)
 
+	// Report emails go through Twilio SendGrid. Without SENDGRID_API_KEY and
+	// EMAIL_FROM the mailer previews messages instead of sending them.
+	audiences := map[string][]string{}
+	for _, a := range []string{mail.ToManager, mail.ToPartner, mail.ToAuditor, mail.ToClient, mail.ToClientManagement} {
+		audiences[a] = mail.ParseList(os.Getenv(mail.EnvFor(a)))
+	}
+	// The manager's review email also reaches the partner, when one is named.
+	audiences[mail.ToManager] = append(audiences[mail.ToManager], audiences[mail.ToPartner]...)
+	mailer := mail.New(mail.Config{
+		APIKey:   os.Getenv("SENDGRID_API_KEY"),
+		From:     os.Getenv("EMAIL_FROM"),
+		FromName: env("EMAIL_FROM_NAME", "Revenue Audit"),
+		Endpoint: os.Getenv("SENDGRID_ENDPOINT"),
+		To:       audiences,
+	})
+	if mailer.Configured() {
+		logger.Info("email enabled", "provider", "sendgrid")
+	} else {
+		logger.Info("email in preview mode: set SENDGRID_API_KEY and EMAIL_FROM to send")
+	}
+
 	deps := &tools.Deps{
 		Cat:           cat,
 		Ledger:        ledgerClient,
 		Engine:        engineClient,
 		Store:         db,
 		Files:         fileStore,
+		Mail:          mailer,
 		DefaultEntity: env("DEFAULT_ENTITY", "E1"),
 	}
 	srv := server.New(server.Options{

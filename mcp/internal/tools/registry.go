@@ -11,6 +11,7 @@ import (
 	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/engine"
 	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/files"
 	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/ledger"
+	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/mail"
 	"github.com/ELEVATE-1-0/ELEV05/mcp/internal/store"
 )
 
@@ -70,6 +71,7 @@ type Deps struct {
 	Engine        *engine.Client
 	Store         *store.Store
 	Files         files.Store
+	Mail          *mail.Mailer
 	DefaultEntity string
 }
 
@@ -88,6 +90,7 @@ func Build(d *Deps) []*Tool {
 	all = append(all, auditorEngineTools(d)...)
 	all = append(all, auditorReadTools(d)...)
 	all = append(all, sharedTools(d)...)
+	all = append(all, emailTools(d)...)
 	for _, t := range all {
 		t.Departments = toolDepartments[t.Name]
 	}
