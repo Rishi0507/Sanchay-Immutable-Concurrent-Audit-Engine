@@ -198,7 +198,7 @@ The audit engine reads the `business` schema directly for speed. For that path t
 | Data generator | Python | Synthetic business with planted irregularities and answer key. | Person B |
 | User interface | React, Tailwind | Client view and auditor view. | Person A |
 | Database | Postgres | Storage, schemas, roles, append-only triggers. | Person A (schema agreed by both) |
-| Object store | MinIO | Evidence and uploaded files, addressed by SHA-256. | Person A |
+| File store | Shared volume, or MinIO | Evidence and uploaded files, addressed by SHA-256. A directory on a shared volume by default; MinIO or another S3-compatible store when `OBJECT_STORE=s3`. | Person A |
 | Local model | Ollama | Evidence field extraction and wording only. | Person B |
 
 ### 5.2 Component diagram
@@ -251,7 +251,7 @@ flowchart LR
 | Audit engine | `engine:7002` | No |
 | User interface | `ui:5173` | 5173 |
 | Postgres | `db:5432` | No |
-| Object store | `minio:9000` | No |
+| File store | Volume `files`, or `minio:9000` | No |
 | Local model | `ollama:11434` | No |
 
 ---
@@ -500,7 +500,7 @@ Each tool below appends the event named in section 6.3.
 | 10 | `get_evidence_status` | Shows which requested documents the client has uploaded. | `GET /evidence/status` |
 | 11 | `verify_evidence` | Tests uploaded evidence for one sample or all samples. | `POST /evidence/verify` |
 | 12 | `check_post_testing_changes` | Lists client changes after the snapshot that touch samples. | `POST /changes/check` |
-| 13 | `verify_ledger_integrity` | Recomputes both chains and compares the snapshot head. | ledger core |
+| 13 | `verify_ledger_integrity` | Recomputes both chains and compares the snapshot head. | ledger core, then `POST /integrity/report` |
 | 14 | `get_findings` | Lists findings with filters. | `GET /findings` |
 | 15 | `explain_finding` | Returns lineage and a plain-language reason for one finding. | `GET /findings/{id}/explain` |
 | 16 | `draft_findings_memo` | Produces the findings memo. | `POST /memo` |
@@ -516,7 +516,9 @@ Supporting read tools, usable at any step after step 2:
 | `get_ledger_entries` | Reads postings by account, date range or `sale_id`. |
 | `get_counterparty_graph` | Returns nodes, edges and detected cycles (section 13, D-04). |
 | `request_evidence` | Requests additional documents for a sample. |
-| `get_audit_trail` | Reads trail entries with the integrity result. |
+| `get_audit_trail` | Reads trail entries with the integrity result. Exports the trail as a file on request. |
+| `get_merkle_proof` | Proves that one event belongs to its day's Merkle root. |
+| `list_engagements`, `get_register_rows`, `get_samples` | Read stored engagements, register rows and samples. Used by the UI. |
 
 Steps 7 to 9 create evidence requests automatically and notify the client. `request_evidence` is only for follow-up requests.
 

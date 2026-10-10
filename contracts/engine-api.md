@@ -22,7 +22,8 @@ The MCP server has already checked that the role may call the tool. The engine u
 | Pagination | List endpoints take `limit` (default 50, maximum 500) and `cursor`, and return `next_cursor`, which is null on the last page. |
 | Money | Integer paise. |
 | Errors | `{"error": {"code": "...", "message": "...", "next_step": "..."}}`. Codes: `NO_ENGAGEMENT`, `NOT_FOUND`, `VALIDATION_FAILED`, `EVIDENCE_PENDING`, `PERMISSION_DENIED`. |
-| Files | Outputs are written to the object store by SHA-256 and returned as `{"file_hash": "...", "file_name": "...", "content_type": "..."}`. |
+| Files | Outputs are written to the file store by SHA-256 and returned as `{"file_hash": "...", "file_name": "...", "content_type": "..."}`. See the file store layout below. |
+| Money keys | The MCP server converts paise to rupees in responses by key name. A key holds money when it is a money field of `events.json`, or one of `amount_impact`, `total_adjustment`, `sales_value`, `debit`, `credit`, `balance`, `total`, `total_debit`, `total_credit`, or ends in `_amount`, `_value` or `_total`. Use these names only for integer paise, and no other name for money. |
 
 ## Endpoints
 
@@ -30,17 +31,17 @@ The MCP server has already checked that the role may call the tool. The engine u
 |---|---|---|---|
 | `get_audit_plan` | `GET /plan` | `engagement_id` optional | `steps[]` of `{step, tool, purpose, status}` where status is `done`, `ready` or `blocked`; `next_tool` |
 | `open_engagement` | `POST /engagements` | `period_start`, `period_end`, `seed` optional, `entity_ids` optional | `engagement_id`, `period_start`, `period_end`, `seed`, `snapshot_seq`, `snapshot_hash`, `merkle_root` |
-| (UI) | `GET /engagements` | none | `engagements[]` |
+| `list_engagements` | `GET /engagements` | none | `engagements[]` |
 | `get_engagement_status` | `GET /engagements/status` | `engagement_id` | engagement fields, `steps[]`, `next_tool`, `counts` of `{findings_by_severity, samples_by_sheet, evidence_pending}`, `signed_off` |
 | `import_register` | `POST /register/import` | `engagement_id` | `rows`, `columns[]`, `unrecognised_columns[]`, `missing_columns[]`, `file_hash` |
 | `reconcile_register` | `POST /register/reconcile` | `engagement_id` | `summary` by subtype, `findings_created`, `auto_ran[]` |
-| (UI) | `GET /register/rows` | `engagement_id`, `recon_status` optional, `rp_tag` optional, `limit`, `cursor` | `columns[]`, `rows[]` of `{row_no, raw, rp_tag, suggested_rp, recon_status, finding_ids}`, `next_cursor` |
+| `get_register_rows` | `GET /register/rows` | `engagement_id`, `recon_status` optional, `rp_tag` optional, `limit`, `cursor` | `columns[]`, `rows[]` of `{row_no, raw, rp_tag, suggested_rp, recon_status, finding_ids}`, `next_cursor` |
 | `tag_related_parties` | `POST /related-parties/tag` | `engagement_id` | `customers`, `related_disclosed`, `related_suggested`, `suggestions[]` of `{customer_id, name, signals[], effective_from, sales_value}`, `findings_created`, `auto_ran[]` |
 | `run_detectors` | `POST /detectors/run` | `engagement_id`, `detectors[]` optional | `results[]` of `{detector_id, category, hits}`, `findings_created`, `indicators`, `auto_ran[]` |
 | `select_sales_tod` | `POST /samples/sales` | `engagement_id`, `target` optional (25 to 35) | `sheet`, `seed`, `snapshot_seq`, `population`, `samples[]`, `evidence_requests_created`, `auto_ran[]` |
 | `select_cutoff_tod` | `POST /samples/cutoff` | `engagement_id`, `before` optional (default 10), `after` optional (10 to 15, default 15) | same shape as above |
 | `select_credit_note_tod` | `POST /samples/credit-notes` | `engagement_id` | same shape as above |
-| (UI) | `GET /samples` | `engagement_id`, `sheet` | `samples[]` |
+| `get_samples` | `GET /samples` | `engagement_id`, `sheet` | `samples[]` |
 | `get_evidence_status` | `GET /evidence/status` | `engagement_id` | `samples[]` of `{sample_id, sheet, documents[] of {document_type, status, file_hash}}`, `pending`, `received`, `verified` |
 | `list_evidence_requests` | `GET /evidence/requests` | `status` optional (`pending`, `received`), `limit`, `cursor` | `requests[]` of `{request_id, sample_id, sheet, document_type, subject of {invoice_no, date, customer, amount}, status, note}`, `next_cursor` |
 | `request_evidence` | `POST /evidence/requests` | `engagement_id`, `sample_ids[]`, `document_types[]`, `note` optional | `requests_created` |
@@ -53,6 +54,7 @@ The MCP server has already checked that the role may call the tool. The engine u
 | `get_counterparty_graph` | `GET /graph` | `engagement_id` | `nodes[]` of `{id, label, kind, related}`, `edges[]` of `{source, target, kind, value, count}`, `cycles[]` of `{finding_id, path[], value}` |
 | `draft_findings_memo` | `POST /memo` | `engagement_id` | `files[]`, `findings`, `total_adjustment`, `head_hash` |
 | `export_workpaper` | `POST /workpaper` | `engagement_id` | `file`, `sheets[]`, `head_hash` |
+| `verify_ledger_integrity` | `POST /integrity/report` | `engagement_id`, `business_chain`, `trail_chain` (the ledger core's verification results), `snapshot_match` | `findings_created`. The engine records a `LEDGER_INTEGRITY` finding when a chain fails or the snapshot hash differs. |
 | (health) | `GET /health` | none | `{"status": "ok"}` |
 
 ## Sample record
@@ -80,3 +82,14 @@ The MCP server has already checked that the role may call the tool. The engine u
 ## Read tools served by the MCP server
 
 `query_records`, `get_sale_chain`, `get_ledger_entries`, `get_notifications` and `get_audit_trail` read the `business` and `trail` schemas directly from the MCP server with its read-only role. They take the snapshot sequence from `audit.engagements`, so they need no engine endpoint.
+
+## File store layout
+
+The MCP server and the engine share one content-addressed store, selected by `OBJECT_STORE`.
+
+| Store | Layout |
+|---|---|
+| `dir` (default) | `FILES_DIR/<first two characters of hash>/<hash>` holds the bytes. `<hash>.json` beside it holds `{"file_hash", "file_name", "content_type", "size"}`. |
+| `s3` | Bucket `S3_BUCKET`, object key `<hash>`. The content type is the object's content type and the file name is the user metadata entry `file-name`. |
+
+The hash is SHA-256 of the bytes in lower-case hexadecimal. A client upload is identified by the `file_hash` in its `SalesRegisterUploaded`, `RelatedPartyListUploaded` or `EvidenceUploaded` event.

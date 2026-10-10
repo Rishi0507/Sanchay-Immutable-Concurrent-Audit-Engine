@@ -1,0 +1,108 @@
+# One-command bring-up (PRD DP-1):
+#   docker compose -f deploy/docker-compose.yml up --build
+#
+# Services: db, ledger (OCaml), mcp (Go), engine, ui.
+# The engine service currently runs the stand-in from mcp/cmd/mockengine.
+# When the audit engine in engine/ is ready, point the engine service at it:
+# replace its build section with "context: ../engine".
+#
+# Files are stored by SHA-256 on the shared "files" volume. To use MinIO
+# instead, start with "--profile minio" and set OBJECT_STORE=s3 on mcp.
+
+name: revenue-audit
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: audit
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Applied in name order on first start, as the superuser.
+      - ../db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d audit"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  ledger:
+    build:
+      context: ..
+      dockerfile: ledger/Dockerfile
+    environment:
+      DATABASE_URL: postgres://ledger_rw:ledger_rw@db:5432/audit
+      SERVICE_TOKEN: ${SERVICE_TOKEN:-dev-service-token}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+  engine:
+    build:
+      context: ..
+      dockerfile: mcp/Dockerfile
+      target: mockengine
+    environment:
+      DATABASE_URL: postgres://engine_audit:engine_audit@db:5432/audit
+      LEDGER_URL: http://ledger:7001
+      SERVICE_TOKEN: ${SERVICE_TOKEN:-dev-service-token}
+      FILES_DIR: /data/files
+      ENGINE_ADDR: :7002
+    volumes:
+      - files:/data/files
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+
+  mcp:
+    build:
+      context: ..
+      dockerfile: mcp/Dockerfile
+      target: server
+    environment:
+      DATABASE_URL: postgres://mcp_read:mcp_read@db:5432/audit
+      LEDGER_URL: http://ledger:7001
+      ENGINE_URL: http://engine:7002
+      SERVICE_TOKEN: ${SERVICE_TOKEN:-dev-service-token}
+      TOKEN_CLIENT: ${TOKEN_CLIENT:-client-demo-token}
+      TOKEN_AUDITOR: ${TOKEN_AUDITOR:-auditor-demo-token}
+      TOKEN_MANAGER: ${TOKEN_MANAGER:-manager-demo-token}
+      DEFAULT_ENTITY: ${DEFAULT_ENTITY:-E1}
+      OBJECT_STORE: dir
+      FILES_DIR: /data/files
+    volumes:
+      - files:/data/files
+    ports:
+      - "${MCP_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      ledger:
+        condition: service_started
+    restart: on-failure
+
+  ui:
+    build:
+      context: ../ui
+    ports:
+      - "${UI_PORT:-5173}:5173"
+    depends_on:
+      - mcp
+
+  minio:
+    image: minio/minio
+    profiles: ["minio"]
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - miniodata:/data
+
+volumes:
+  pgdata:
+  files:
+  miniodata:
