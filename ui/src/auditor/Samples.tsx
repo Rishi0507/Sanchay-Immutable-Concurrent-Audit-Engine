@@ -39,6 +39,9 @@ const reasonLabel: Record<string, string> = {
   BEFORE_PERIOD_END: "Before period end",
   AFTER_PERIOD_END: "After period end",
   POST_PERIOD_END: "After period end",
+  CUTOFF_BEFORE: "Before period end",
+  CUTOFF_AFTER: "After period end",
+  POST_PERIOD: "After period end",
   IN_PERIOD: "In period",
 };
 
