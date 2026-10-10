@@ -17,8 +17,9 @@ $$;
 CREATE OR REPLACE FUNCTION public.attach_append_only(target regclass) RETURNS void
 LANGUAGE plpgsql AS $$
 BEGIN
-  EXECUTE format('DROP TRIGGER IF EXISTS append_only_row ON %s', target);
-  EXECUTE format('DROP TRIGGER IF EXISTS append_only_truncate ON %s', target);
+  IF EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = target AND tgname = 'append_only_row') THEN
+    RETURN;
+  END IF;
   EXECUTE format(
     'CREATE TRIGGER append_only_row BEFORE UPDATE OR DELETE ON %s
        FOR EACH ROW EXECUTE FUNCTION public.reject_mutation()', target);
