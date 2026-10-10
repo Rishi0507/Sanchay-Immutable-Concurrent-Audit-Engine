@@ -25,7 +25,7 @@ from .evidence.service import control_summary, request_evidence, request_status,
 from .findings_service import all_findings, confirm_finding, sign_off
 from .graph import build_graph
 from .integrity import integrity_report
-from .outputs import draft_findings_memo, export_workpaper
+from .outputs import draft_findings_memo, export_summary, export_workpaper
 from .register_recon import dec
 from .repo import (change_matches, engagements, evidence_requests, register_imports, register_recon, register_rows,
                    rp_tags, sample_meta, samples)
@@ -700,6 +700,16 @@ def post_memo(request: Request, body: dict | None = Body(default=None)):
     fs = all_findings(e.ctx(ctx.eid, ident))
     return {"engagement_id": ctx.eid, "files": [file_ref(f) for f in out["files"]], "findings": len(fs),
             "total_adjustment": revenue_adjustment(fs), "head_hash": out["files"][0]["head_hash"] if out["files"] else None}
+
+
+@app.post("/summary")
+def post_summary(request: Request, body: dict | None = Body(default=None)):
+    """One page for the engagement partner. It is not a step of the plan and can be produced at any time."""
+    ident = who(request)
+    ctx = engine().ctx(arg(body, "engagement_id"), ident)
+    out = export_summary(ctx)
+    return {"engagement_id": ctx.eid, "summary": out["summary"], "file": file_ref(out["file"]),
+            "head_hash": out["file"]["head_hash"]}
 
 
 @app.post("/workpaper")

@@ -29,12 +29,19 @@ function Download({ file }: { file: FileRef }) {
 export default function Export(_: ViewProps) {
   const [workpaper, setWorkpaper] = useState<any>(null);
   const [memo, setMemo] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(null);
   const { busy, run } = useAction();
 
   const makeWorkpaper = () =>
     run("workpaper", async () => {
       setWorkpaper(await callTool("export_workpaper", {}));
       toast("Workpaper exported.");
+    });
+
+  const makeSummary = () =>
+    run("summary", async () => {
+      setSummary(await callTool("export_summary_report", {}));
+      toast("Summary report created.");
     });
 
   const makeMemo = () =>
@@ -45,8 +52,24 @@ export default function Export(_: ViewProps) {
 
   return (
     <>
-      <Header title="Export" hint="Both files are produced from the snapshot and state the ledger hash they rest on." />
-      <div className="grid gap-5 md:grid-cols-2">
+      <Header title="Export" hint="Each file is produced from the snapshot and states the ledger hash it rests on." />
+      <div className="grid gap-5 lg:grid-cols-3">
+        <Card className="p-6">
+          <div className="text-base font-semibold">Summary report</div>
+          <p className="mt-1 mb-5 text-[13px] text-ink-2">
+            {summary
+              ? `${summary.summary.findings.count} findings, ${(summary.summary.revenue.fully_evidenced_share * 100).toFixed(1)}% of revenue with a full chain of records behind it.`
+              : "One page for the engagement partner: findings, samples, evidence, and how much revenue can be proved."}
+          </p>
+          {summary?.file && (
+            <div className="mb-4">
+              <Download file={summary.file} />
+            </div>
+          )}
+          <Button busy={busy === "summary"} kind={summary ? "ghost" : "primary"} onClick={makeSummary}>
+            {summary ? "Create again" : "Create the summary"}
+          </Button>
+        </Card>
         <Card className="p-6">
           <div className="text-base font-semibold">Workpaper</div>
           <p className="mt-1 mb-5 text-[13px] text-ink-2">Excel file with these sheets: {(workpaper?.sheets ?? ["Sales Register", "Sales TOD", "Sales Cut-off TOD", "Credit Note TOD"]).join(", ")}.</p>
@@ -55,7 +78,7 @@ export default function Export(_: ViewProps) {
               <Download file={workpaper.file} />
             </div>
           )}
-          <Button busy={busy === "workpaper"} kind={workpaper ? "ghost" : "primary"} onClick={makeWorkpaper}>
+          <Button busy={busy === "workpaper"} kind="ghost" onClick={makeWorkpaper}>
             {workpaper ? "Export again" : "Export the workpaper"}
           </Button>
         </Card>

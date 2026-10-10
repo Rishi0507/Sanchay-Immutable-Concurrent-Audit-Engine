@@ -194,6 +194,11 @@ func auditorEngineTools(d *Deps) []*Tool {
 			fields: []catalogue.Field{fEngagement},
 		},
 		{
+			name: "export_summary_report", group: "Outputs", method: http.MethodPost, path: "/summary", roles: auditRoles,
+			desc:   "Produce a one-page summary of the audit for the engagement partner: findings by severity and area, the largest findings, sample and evidence results, how much revenue has a full chain of records behind it, and the state of the safeguards. Returns the figures and a PDF to download. Can be called at any point in the audit.",
+			fields: []catalogue.Field{fEngagement},
+		},
+		{
 			name: "export_workpaper", group: "Outputs", method: http.MethodPost, path: "/workpaper", roles: auditRoles,
 			desc:   "Produce the audit workpaper as an .xlsx file with the Sales Register, Sales TOD, Sales Cut-off TOD and Credit Note TOD sheets, plus findings and the parameters needed to reproduce the samples. Returns a file to download.",
 			fields: []catalogue.Field{fEngagement},

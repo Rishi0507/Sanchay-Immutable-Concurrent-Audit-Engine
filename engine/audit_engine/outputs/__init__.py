@@ -12,7 +12,7 @@ from ..repo import outputs
 
 CONTENT_TYPES = {"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                  "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                 "md": "text/markdown"}
+                 "md": "text/markdown", "pdf": "application/pdf"}
 
 
 def _store(ctx, kind: str, data: bytes, name: str) -> dict:
@@ -39,6 +39,16 @@ def export_workpaper(ctx) -> dict:
     return dict(f, sheets=["Sales Register", "Sales TOD", "Sales Cut-off TOD", "Credit Note TOD", "Findings",
                            "Parameters"], changes_checked=changes["events_examined"],
                 new_change_findings=changes["findings_raised"])
+
+
+def export_summary(ctx) -> dict:
+    """The one-page summary: the figures, and the same figures as a PDF."""
+    from . import summary
+
+    ctx.cache.clear()
+    data = summary.collect(ctx)
+    f = _store(ctx, "pdf", summary.render(data, ctx.engine.business.head()[1]), f"audit_summary_{ctx.eid}.pdf")
+    return {"summary": data, "file": f}
 
 
 def draft_findings_memo(ctx, fmt: str = "both", ledger_result: dict | None = None) -> dict:
