@@ -475,12 +475,12 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
                       )}
                     </>
                   ),
-                  meta: `${x.date ? x.date : ""}${(x.reason_codes ?? []).length ? `, picked for ${(x.reason_codes ?? []).map((c) => (reasonLabel[c] ?? c).toLowerCase()).join(", ")}` : ""}`,
+                  meta: `${x.date ? day(x.date) : ""}${(x.reason_codes ?? []).length ? `, picked for ${(x.reason_codes ?? []).map((c) => (reasonLabel[c] ?? c).toLowerCase()).join(", ")}` : ""}`,
                   amount: x.taxable_value,
                   status: w ? <Status tone={toneFor(w)}>{w}</Status> : null,
                   detail: (
                     <>
-                      <p className="mb-3 text-[14px] leading-relaxed text-ink">{x.reason}</p>
+                      <p className="mb-3 text-[14px] leading-relaxed text-ink">{plainReason(x.reason)}</p>
                       {x.tests && Object.keys(x.tests).length > 0 && (
                         <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5">
                           {Object.entries(x.tests).map(([t, r]) => (

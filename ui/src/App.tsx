@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Component, ReactNode, Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Identity, Notice, Role, ToolInfo, callTool, getEngagement, getToken, listTools, setEngagement, setRole, setToken, subscribe, whoami } from "./api";
 import { useTheme } from "./theme";
 import { BrandMark, Button, Mark, Toasts, cx, inputClass, toast } from "./ui";
@@ -105,6 +105,30 @@ function fiscalYear(start: string, end: string) {
     return `FY ${s.getFullYear()}-${String(e.getFullYear()).slice(2)}`;
   }
   return `${start} to ${end}`;
+}
+
+// A page that fails to draw, or whose code fails to load, shows a short note
+// in its place. The navigation and every other page keep working.
+class PageGuard extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state: { error: Error | null } = { error: null };
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <div className="rounded-2xl border border-line bg-paper px-6 py-12 text-center">
+        <div className="display text-[28px] text-ink">This page could not be drawn</div>
+        <p className="mx-auto mt-2 max-w-md text-[15px] text-ink-2">{this.state.error.message}</p>
+        <div className="mt-5 flex justify-center gap-2">
+          <Button onClick={() => window.location.reload()}>Reload</Button>
+          <Button kind="ghost" onClick={() => this.setState({ error: null })}>
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 }
 
 // Simple view folds each page's secondary analysis; full detail shows it all.
@@ -808,9 +832,11 @@ export default function App() {
 
         <main className="mx-auto w-full max-w-[1320px] flex-1 px-4 pt-7 pb-20 sm:px-8">
           <div key={`${active?.id}:${engagementId}`} className="view">
-            <Suspense fallback={null}>
-              {!active || !tools || (auditing && !engagementsLoaded) ? null : active.view({ identity, pulse, goTo, focus, engagementId, onEngagement, tools, can })}
-            </Suspense>
+            <PageGuard key={`${active?.id}:${engagementId}`}>
+              <Suspense fallback={null}>
+                {!active || !tools || (auditing && !engagementsLoaded) ? null : active.view({ identity, pulse, goTo, focus, engagementId, onEngagement, tools, can })}
+              </Suspense>
+            </PageGuard>
           </div>
         </main>
       </div>
