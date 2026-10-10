@@ -496,13 +496,25 @@ The workspace asks for an identity. Each identity sees only what its role and de
 | Client | Access | Who may do what, with the caller's own department highlighted. |
 | Auditor | Overview | The plan, the next step, findings by severity, samples, documents awaited, control requests, the snapshot and the seed. |
 | Auditor | Register | The client's register as provided, with the related-party tag, reconciliation status and findings pinned beside each row. |
-| Auditor | Samples | The three test-of-details sheets with the reason for each sample and its test results. |
+| Auditor | Samples | The three test-of-details sheets with the reason for each sample and its test results. A document the client sent can be held to the light, as below. |
 | Auditor | Findings | Every finding with its explanation, lineage and proposed adjustment. The audit manager decides here. |
 | Auditor | Graph | The counterparty graph in two or three dimensions, with the trading cycles. |
 | Auditor | Trail | The audit trail and the result of verifying it. |
 | Auditor | Export | The summary report, the workpaper and the findings memo. |
 | Auditor | Ask | A panel over every auditor screen. It answers questions from the records of the engagement and opens the record behind each statement. |
 | Any | Lens | Audit any register in the browser, as below. |
+
+### A document held to the light
+
+In the panel of a sample, each document the client sent has a button, Hold to the light. It opens the file as the client uploaded it, under the lamp, and marks it from three sources: the text of that document, the records of that sale and the findings the engine raised on that sample.
+
+| Mark | Meaning | Where it comes from |
+|---|---|---|
+| Green | The value is the same as in the books. | Each number, date, document number and name on the page is compared in the browser with the records `get_sale_chain` returns for the sale. |
+| Pink | The evidence checks caught this value. The figure the books hold is written beside it. | The findings of the sample from `get_findings`. The browser decides nothing here. |
+| Yellow | An amount printed on the page that no record of the sale holds and no check named. | The same comparison as green. |
+
+A document in Hindi or Marathi is marked like any other, because what is compared are its figures, dates and numbers. A photograph or a scan has no text to compare and is shown as it is. The viewer adds no tool and no server call beyond reading the file, and it changes nothing.
 
 ### Lens
 

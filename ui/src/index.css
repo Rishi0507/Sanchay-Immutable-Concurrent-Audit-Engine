@@ -1019,3 +1019,169 @@ html[data-uv="on"] body {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------------ A document held to the light
+
+   The viewer that opens a client's document from a sample. It always stands
+   under the lamp, whichever palette the page is in: the same violet and the
+   same fluorescent inks as the UV lamp above, set here for this one panel. */
+.lamp {
+  --color-paper: #140a33;
+  --color-canvas: #0b0420;
+  --color-wash: #1d1045;
+  --color-line: #3a2a70;
+  --color-line-soft: #26185a;
+  --color-ink: #ede6ff;
+  --color-ink-2: #b6a8e6;
+  --color-ink-3: #8576b8;
+  --color-brand: #b8ff3c;
+  --color-on-brand: #120526;
+  --color-pass: #3cffa0;
+  --color-fail: #ff3d9a;
+  --color-wait: #f8ff3c;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  animation: appear 0.2s ease-out;
+}
+
+.lamp-page {
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 30px 80px -24px rgba(0, 0, 0, 0.9);
+}
+
+/* The paper turns violet where the beam has passed. */
+.lamp-tint {
+  position: absolute;
+  inset: 0;
+  background: #5a3fe0;
+  mix-blend-mode: multiply;
+  opacity: 0.72;
+  pointer-events: none;
+  clip-path: inset(0 0 100% 0);
+  animation: lamp-tint 1.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes lamp-tint {
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+.lamp-beam {
+  position: absolute;
+  right: 0;
+  left: 0;
+  top: -140px;
+  height: 140px;
+  background: linear-gradient(to bottom, transparent, rgba(150, 110, 255, 0.5) 72%, rgba(232, 220, 255, 0.95));
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: lamp-beam 1.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes lamp-beam {
+  to {
+    top: 100%;
+  }
+}
+
+/* A value on the paper, lit as the beam reaches it. */
+.lamp-mark {
+  position: absolute;
+  border-radius: 4px;
+  opacity: 0;
+  animation: lamp-mark 0.4s ease-out forwards;
+  animation-delay: var(--at, 0ms);
+}
+
+@keyframes lamp-mark {
+  from {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lamp-ok {
+  background: rgba(60, 255, 160, 0.2);
+  box-shadow:
+    0 0 0 1.5px #3cffa0,
+    0 0 14px 2px rgba(60, 255, 160, 0.5);
+}
+
+.lamp-bad {
+  background: rgba(255, 61, 154, 0.26);
+  box-shadow:
+    0 0 0 2px #ff3d9a,
+    0 0 20px 5px rgba(255, 61, 154, 0.7);
+}
+
+.lamp-odd {
+  background: rgba(248, 255, 60, 0.2);
+  box-shadow:
+    0 0 0 2px #f8ff3c,
+    0 0 16px 3px rgba(248, 255, 60, 0.55);
+}
+
+.lamp-hot {
+  z-index: 2;
+  box-shadow:
+    0 0 0 2px #ffffff,
+    0 0 18px 4px rgba(255, 255, 255, 0.6);
+}
+
+.lamp-tag {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: -2px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.lamp-tag-ok {
+  background: #3cffa0;
+  color: #06281a;
+}
+
+/* What the books hold is written beside the figure, on its own line of the paper. */
+.lamp-tag-bad {
+  top: 50%;
+  bottom: auto;
+  left: calc(100% + 12px);
+  transform: translateY(-50%);
+  background: #ff3d9a;
+  color: #2a0218;
+  font-size: 13px;
+}
+
+.lamp-tag-odd {
+  background: #f8ff3c;
+  color: #23240a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lamp,
+  .lamp-beam {
+    animation: none;
+  }
+  .lamp-beam {
+    display: none;
+  }
+  .lamp-tint {
+    animation: none;
+    clip-path: none;
+  }
+  .lamp-mark {
+    animation: none;
+    opacity: 1;
+  }
+}

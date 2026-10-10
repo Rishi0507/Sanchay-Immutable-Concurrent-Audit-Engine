@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { callTool, money } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Mark, Pills, Section, Status, Table, cx, toast, toneFor, useAction, useTool } from "../ui";
 import { Columns, CutoffItem, CutoffTimeline, Donut, Ranked, ink } from "./charts";
 import { EmailAction, LedgerRows, ListSkeleton, MoreBar, PageBrief, Panel, SearchBox, Tally, Term, ViewHead, inr, monthKey, monthLabel, monthRange, plural, scaleFor } from "./kit";
+import type { EvidenceDoc } from "./Lamp";
 import { SampleRise } from "./motion";
+
+// The document viewer brings a PDF reader with it, so it loads only when a document is opened.
+const Lamp = lazy(() => import("./Lamp"));
+const docName: Record<string, string> = { invoice: "Invoice", eway_bill: "E-way bill", lr_copy: "Lorry receipt", proof_of_delivery: "Proof of delivery", credit_note: "Credit note", sales_return: "Goods return note" };
 
 type Sheet = "sales_tod" | "cutoff_tod" | "credit_note_tod";
 
@@ -77,6 +82,10 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
   const [month, setMonth] = useState("");
   const [reasonPick, setReasonPick] = useState("");
   const [selected, setSelected] = useState<Sample | null>(null);
+  // The document of the selected sample that is held to the light, by its place in the list.
+  const [lit, setLit] = useState<number | null>(null);
+  const evidence = useTool<{ samples: { sample_id: string; documents: EvidenceDoc[] }[] }>(engagementId ? "get_evidence_status" : null, {}, [pulse]);
+  const docs = (selected && evidence.data?.samples.find((x) => x.sample_id === selected.sample_id)?.documents) || [];
   const { data, error, loading, reload } = useTool<{ samples: Sample[] }>("get_samples", { sheet }, [pulse]);
   const status = useTool<any>(engagementId ? "get_engagement_status" : null, {}, [pulse]);
   const { busy, run } = useAction();
@@ -521,6 +530,24 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
                 </ul>
               </Section>
             )}
+            {docs.length > 0 && (
+              <Section title="Documents the client sent">
+                <ul className="divide-y divide-line-soft">
+                  {docs.map((d, i) => (
+                    <li key={d.document_type} className="flex items-center justify-between gap-4 py-2 text-sm">
+                      <span className="text-ink">{docName[d.document_type] ?? d.document_type.replace(/_/g, " ")}</span>
+                      {d.file_hash ? (
+                        <Button kind="ghost" small onClick={() => setLit(i)}>
+                          Hold to the light
+                        </Button>
+                      ) : (
+                        <span className="text-ink-3">{d.status === "declined" ? "Client says there is none" : "Not sent yet"}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            )}
             <Section title="Sample">
               <KeyValues
                 items={[
@@ -548,6 +575,20 @@ export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewP
           </>
         )}
       </Drawer>
+      {selected && lit !== null && (
+        <Suspense fallback={null}>
+          <Lamp
+            sample={selected}
+            docs={docs}
+            start={lit}
+            onClose={() => setLit(null)}
+            onFinding={(id) => {
+              setLit(null);
+              goTo("findings", id);
+            }}
+          />
+        </Suspense>
+      )}
     </>
   );
 }
