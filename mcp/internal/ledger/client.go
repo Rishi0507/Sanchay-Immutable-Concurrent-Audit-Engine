@@ -39,6 +39,8 @@ type AppendRequest struct {
 	BusinessDate    *string        `json:"business_date"`
 	Identity        core.Identity  `json:"identity"`
 	IdempotencyKey  string         `json:"idempotency_key"`
+	// RecordedAt is honoured by the ledger only when it runs with LEDGER_SIM_CLOCK=1.
+	RecordedAt string `json:"recorded_at,omitempty"`
 }
 
 // AppendResult is the response of POST /append.

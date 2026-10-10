@@ -23,3 +23,16 @@ let is_date (s : string) : bool =
   &&
   let digits = [ 0; 1; 2; 3; 5; 6; 8; 9 ] in
   List.for_all (fun i -> s.[i] >= '0' && s.[i] <= '9') digits
+
+(* Record times supplied while seeding, in the exact stored form
+   YYYY-MM-DDTHH:MM:SS.ffffffZ. Accepts whole seconds or microseconds. *)
+let normalise_utc (s : string) : string option =
+  let ok_prefix =
+    String.length s >= 20 && is_date (String.sub s 0 10) && s.[10] = 'T' && s.[13] = ':' && s.[16] = ':'
+  in
+  if not ok_prefix then None
+  else if String.length s = 20 && s.[19] = 'Z' then Some (String.sub s 0 19 ^ ".000000Z")
+  else if String.length s = 27 && s.[19] = '.' && s.[26] = 'Z' then Some s
+  else None
+
+let sim_enabled () = Sys.getenv_opt "LEDGER_SIM_CLOCK" = Some "1"

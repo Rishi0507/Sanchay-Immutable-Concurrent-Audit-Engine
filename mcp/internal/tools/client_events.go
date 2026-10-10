@@ -123,6 +123,7 @@ func appendEvent(ctx context.Context, d *Deps, ev *catalogue.Event, c *core.Call
 		Identity:       c.Identity,
 		IdempotencyKey: key,
 		Payload:        payload,
+		RecordedAt:     core.SimTime(ctx),
 	}
 	idField := ev.Aggregate + "_id"
 

@@ -27,6 +27,7 @@ type t = {
   mutable head_hash : string;
   aggregates : (string, aggregate) Hashtbl.t;
   idempotency : (string, idempotent) Hashtbl.t;
+  mutable last_recorded : string;
 }
 
 type request = {
@@ -40,6 +41,7 @@ type request = {
   business_date : string option;
   idempotency_key : string;
   request_hash : string;
+  sim_recorded_at : string option;
 }
 
 (* --------------------------------------------------------------------- *)
@@ -115,6 +117,15 @@ let parse_request (body : Yojson.Safe.t) : (request * Identity.t, Error.t) resul
     | _ -> Error.fail Error.Validation_failed "payload must be an object."
   in
   let* () = check_storable "" payload in
+  let* sim_recorded_at =
+    match member "recorded_at" body with
+    | None | Some `Null -> Ok None
+    | Some (`String s) -> (
+        match Clock.normalise_utc s with
+        | Some v -> Ok (Some v)
+        | None -> Error.fail Error.Validation_failed "recorded_at must be RFC 3339 in UTC, YYYY-MM-DDTHH:MM:SSZ.")
+    | Some _ -> Error.fail Error.Validation_failed "recorded_at must be a string."
+  in
   let* identity =
     match member "identity" body with
     | Some j -> Identity.of_json j
@@ -133,6 +144,7 @@ let parse_request (body : Yojson.Safe.t) : (request * Identity.t, Error.t) resul
         business_date;
         idempotency_key;
         request_hash;
+        sim_recorded_at;
       },
       identity )
 
@@ -193,6 +205,12 @@ let load_state (t : t) : unit =
     t.head_seq <- seq;
     t.head_hash <- hash
   done
+  ;
+  let last =
+    Db.exec t.db
+      "SELECT coalesce(to_char(max(recorded_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'), '')        FROM business.events"
+  in
+  if Db.rows last > 0 then t.last_recorded <- Db.get last 0 0
 
 let create ~sw ~conninfo ~catalogue : t =
   let t =
@@ -204,6 +222,7 @@ let create ~sw ~conninfo ~catalogue : t =
       head_hash = Hash.genesis;
       aggregates = Hashtbl.create 4096;
       idempotency = Hashtbl.create 4096;
+      last_recorded = "";
     }
   in
   load_state t;
@@ -358,7 +377,15 @@ let append_locked (t : t) (identity : Identity.t) (req : request) : (receipt, Er
           let* posting = Posting_rules.derive kind req.payload ~target in
           let seq = t.head_seq + 1 in
           let prev_hash = t.head_hash in
-          let recorded_at = Clock.now_utc () in
+          (* Seeding a historical business may supply the record time, but only when the
+             ledger is started with LEDGER_SIM_CLOCK=1. Time on the chain never runs backwards. *)
+          let recorded_at =
+            match req.sim_recorded_at with
+            | Some s when Clock.sim_enabled () -> if String.compare s t.last_recorded > 0 then s else t.last_recorded
+            | _ ->
+                let now = Clock.now_utc () in
+                if String.compare now t.last_recorded > 0 then now else t.last_recorded
+          in
           let content =
             content ~seq ~req ~aggregate_version:version ~recorded_at ~identity
               ~postings:(Posting.to_json posting)
@@ -377,6 +404,7 @@ let append_locked (t : t) (identity : Identity.t) (req : request) : (receipt, Er
           | Ok () ->
               t.head_seq <- seq;
               t.head_hash <- hash;
+              t.last_recorded <- recorded_at;
               (match Hashtbl.find_opt t.aggregates req.aggregate_id with
               | None ->
                   Hashtbl.replace t.aggregates req.aggregate_id

@@ -93,6 +93,20 @@ type Call struct {
 	Args     map[string]any
 }
 
+type simTimeKey struct{}
+
+// WithSimTime carries a record time supplied while seeding a historical
+// business. The HTTP gateway sets it only when SIM_CLOCK=1.
+func WithSimTime(ctx context.Context, t string) context.Context {
+	return context.WithValue(ctx, simTimeKey{}, t)
+}
+
+// SimTime returns the seeding record time, or "" when none was supplied.
+func SimTime(ctx context.Context) string {
+	t, _ := ctx.Value(simTimeKey{}).(string)
+	return t
+}
+
 // Handler runs a tool. The result must marshal to a JSON object.
 type Handler func(ctx context.Context, c *Call) (map[string]any, *ToolError)
 

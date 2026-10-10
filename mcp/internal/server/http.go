@@ -6,6 +6,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -122,7 +123,13 @@ func (s *Server) handleCallTool(w http.ResponseWriter, r *http.Request, id core.
 		writeError(w, core.Errf(core.CodeValidationFailed, "Send a smaller request, or upload files with POST /api/files.", "The request body could not be read: %v", err))
 		return
 	}
-	result, terr := s.Invoke(r.Context(), id, r.PathValue("name"), raw)
+	ctx := r.Context()
+	// Seeding a historical business: the record time of each event may be supplied,
+	// for client identities only and only when the server runs with SIM_CLOCK=1.
+	if t := r.Header.Get("X-Sim-Recorded-At"); t != "" && os.Getenv("SIM_CLOCK") == "1" && id.Role == core.RoleClient {
+		ctx = core.WithSimTime(ctx, t)
+	}
+	result, terr := s.Invoke(ctx, id, r.PathValue("name"), raw)
 	if terr != nil {
 		writeError(w, terr)
 		return
