@@ -2,7 +2,7 @@ import { useState } from "react";
 import { callTool, fileUrl, money, shortHash } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Mark, Status, toast, useAction, useTool } from "../ui";
-import { FindingLite, Kpi, PageBrief, Panel, ReviewProgress, spotlight, Term, ViewHead, day, dedupe, inr, plural, sum } from "./kit";
+import { EmailAction, FindingLite, Kpi, PageBrief, Panel, ReviewProgress, spotlight, Term, ViewHead, day, dedupe, inr, plural, sum } from "./kit";
 
 interface FileRef {
   file_hash: string;
@@ -44,7 +44,7 @@ function Contents({ items }: { items: string[] }) {
   );
 }
 
-export default function Export({ pulse, engagementId }: ViewProps) {
+export default function Export({ pulse, engagementId, identity, can }: ViewProps) {
   const [workpaper, setWorkpaper] = useState<any>(null);
   const [memo, setMemo] = useState<any>(null);
   const [report, setReport] = useState<any>(null);
@@ -213,9 +213,27 @@ export default function Export({ pulse, engagementId }: ViewProps) {
               ))}
             </div>
           )}
-          <Button busy={busy === "memo"} kind="ghost" onClick={guard("memo", makeMemo)}>
-            {memo ? "Draft again" : "Draft the memo"}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button busy={busy === "memo"} kind="ghost" onClick={guard("memo", makeMemo)}>
+              {memo ? "Draft again" : "Draft the memo"}
+            </Button>
+            {can("send_report_email") && (
+              <EmailAction
+                kind="findings_memo"
+                label="Email the memo to the client"
+                audience="the client's management"
+                what={memo?.files?.[0]?.file_hash ? "the confirmed findings and the memo's SHA-256" : "the confirmed findings and their total impact"}
+                args={memo?.files?.[0]?.file_hash ? { file_hash: memo.files[0].file_hash } : undefined}
+                disabledReason={
+                  identity.role !== "audit_manager"
+                    ? "Only the audit manager can send findings to the client"
+                    : !s.signed_off
+                      ? "Findings go to the client only after the engagement is signed off"
+                      : undefined
+                }
+              />
+            )}
+          </div>
         </Panel>
 
         <Panel id="ex-rests" title="Rests on">

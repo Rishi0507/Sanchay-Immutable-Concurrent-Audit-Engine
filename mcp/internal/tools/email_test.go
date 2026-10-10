@@ -58,3 +58,15 @@ func TestHTMLIsEscaped(t *testing.T) {
 		t.Fatalf("unescaped html: %s", got)
 	}
 }
+
+func TestOnceBySubjectCountsASubjectOnce(t *testing.T) {
+	list := []map[string]any{
+		{"subject": map[string]any{"type": "invoice", "id": "inv_1"}, "amount_impact": 100.0},
+		{"subject": map[string]any{"type": "invoice", "id": "inv_1"}, "amount_impact": 60.0},
+		{"subject": map[string]any{"type": "customer", "id": "c_1"}, "amount_impact": 40.0},
+		{"amount_impact": 5.0},
+	}
+	if got := onceBySubject(list); got != 145 {
+		t.Fatalf("got %v, want 145", got)
+	}
+}

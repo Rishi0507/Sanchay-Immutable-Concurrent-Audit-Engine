@@ -3,7 +3,7 @@ import { callTool, money, when } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Pills, Section, Status, Table, cx, inputClass, toast, toneFor, useAction, useTool } from "../ui";
 import { Ranked, RiskMap, Swatch, ink } from "./charts";
-import { FindingLite, ListSkeleton, PageBrief, dedupe, Panel, SearchBox, Severity, SeverityBadge, SeverityIcon, Tally, Term, ViewHead, byPriority, catColor, category, findingStatus, inr, plural, sevFill, severities, sum } from "./kit";
+import { EmailAction, FindingLite, ListSkeleton, PageBrief, dedupe, Panel, SearchBox, Severity, SeverityBadge, SeverityIcon, Tally, Term, ViewHead, byPriority, catColor, category, findingStatus, inr, plural, sevFill, severities, sum } from "./kit";
 
 interface Finding extends FindingLite {
   explanation?: string;
@@ -363,7 +363,7 @@ const sevInk: Record<string, string> = { High: ink.high, Medium: ink.medium, Low
 const inrTick = (v: number) => (v >= 1e7 ? `${v / 1e7}Cr` : v >= 1e5 ? `${v / 1e5}L` : v >= 1e3 ? `${v / 1e3}K` : String(v));
 const selectClass = inputClass.replace("w-full", "w-auto");
 
-export default function Findings({ identity, pulse, focus, goTo }: ViewProps) {
+export default function Findings({ identity, pulse, focus, goTo, can }: ViewProps) {
   const [severity, setSeverity] = useState("");
   const [cat, setCat] = useState("");
   const [state, setState] = useState("");
@@ -490,7 +490,20 @@ export default function Findings({ identity, pulse, focus, goTo }: ViewProps) {
 
   return (
     <>
-      <ViewHead title="Findings" />
+      <ViewHead
+        title="Findings"
+        action={
+          can("send_report_email") ? (
+            <EmailAction
+              kind="findings_review"
+              label="Email the manager"
+              audience="the audit manager"
+              what="the count of findings awaiting review, by severity, with the largest high-severity findings"
+              disabledReason={everything.some((f) => f.status === "proposed" || f.status === "needs_info") ? undefined : "No findings are awaiting review"}
+            />
+          ) : undefined
+        }
+      />
 
       {everything.length > 0 && (
         <PageBrief

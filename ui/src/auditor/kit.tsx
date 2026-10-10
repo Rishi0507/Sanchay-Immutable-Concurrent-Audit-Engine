@@ -4,7 +4,7 @@
 
 import { CSSProperties, KeyboardEvent as RKeyboardEvent, ReactNode, useEffect, useState } from "react";
 import { callTool, money } from "../api";
-import { cx } from "../ui";
+import { Button, Mark, cx, toast, useAction } from "../ui";
 
 export type Severity = "High" | "Medium" | "Low";
 export const severities: Severity[] = ["High", "Medium", "Low"];
@@ -801,5 +801,124 @@ export function FieldGrid({ fields }: { fields: [string, ReactNode][] }) {
           </div>
         ))}
     </dl>
+  );
+}
+
+// ---------------------------------------------------------------- Email a report
+
+interface EmailResult {
+  sent: boolean;
+  preview: boolean;
+  message_id?: string;
+  recipients?: string[];
+  subject: string;
+  text: string;
+  reason?: string;
+}
+
+// A button that emails one report through send_report_email. It first says
+// who will receive it and lets the sender add a note; nothing goes out until
+// Send is pressed. The audience is fixed by the kind on the server.
+export function EmailAction({
+  kind,
+  label,
+  audience,
+  what,
+  args,
+  disabledReason,
+}: {
+  kind: "findings_review" | "evidence_reminder" | "findings_memo";
+  label: string;
+  // Who receives it, in plain words, for the confirmation.
+  audience: string;
+  // What the email contains, in plain words.
+  what: string;
+  args?: Record<string, unknown>;
+  disabledReason?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState("");
+  const [result, setResult] = useState<EmailResult | null>(null);
+  const { busy, run } = useAction();
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const send = () =>
+    run("send", async () => {
+      const r = await callTool<EmailResult>("send_report_email", { kind, note, ...(args ?? {}) });
+      setResult(r);
+      setNote("");
+      if (r.sent) toast(`Email sent to ${r.recipients?.length ?? 0} ${(r.recipients?.length ?? 0) === 1 ? "recipient" : "recipients"}.`);
+    });
+
+  return (
+    <span className="relative inline-flex">
+      <span title={disabledReason}>
+        <Button
+          kind="ghost"
+          disabled={!!disabledReason}
+          onClick={() => {
+            setResult(null);
+            setOpen((o) => !o);
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="2.5" y="4.5" width="15" height="11" rx="1.5" />
+            <path d="M3 5.5l7 5.5 7-5.5" />
+          </svg>
+          {label}
+        </Button>
+      </span>
+      {open && (
+        <div role="dialog" aria-label={label} className="view absolute top-full right-0 z-40 mt-2 w-[min(400px,calc(100vw-2rem))] rounded-lg border border-line bg-paper p-4 text-left shadow-[0_16px_40px_rgba(0,0,0,0.3)]">
+          {!result ? (
+            <>
+              <div className="text-sm font-semibold text-ink">{label}</div>
+              <p className="mt-1 text-[13px] leading-relaxed text-ink-2">
+                Sends {what} to <span className="font-medium text-ink">{audience}</span>, at the addresses set on the server. It states the snapshot hash and is recorded in the audit trail.
+              </p>
+              <textarea
+                className="mt-3 h-auto min-h-16 w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-3 focus:border-brand"
+                placeholder="Add a note at the top of the email (optional)"
+                maxLength={1000}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+              <div className="mt-3 flex justify-end gap-2">
+                <Button kind="ghost" small onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+                <Button small busy={busy === "send"} onClick={send}>
+                  Send
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={cx("flex items-center gap-2 text-sm font-semibold", result.sent ? "text-pass" : "text-wait")}>
+                <Mark tone={result.sent ? "good" : "warn"} size={15} />
+                {result.sent ? `Sent to ${result.recipients?.length ?? 0} ${(result.recipients?.length ?? 0) === 1 ? "recipient" : "recipients"}` : "Preview only, nothing was sent"}
+              </div>
+              {result.reason && <p className="mt-1 text-xs text-ink-2">{result.reason}</p>}
+              {result.message_id && <p className="mt-1 font-mono text-[11px] text-ink-3">Message {result.message_id}</p>}
+              <div className="mt-3 rounded-md border border-line-soft bg-wash/60 p-3">
+                <div className="text-[13px] font-medium text-ink">{result.subject}</div>
+                <pre className="thin-scroll mt-2 max-h-56 overflow-auto font-sans text-xs leading-relaxed whitespace-pre-wrap text-ink-2">{result.text}</pre>
+              </div>
+              <div className="mt-3 flex justify-end">
+                <Button kind="ghost" small onClick={() => setOpen(false)}>
+                  Close
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </span>
   );
 }

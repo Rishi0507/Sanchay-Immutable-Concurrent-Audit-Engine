@@ -178,14 +178,15 @@ func findingsReviewMessage(e emailEngagement, found map[string]any, note string)
 	list := mapList(found["findings"])
 	by := map[string]int{}
 	awaiting := 0
-	var awaitingAmount float64
+	var open []map[string]any
 	for _, f := range list {
 		by[core.Str(f, "severity")]++
 		if s := core.Str(f, "status"); s == "proposed" || s == "needs_info" {
 			awaiting++
-			awaitingAmount += num(f["amount_impact"])
+			open = append(open, f)
 		}
 	}
+	awaitingAmount := onceBySubject(open)
 	top := topFindings(list, 5)
 	subject := fmt.Sprintf("Revenue audit %s: %d findings await your review", e.period(), awaiting)
 	lines := []string{}
@@ -193,7 +194,7 @@ func findingsReviewMessage(e emailEngagement, found map[string]any, note string)
 		lines = append(lines, note, "")
 	}
 	lines = append(lines,
-		fmt.Sprintf("%d findings are awaiting review, flagging Rs %s of potential misstatement before review.", awaiting, inrText(awaitingAmount)),
+		fmt.Sprintf("%d findings are awaiting review, flagging Rs %s of potential misstatement before review, each subject counted once.", awaiting, inrText(awaitingAmount)),
 		fmt.Sprintf("By severity: %d high, %d medium, %d low.", by["High"], by["Medium"], by["Low"]),
 		"These are potential findings for the audit team only. Do not forward them to the client before review.",
 	)
@@ -241,10 +242,7 @@ func evidenceReminderMessage(e emailEngagement, ev map[string]any, note string) 
 
 func findingsMemoMessage(e emailEngagement, found map[string]any, memo files.Meta, note string) mail.Message {
 	list := mapList(found["findings"])
-	var total float64
-	for _, f := range list {
-		total += num(f["amount_impact"])
-	}
+	total := onceBySubject(list)
 	subject := fmt.Sprintf("Revenue audit %s: findings memo", e.period())
 	lines := []string{}
 	if note != "" {
@@ -285,6 +283,30 @@ func toHTML(lines []string) string {
 	}
 	b.WriteString("</div>")
 	return b.String()
+}
+
+// onceBySubject totals findings counting each subject (one invoice, one
+// customer, one cycle) once, at the largest amount any of its findings
+// carries, as the workspace does. Findings on the same subject would
+// otherwise add the same rupees twice.
+func onceBySubject(list []map[string]any) float64 {
+	best := map[string]float64{}
+	for i, f := range list {
+		key := fmt.Sprint("finding:", i)
+		if subj, ok := f["subject"].(map[string]any); ok && core.Str(subj, "id") != "" {
+			key = core.Str(subj, "type") + ":" + core.Str(subj, "id")
+		}
+		if v := num(f["amount_impact"]); v > best[key] {
+			best[key] = v
+		} else if _, seen := best[key]; !seen {
+			best[key] = v
+		}
+	}
+	var total float64
+	for _, v := range best {
+		total += v
+	}
+	return total
 }
 
 func mapList(v any) []map[string]any {

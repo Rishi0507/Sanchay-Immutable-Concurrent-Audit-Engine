@@ -3,7 +3,7 @@ import { callTool, money } from "../api";
 import type { ViewProps } from "../App";
 import { Button, Card, Chip, Column, Drawer, Empty, ErrorNote, KeyValues, Mark, Pills, Section, Status, Table, cx, toast, toneFor, useAction, useTool } from "../ui";
 import { Columns, CutoffItem, CutoffTimeline, Donut, Ranked, ink } from "./charts";
-import { LedgerRows, ListSkeleton, PageBrief, Panel, SearchBox, Tally, Term, ViewHead, inr, monthKey, monthLabel, monthRange, plural, scaleFor } from "./kit";
+import { EmailAction, LedgerRows, ListSkeleton, PageBrief, Panel, SearchBox, Tally, Term, ViewHead, inr, monthKey, monthLabel, monthRange, plural, scaleFor } from "./kit";
 
 type Sheet = "sales_tod" | "cutoff_tod" | "credit_note_tod";
 
@@ -68,7 +68,7 @@ function worst(tests?: Record<string, string>): string {
   return values.length ? "Pass" : "";
 }
 
-export default function Samples({ pulse, goTo, engagementId, focus }: ViewProps) {
+export default function Samples({ pulse, goTo, engagementId, focus, can }: ViewProps) {
   const [sheet, setSheet] = useState<Sheet>("sales_tod");
   const [outcome, setOutcome] = useState("");
   const [query, setQuery] = useState("");
@@ -211,9 +211,20 @@ export default function Samples({ pulse, goTo, engagementId, focus }: ViewProps)
               Select {def.label.toLowerCase()} samples
             </Button>
           ) : (
-            <Button busy={busy === "verify"} onClick={verify}>
-              Test the evidence
-            </Button>
+            <span className="flex flex-wrap items-center gap-2">
+              {can("send_report_email") && (
+                <EmailAction
+                  kind="evidence_reminder"
+                  label="Remind the client"
+                  audience="the client's staff"
+                  what="the list of documents still awaited, by sample"
+                  disabledReason={pending ? undefined : "No documents are awaited"}
+                />
+              )}
+              <Button busy={busy === "verify"} onClick={verify}>
+                Test the evidence
+              </Button>
+            </span>
           )
         }
       />
