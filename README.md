@@ -8,8 +8,17 @@ A statutory auditor of a mid-size manufacturer usually receives a sales register
 
 The full specification is in [docs/PRD.md](docs/PRD.md).
 
+## Quick start
+
+```sh
+docker compose -f deploy/docker-compose.yml up --build
+```
+
+Open http://localhost:5173. The front page tells the whole system as one story, and its Lens audits the demo register in the browser with nothing else loaded. To run the full audit on data, [load the demo business](#load-the-demo-business) and sign in as the auditor.
+
 ## Contents
 
+- [Quick start](#quick-start)
 - [What is built](#what-is-built)
 - [Architecture](#architecture)
 - [The life of a sale](#the-life-of-a-sale)
@@ -43,6 +52,7 @@ The full specification is in [docs/PRD.md](docs/PRD.md).
 | Outputs | The workpaper, the findings memo, a one-page summary report and a tamper-evident audit trail. |
 | Assistant | Questions in English, Hindi or Marathi, answered only from the records of the engagement. Each statement names its source, and a figure that is not in the records is withheld. |
 | Agent operation | Every capability is an MCP tool. The interface calls the same tools. An auditor agent is included. |
+| Interface | A front page that tells the whole system as one 3D story, the Lens that audits any register in the browser, pages printed like a banknote, six palettes from the inks of Indian notes, and a UV lamp under which the exceptions glow. |
 
 ## Architecture
 
@@ -481,8 +491,9 @@ The front page tells the whole system as one story over a 3D scene of a year's s
 
 | Control | What it does |
 |---|---|
-| Ink | Six palettes from the inks of Indian notes: Stone (the ₹500), Magenta (the ₹2000), Lavender (the ₹100), Marigold (the ₹200), Peacock (the ₹50) and Night. The whole interface follows, the 3D included. Every text colour was checked for contrast in each. |
+| Ink | Six palettes from the inks of Indian notes: Stone (the ₹500), Magenta (the ₹2000), Lavender (the ₹100), Marigold (the ₹200), Peacock (the ₹50) and Night. The whole interface follows, the 3D included. The main text colours were checked for contrast in each. |
 | UV lamp | Turns the page dark violet. Exceptions, caught rows and failed tests fluoresce, as a note's hidden marks do under ultraviolet light. |
+| Simple, Full detail | Simple shows each page's summary, its main view and its list, and folds the other analysis into one bar. Full detail shows every chart. |
 | Ctrl K | Finds a page, an action or a finding. |
 
 The workspace asks for an identity. Each identity sees only what its role and department allow, because the tabs follow from the tool list that the server returns.
@@ -494,12 +505,12 @@ The workspace asks for an identity. Each identity sees only what its role and de
 | Client | Records | Browse every business record with its versions and ledger postings. |
 | Client | New record | A form for each record the department may create. |
 | Client | Access | Who may do what, with the caller's own department highlighted. |
-| Auditor | Overview | The plan, the next step, findings by severity, samples, documents awaited, control requests, the snapshot and the seed. |
-| Auditor | Register | The client's register as provided, with the related-party tag, reconciliation status and findings pinned beside each row. |
-| Auditor | Samples | The three test-of-details sheets with the reason for each sample and its test results. A document the client sent can be held to the light, as below. |
-| Auditor | Findings | Every finding with its explanation, lineage and proposed adjustment. The audit manager decides here. |
+| Auditor | Overview | The answer first: the revenue in question against the register, the next step to take, the stages of the audit, what it covered and the findings to look at first. The plan, the snapshot and the seed are one click below. |
+| Auditor | Register | The client's register as provided, with the related-party tag, reconciliation status and findings pinned beside each row. Every row is also one square of a wall, so the rows that do not agree stand out, and a square opens its row. |
+| Auditor | Samples | The three test-of-details sheets with the reason for each sample and its test results. The samples rise from a line of the period at their dates, each marked with its result. A document the client sent can be held to the light, as below. |
+| Auditor | Findings | Every finding with its explanation, the ledger records it rests on, its lineage and its proposed adjustment. The audit manager decides here, by button or with the keys C, R and I, and the decision is stamped on the finding. |
 | Auditor | Graph | The counterparty graph in two or three dimensions, with the trading cycles. |
-| Auditor | Trail | The audit trail and the result of verifying it. |
+| Auditor | Trail | The audit trail and the result of verifying it, with the latest links of the chain checked in the browser. |
 | Auditor | Export | The summary report, the workpaper and the findings memo. |
 | Auditor | Ask | A panel over every auditor screen. It answers questions from the records of the engagement and opens the record behind each statement. |
 | Any | Lens | Audit any register in the browser, as below. |
@@ -518,7 +529,7 @@ A document in Hindi or Marathi is marked like any other, because what is compare
 
 ### Lens
 
-The front page is Sanchay Lens. A visitor drops a sales register (Excel, CSV or JSON), or presses Audit the sample register, and the browser audits it with no account, no server call and no model. The related-party list can be dropped with it.
+Sanchay Lens is one click from the front page, and a tab of the workspace for every identity. A visitor drops a sales register (Excel, CSV or JSON), or presses Audit the sample register, and the browser audits it with no account, no server call and no model. The related-party list can be dropped with it.
 
 | Stage | What happens |
 |---|---|
