@@ -571,7 +571,7 @@ export default function Graph3D({ data, active, onPickCycle }: { data: GraphData
         ))}
       </div>
 
-      <div className="pointer-events-none absolute bottom-9 right-4 flex flex-wrap justify-end gap-4 text-[12px] text-ink-2">
+      <div className="pointer-events-none absolute right-3 bottom-9 z-10 flex flex-wrap justify-end gap-4 rounded-lg bg-paper/90 px-3 py-1.5 text-[12px] text-ink-2 shadow-sm backdrop-blur-sm">
         <span className="flex items-center gap-1.5"><i className="h-0.5 w-5 rounded bg-ink-3" />Goods (high arc)</span>
         <span className="flex items-center gap-1.5"><i className="h-0.5 w-5 rounded bg-pass" />Money (low arc)</span>
         <span>Column height is trade value</span>

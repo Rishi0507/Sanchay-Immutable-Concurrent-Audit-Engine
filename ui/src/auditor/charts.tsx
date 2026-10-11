@@ -284,7 +284,7 @@ export function Donut({
         </div>
       </div>
       {legend && (
-        <ul className="min-w-[170px] flex-1 space-y-0.5" aria-label="Legend">
+        <ul className="min-w-[240px] flex-1 space-y-0.5" aria-label="Legend">
           {slices.map((s) => (
             <li key={s.key}>
               <button
@@ -298,11 +298,12 @@ export function Donut({
                 className={cx("flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-[14px] transition-colors", focus === s.key ? "bg-wash" : "enabled:hover:bg-wash", selected && selected !== s.key && "opacity-55")}
               >
                 <Swatch color={s.color} shape="dot" />
-                <span className="min-w-0 flex-1 truncate text-ink-2">
+                {/* Labels wrap rather than cut off, so a narrow panel still reads in full. */}
+                <span className="min-w-0 flex-1 leading-snug text-ink-2">
                   {s.label}
                   {s.detail && <span className="ml-1.5 text-ink-3">{s.detail}</span>}
                 </span>
-                <span className="num font-medium text-ink">{format(s.value)}</span>
+                <span className="num shrink-0 font-medium text-ink">{format(s.value)}</span>
               </button>
             </li>
           ))}
