@@ -6,7 +6,7 @@ AI-run statutory revenue audit. Team ELEV05, Elevate 1.0, problem statement 04.
 
 A statutory auditor of a mid-size manufacturer usually receives a sales register exported to a spreadsheet, tests a few dozen of 6,000 to 8,000 sales, and collects the supporting documents by email. This project builds the system of record behind those sales and audits that instead. Every step of a sale is an event in an append-only, hash-chained double-entry ledger. The whole system is exposed as a Model Context Protocol (MCP) server, so that an AI agent holding only an identity can run the business as a client employee or audit it as an independent auditor, with exactly the permissions of that identity.
 
-The full specification is in [docs/PRD.md](docs/PRD.md).
+The full specification is in [docs/PRD.md](docs/PRD.md), and the architecture, in five diagrams, is in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Quick start
 
@@ -16,9 +16,35 @@ docker compose -f deploy/docker-compose.yml up --build
 
 Open http://localhost:5173. The front page tells the whole system as one story, and its Lens audits the demo register in the browser with nothing else loaded. To run the full audit on data, [load the demo business](#load-the-demo-business) and sign in as the auditor.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/screenshots/01-landing.jpg" alt="The front page"><br>The front page. A year of sales drawn as notes in 3D, telling the whole system as one story.</td>
+    <td width="50%" valign="top"><img src="docs/screenshots/02-story.jpg" alt="A chapter of the story"><br>A chapter of the story. The register under ultraviolet light, where the sales that leave a mark glow.</td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/screenshots/03-lens.jpg" alt="Lens"><br>Lens. A register dropped in the browser is read, sealed and tested, with no server and no model.</td>
+    <td width="50%" valign="top"><img src="docs/screenshots/04-lens-city.jpg" alt="Lens builds its views from the columns it finds, here a 3D city of party by month"><br>Lens builds its views from the columns it finds, here a 3D city of party by month.</td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/screenshots/05-overview.jpg" alt="Overview"><br>Overview. The revenue in question, the next step to take and the findings to look at first.</td>
+    <td width="50%" valign="top"><img src="docs/screenshots/06-register.jpg" alt="Register"><br>Register. Every row is one square of the wall, so the rows that do not agree stand out.</td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/screenshots/07-samples.jpg" alt="Samples"><br>Samples. Each sample rises from the period at its date, marked with its result.</td>
+    <td width="50%" valign="top"><img src="docs/screenshots/08-findings.jpg" alt="Findings"><br>Findings. An undisclosed related party, its evidence and the 23 ledger records behind it.</td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top"><img src="docs/screenshots/09-graph.jpg" alt="Graph"><br>Graph. The trading cycles in 3D, where goods or money come back to where they started.</td>
+    <td width="50%" valign="top"><img src="docs/screenshots/10-trail.jpg" alt="Trail"><br>Trail. The latest links of the hash chain, each checked in the browser.</td>
+  </tr>
+</table>
+
 ## Contents
 
 - [Quick start](#quick-start)
+- [Screenshots](#screenshots)
 - [What is built](#what-is-built)
 - [Architecture](#architecture)
 - [The life of a sale](#the-life-of-a-sale)
@@ -55,6 +81,8 @@ Open http://localhost:5173. The front page tells the whole system as one story, 
 | Interface | A front page that tells the whole system as one 3D story, the Lens that audits any register in the browser, and pages printed like a banknote in the stone grey of the ₹500 note. |
 
 ## Architecture
+
+The diagrams of one tool call, the ledger write path, the audit and the four layers of protection, with the decisions behind each, are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```mermaid
 flowchart LR
