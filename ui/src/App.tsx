@@ -1,11 +1,9 @@
 import { Component, ReactNode, Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { Identity, Notice, Role, ToolInfo, callTool, getEngagement, getToken, listTools, setEngagement, setRole, setToken, subscribe, whoami } from "./api";
-import { useTheme } from "./theme";
 import { BrandMark, Button, Mark, Toasts, cx, inputClass, toast } from "./ui";
 import { setFullDetail, useDetail } from "./auditor/kit";
 import { CommandItem, CommandPalette } from "./Command";
 import { Thread, useTilt } from "./print";
-import { InkButton, PalettePicker, UvSwitch } from "./inks";
 import Upload from "./client/Upload";
 import Requests from "./client/Requests";
 import Records from "./client/Records";
@@ -324,7 +322,6 @@ function SignIn({ onSignedIn, onBack }: { onSignedIn: (id: Identity) => void; on
             </svg>
             How it works
           </button>
-          <PalettePicker compact onDark />
         </div>
         <div className="relative my-12 lg:my-0">
           <img src="/logo.png" alt="Sanchay" width={150} height={104} className="logo-ground rounded-2xl" />
@@ -449,7 +446,6 @@ export default function App() {
   const [tools, setTools] = useState<ToolInfo[] | null>(null);
   const [palette, setPalette] = useState(false);
   const [counts, setCounts] = useState<Record<string, number>>({});
-  const [theme, setThemeValue] = useTheme();
 
   useEffect(() => {
     if (!getToken()) {
@@ -596,12 +592,11 @@ export default function App() {
         ]
       : [];
     const general: CommandItem[] = [
-      { id: "do:theme", group: "Do", label: theme === "dark" ? "Switch to the light theme" : "Switch to the dark theme", icon: <TabIcon id="theme" />, run: () => setThemeValue(theme === "dark" ? "light" : "dark") },
       { id: "do:story", group: "Do", label: "Read how Sanchay works", hint: "The front page and its six chapters", icon: <TabIcon id="story" />, run: () => setScreen("landing") },
       { id: "do:signout", group: "Do", label: "Sign out", icon: <TabIcon id="signout" />, run: signOut },
     ];
     return [...go, ...filters, ...general];
-  }, [tabs, auditing, goTo, theme, setThemeValue, signOut]);
+  }, [tabs, auditing, goTo, signOut]);
 
   if (checking) return null;
 
@@ -769,10 +764,6 @@ export default function App() {
                 <path d="M8 4H4.5v12H8M12 6.5L15.5 10 12 13.5M15.5 10H8" />
               </svg>
             </button>
-          </div>
-          <div className="mt-2.5 flex items-center gap-2">
-            <InkButton />
-            <UvSwitch onDark />
           </div>
         </div>
       </aside>

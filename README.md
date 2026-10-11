@@ -52,7 +52,7 @@ Open http://localhost:5173. The front page tells the whole system as one story, 
 | Outputs | The workpaper, the findings memo, a one-page summary report and a tamper-evident audit trail. |
 | Assistant | Questions in English, Hindi or Marathi, answered only from the records of the engagement. Each statement names its source, and a figure that is not in the records is withheld. |
 | Agent operation | Every capability is an MCP tool. The interface calls the same tools. An auditor agent is included. |
-| Interface | A front page that tells the whole system as one 3D story, the Lens that audits any register in the browser, pages printed like a banknote, six palettes from the inks of Indian notes, and a UV lamp under which the exceptions glow. |
+| Interface | A front page that tells the whole system as one 3D story, the Lens that audits any register in the browser, and pages printed like a banknote in the stone grey of the ₹500 note. |
 
 ## Architecture
 
@@ -491,8 +491,6 @@ The front page tells the whole system as one story over a 3D scene of a year's s
 
 | Control | What it does |
 |---|---|
-| Ink | Six palettes from the inks of Indian notes: Stone (the ₹500), Magenta (the ₹2000), Lavender (the ₹100), Marigold (the ₹200), Peacock (the ₹50) and Night. The whole interface follows, the 3D included. The main text colours were checked for contrast in each. |
-| UV lamp | Turns the page dark violet. Exceptions, caught rows and failed tests fluoresce, as a note's hidden marks do under ultraviolet light. |
 | Simple, Full detail | Simple shows each page's summary, its main view and its list, and folds the other analysis into one bar. Full detail shows every chart. |
 | Ctrl K | Finds a page, an action or a finding. |
 

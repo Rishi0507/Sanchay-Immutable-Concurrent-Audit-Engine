@@ -6,7 +6,6 @@ import { BrandMark, Mark, cx } from "../ui";
 import { Stamp } from "../Stamp";
 import { Denomination, Guilloche, Microtext, ShiftInk, Thread, Watermark } from "../print";
 import { prefersReducedMotion, usePalette, useUv } from "../theme";
-import { PalettePicker, UvSwitch } from "../inks";
 import type { StoryState } from "./Scene";
 // Devanagari for the name, as a note carries its words in Hindi too. Loaded with this page only.
 import "@fontsource-variable/anek-devanagari/wght.css";
@@ -195,11 +194,6 @@ export default function Landing({ onInspect, onWorkspace }: { onInspect: () => v
           <span className="display text-[24px]">Sanchay</span>
         </button>
         <div className="flex items-center gap-3">
-          <div className="hidden items-center gap-3 rounded-full border border-white/15 bg-black/20 px-3 py-1.5 backdrop-blur md:flex">
-            <span className="text-[13px] font-semibold text-spine-ink-2">Ink</span>
-            <PalettePicker compact onDark />
-          </div>
-          <UvSwitch onDark />
           <button onClick={() => onWorkspace()} className="hidden h-9 items-center rounded-full bg-spine-ink px-4 text-[14px] font-bold text-spine sm:inline-flex">
             Open the workspace
           </button>
@@ -280,13 +274,6 @@ export default function Landing({ onInspect, onWorkspace }: { onInspect: () => v
                 <span className="mt-6 inline-flex h-11 items-center rounded-full bg-spine-ink px-5 text-[15px] font-bold text-spine">Sign in</span>
               </div>
             </button>
-            <div className="flex flex-wrap items-center justify-between gap-4 rounded-[22px] border border-white/12 bg-black/20 px-6 py-5 backdrop-blur lg:col-span-2">
-              <div>
-                <div className="text-[16px] font-bold">Print it in another ink</div>
-                <div className="text-[14px] text-spine-ink-2">Each palette is the ink of an Indian banknote. The whole system follows, the 3D included.</div>
-              </div>
-              <PalettePicker onDark />
-            </div>
           </div>
         </section>
       </div>

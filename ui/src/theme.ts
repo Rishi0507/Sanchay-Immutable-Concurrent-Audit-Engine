@@ -68,18 +68,10 @@ export function setTheme(theme: Theme) {
   setPalette(theme === "dark" ? "night" : getPalette() === "night" ? "stone" : getPalette());
 }
 
+// The interface is printed in Stone, with the lamp off. The other palettes
+// stay defined but are no longer offered.
 export function initTheme() {
-  let p: Palette = "stone";
-  let uv = false;
-  try {
-    const stored = localStorage.getItem(KEY) as Palette | null;
-    if (stored && palettes.some((x) => x.id === stored)) p = stored;
-    else if (localStorage.getItem("revenue-audit-theme") === "dark") p = "night";
-    uv = localStorage.getItem(UV_KEY) === "on";
-  } catch {
-    /* defaults */
-  }
-  apply(p, uv);
+  apply("stone", false);
 }
 
 function useSubscribe<T>(read: () => T): T {
