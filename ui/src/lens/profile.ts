@@ -95,6 +95,8 @@ const countish = /qty|quantity|count|units|pcs|nos|days|age|year|percent|%|score
 const partyish = /customer|party|vendor|supplier|buyer|client|consignee|payee|payer|debtor|creditor|name|account holder/i;
 const docish = /bill|invoice|voucher|doc|receipt no|ref|number|no\.?$|#/i;
 const stateish = /state|place of supply|pos\b/i;
+const idish = /\bid\b|\bcode\b|\bno\b|number|#/i;
+const placeish = /country|region|city|zone|territory|district|branch|location/i;
 
 // Reads every column and decides its role. `overrides` replaces a decision.
 export function profile(table: Table, overrides: Record<number, Role> = {}): Profile {
@@ -131,7 +133,16 @@ export function profile(table: Table, overrides: Record<number, Role> = {}): Pro
     if (share((_, s) => PAN_RE.test(s.toUpperCase())) >= 0.8) return { ...base, role: "pan" as Role, reason: "Cells are shaped like a PAN: five letters, four digits, a letter." };
     if (stateish.test(name) && share((_, s) => /^\d{1,2}$/.test(s) && +s >= 1 && +s <= 38) >= 0.9)
       return { ...base, role: "state" as Role, reason: "Named like a state, holding GST state codes from 01 to 38." };
+    const unique = distinct / n;
     if (numShare >= 0.9) {
+      // Identifiers written as numbers, such as a customer ID or an invoice
+      // number, are never money however large they are.
+      const whole = nums.every((x) => x === null || Number.isInteger(x));
+      if (whole && !money.test(name) && (idish.test(name) || docish.test(name) || partyish.test(name))) {
+        if (partyish.test(name) && unique < 0.9) return { ...base, role: "party" as Role, reason: `Named like a party, with ${distinct.toLocaleString("en-IN")} different numbers that repeat.` };
+        if (unique >= 0.97) return { ...base, role: "docno" as Role, reason: "Whole numbers named like a document number, almost all different." };
+        return { ...base, role: "number" as Role, reason: "Whole numbers named like an identifier, so not money." };
+      }
       if (countish.test(name) && !money.test(name)) return { ...base, role: "number" as Role, reason: "Numbers, named like a count or a quantity.", sum };
       if (money.test(name)) return { ...base, role: "amount" as Role, reason: "Numbers, named like money.", sum };
       const decimals = nums.filter((x) => x !== null && Math.round(x * 100) % 100 !== 0).length / n;
@@ -139,10 +150,10 @@ export function profile(table: Table, overrides: Record<number, Role> = {}): Pro
       if (decimals > 0.2 || big > 0.5) return { ...base, role: "amount" as Role, reason: "Large numbers or paise, so treated as money.", sum };
       return { ...base, role: "number" as Role, reason: "Numbers that do not look like money.", sum };
     }
-    const unique = distinct / n;
     if (unique >= 0.97 && (docish.test(name) || share((_, s) => /\d{3,}/.test(s) && /[A-Za-z/\-]/.test(s)) >= 0.8))
       return { ...base, role: "docno" as Role, reason: "Almost every value is different and carries a running number." };
     if (partyish.test(name) && unique < 0.9) return { ...base, role: "party" as Role, reason: `Named like a party, with ${distinct.toLocaleString("en-IN")} different names that repeat.` };
+    if (placeish.test(name) && unique <= 0.5) return { ...base, role: "category" as Role, reason: `Named like a place, with ${distinct} different values repeated across rows.` };
     if (distinct <= 40 && unique <= 0.5) return { ...base, role: "category" as Role, reason: `Only ${distinct} different values, repeated across rows.` };
     if (unique < 0.6 && share((_, s) => /[A-Za-z]{3,}/.test(s)) >= 0.9) return { ...base, role: "party" as Role, reason: "Names that repeat across rows, like a customer or vendor." };
     if (unique >= 0.97) return { ...base, role: "docno" as Role, reason: "Almost every value is different, like a reference." };

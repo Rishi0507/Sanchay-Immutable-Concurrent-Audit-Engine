@@ -141,7 +141,9 @@ export function runChecks(p: Profile, related?: Table | null): Check[] {
     const main = [...prefixes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
     const series = parsed.filter((x) => x.prefix === main).sort((a, b) => a.no - b.no);
     // The series breaks wherever numbers jump far more than they usually step.
-    // The longest stretch is the series; numbers in the other stretches are strays.
+    // The body runs from the first to the last stretch that holds at least 1% of
+    // the numbers, so a real series with a few wide gaps stays whole. Numbers in
+    // small stretches before or after the body are strays.
     const steps = series.slice(1).map((x, i) => x.no - series[i].no).filter((d) => d > 0).sort((a, b) => a - b);
     const usual = steps[Math.floor(steps.length / 2)] ?? 1;
     const jump = Math.max(50, usual * 40);
@@ -150,9 +152,12 @@ export function runChecks(p: Profile, related?: Table | null): Check[] {
       if (i && x.no - series[i - 1].no > jump) runs.push([]);
       runs[runs.length - 1].push(x);
     });
-    const longest = runs.reduce((a, b) => (b.length > a.length ? b : a));
-    const outside = series.filter((x) => !longest.includes(x));
-    const inside = series.filter((x) => !outside.includes(x));
+    const big = Math.max(1, Math.floor(series.length / 100));
+    let first = runs.findIndex((r) => r.length >= big);
+    let last = runs.length - 1 - [...runs].reverse().findIndex((r) => r.length >= big);
+    if (first < 0) first = last = runs.indexOf(runs.reduce((a, b) => (b.length > a.length ? b : a)));
+    const outside = runs.filter((_, i) => i < first || i > last).flat();
+    const inside = runs.slice(first, last + 1).flat();
     let gaps = 0;
     const gapAfter: number[] = [];
     for (let i = 1; i < inside.length; i++) {
