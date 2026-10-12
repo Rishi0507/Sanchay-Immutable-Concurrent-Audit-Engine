@@ -13,6 +13,7 @@ How the parts of Sanchay fit together, in five diagrams. Each diagram is followe
 ## 1. System
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 600}}}%%
 flowchart LR
     subgraph Callers
         UI["User interface<br/>React, Vite, Tailwind<br/>port 5173"]
@@ -35,16 +36,16 @@ flowchart LR
 
     LLM["Optional model<br/>local or hosted"]
 
-    UI -->|"HTTP /api, the same tools"| MCP
+    UI -->|"HTTP /api,<br/>the same tools"| MCP
     AG -->|"MCP /mcp"| MCP
-    MCP -->|"append, verify, trail"| LED
+    MCP -->|"append, verify,<br/>trail"| LED
     MCP -->|"audit operations"| ENG
     MCP -->|"read only"| DB
-    LED -->|"only writer of business and trail"| DB
-    ENG -->|"reads business, writes audit"| DB
+    LED -->|"only writer of<br/>business and trail"| DB
+    ENG -->|"reads business,<br/>writes audit"| DB
     MCP --> FS
     ENG --> FS
-    ENG -.->|"reading documents, wording only"| LLM
+    ENG -.->|"reading documents,<br/>wording only"| LLM
 ```
 
 | Decision | Why | Cost |
@@ -96,6 +97,7 @@ sequenceDiagram
 ## 3. The ledger write path
 
 ```mermaid
+%%{init: {"htmlLabels": false, "flowchart": {"wrappingWidth": 400}}}%%
 flowchart TB
     R["Append request from the MCP server"] --> CAP{"Capability<br/>client_employee?"}
     CAP -->|"no: an auditor handle has no append function"| X["Refused"]
@@ -131,6 +133,7 @@ flowchart TB
 ## 4. The audit
 
 ```mermaid
+%%{init: {"htmlLabels": false, "flowchart": {"wrappingWidth": 400}}}%%
 flowchart LR
     UP["Client uploads the register<br/>and related-party list"] --> SEAL["Seed sealed<br/>client receives the commitment"]
     SEAL --> OPEN["open_engagement<br/>snapshot frozen, seed derived"]
@@ -161,6 +164,7 @@ flowchart LR
 ## 5. Four layers of protection
 
 ```mermaid
+%%{init: {"htmlLabels": false, "flowchart": {"wrappingWidth": 400}}}%%
 flowchart TB
     A["An auditor identity, or an agent holding one,<br/>tries to change business data"]
     A --> L1{"L1 MCP server<br/>tool list of the role"}

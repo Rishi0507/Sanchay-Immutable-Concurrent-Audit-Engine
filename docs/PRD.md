@@ -216,6 +216,7 @@ The audit engine reads the `business` schema directly for speed. For that path t
 ### 5.2 Component diagram
 
 ```mermaid
+%%{init: {"htmlLabels": false, "flowchart": {"wrappingWidth": 400}}}%%
 flowchart LR
     subgraph Callers
         CA[Client agent or user]

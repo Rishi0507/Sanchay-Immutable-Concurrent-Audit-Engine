@@ -87,6 +87,7 @@ Open http://localhost:5173. The front page tells the whole system as one story, 
 The diagrams of one tool call, the ledger write path, the audit and the four layers of protection, with the decisions behind each, are in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```mermaid
+%%{init: {"htmlLabels": false, "flowchart": {"wrappingWidth": 400}}}%%
 flowchart LR
     subgraph Callers
         CA[Client employee or agent]
@@ -142,6 +143,7 @@ Design rules that hold throughout:
 Deciding what must exist to prove that a sale really happened is part of the problem. The system records each step as its own event, and each step belongs to one department of the client.
 
 ```mermaid
+%%{init: {"htmlLabels": false, "flowchart": {"wrappingWidth": 400}}}%%
 flowchart LR
     subgraph Sales
         EQ[Enquiry] --> SO[Sales order]
@@ -178,6 +180,7 @@ Events of one sale share a `sale_id`, so `get_sale_chain` shows every stage of a
 ## The ledger
 
 ```mermaid
+%%{init: {"htmlLabels": false, "flowchart": {"wrappingWidth": 400}}}%%
 flowchart LR
     G[Genesis<br/>64 zero characters] --> E1[Event 1<br/>hash 1]
     E1 --> E2[Event 2<br/>hash 2]
@@ -215,6 +218,7 @@ An identity is a bearer token. Each token maps to one user and one role, and the
 The restriction holds at four layers. Each is sufficient on its own, so a failure in one does not grant access.
 
 ```mermaid
+%%{init: {"htmlLabels": false, "flowchart": {"wrappingWidth": 400}}}%%
 flowchart TB
     A[An auditor identity tries to change business data]
     A --> L1{L1 Tool list}
@@ -360,6 +364,7 @@ Fields are read from text PDFs directly and from scans by OCR, with Tesseract, w
 A client's own papers are often not in English. An invoice, a lorry receipt, a credit note or a goods return note written in Hindi or Marathi is read with the same schema and tested with the same nine checks.
 
 ```mermaid
+%%{init: {"htmlLabels": false, "flowchart": {"wrappingWidth": 400}}}%%
 flowchart LR
     D[Document in Devanagari] --> C[Digits to ASCII<br/>plain spaces and hyphens]
     C --> M{Label matches a known<br/>Hindi or Marathi wording?}
@@ -437,6 +442,7 @@ sequenceDiagram
 The evidence checks test whether a document looks genuine. A control request tests the client instead. Among the ordinary evidence requests, up to three ask for a document that should not exist.
 
 ```mermaid
+%%{init: {"htmlLabels": false, "flowchart": {"wrappingWidth": 400}}}%%
 flowchart TD
     R[A request for a document that should not exist] --> Q{How does the client answer}
     Q -->|upload_evidence with not_available| P[The control is passed]
@@ -488,6 +494,7 @@ A full chain does not make a sale genuine, and the page says so: circular tradin
 An auditor or an audit manager can ask about the engagement in plain words, in English, Hindi or Marathi: how many findings are High, why an invoice was flagged, what the control requests showed. In the interface it is a panel that stays over every auditor screen. For an agent it is the tool `ask_assistant`.
 
 ```mermaid
+%%{init: {"htmlLabels": false, "flowchart": {"wrappingWidth": 400}}}%%
 flowchart LR
     Q[Question] --> S[Search the passages<br/>of this engagement]
     S -->|nothing answers it| D[Declined<br/>no model call]
