@@ -841,10 +841,3 @@ The figures below are from one run of the full-year planted dataset on a laptop 
 | Planted items | Each of the 87 planted items has a finding of its category that names its subject |
 | Control requests | The simulated client supplied a document for all 3, and each is a High finding |
 | Revenue with a full chain of records | 99.8 percent of Rs 105.35 crore |
-
-## Repository conventions
-
-- All work is committed to `main`.
-- Each person changes only the paths they own (PRD section 26). A change to `contracts/` or `db/` is announced first.
-- Documentation uses a formal tone and no em dashes.
-- A key is never committed. `deploy/.env` holds local settings and is ignored by git.
