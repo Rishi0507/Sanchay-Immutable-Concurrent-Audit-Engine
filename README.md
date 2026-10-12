@@ -1,6 +1,6 @@
 <p align="center"><img src="docs/logo.png" alt="Sanchay" width="240"></p>
 
-<h1 align="center"><a href="https://drive.google.com/file/d/1Nfstc8Y_E1_rji2vRVHJ0-SGNY_W0HCA/view?usp=sharing">Click to see demo video</a></h1>
+<h1 align="center"><a href="https://drive.google.com/file/d/1Nfstc8Y_E1_rji2vRVHJ0-SGNY_W0HCA/view?usp=sharing">Click to see the demo video</a></h1>
 
 # Sanchay
 
